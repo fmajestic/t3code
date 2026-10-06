@@ -18,6 +18,7 @@ import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as PubSub from "effect/PubSub";
+import * as Queue from "effect/Queue";
 import * as Ref from "effect/Ref";
 import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
@@ -30,10 +31,12 @@ import * as DesktopConfig from "../app/DesktopConfig.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopObservability from "../app/DesktopObservability.ts";
 import * as DesktopState from "../app/DesktopState.ts";
+import * as ElectronApp from "../electron/ElectronApp.ts";
 import * as ElectronUpdater from "../electron/ElectronUpdater.ts";
 import * as ElectronWindow from "../electron/ElectronWindow.ts";
 import * as IpcChannels from "../ipc/channels.ts";
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
+import * as LocalAppReplace from "./LocalAppReplace.ts";
 import { normalizeDesktopUpdateReleaseNotes } from "./releaseNotes.ts";
 import { desktopUpdateChannelOf } from "@t3tools/shared/cliRelease";
 import { compareSemverVersions } from "@t3tools/shared/semver";
@@ -54,6 +57,7 @@ import {
 const CHANNEL_CHANGE_RETRY_DELAY = Duration.seconds(1);
 const CHANNEL_CHANGE_RETRIES = 30;
 const AUTO_UPDATE_STARTUP_DELAY = "15 seconds";
+const BUILD_OUTPUT_INTERVAL = "250 millis";
 const AUTO_UPDATE_POLL_INTERVAL = "4 minutes";
 const PREPARED_INSTALL_CHECK_WAIT = Duration.seconds(90);
 
@@ -360,6 +364,10 @@ export const make = Effect.gen(function* () {
   >([]);
   const finishedUpdateActions = yield* PubSub.unbounded<UpdateAction>();
   const updaterConfiguredRef = yield* Ref.make(false);
+  const localBuildRef = yield* Ref.make(Option.none<LocalAppReplace.LocalBuildInfo>());
+  const stagedLocalUpdateRef = yield* Ref.make(Option.none<LocalAppReplace.StagedLocalUpdate>());
+  // Optional so the update tests need no ElectronApp; only the local reinstall quits through it.
+  const electronApp = yield* Effect.serviceOption(ElectronApp.ElectronApp);
   const lastLoggedDownloadMilestoneRef = yield* Ref.make(-1);
   const notAppliedVersionRef = yield* Ref.make(Option.none<string>());
   // The release a track switch's database check cleared. A build crosses to another track only
@@ -435,6 +443,7 @@ export const make = Effect.gen(function* () {
   );
 
   const resolveDisabledReason = Effect.gen(function* () {
+    if (Option.isSome(yield* Ref.get(localBuildRef))) return Option.none<string>();
     const hasFeedConfig = yield* hasUpdateFeedConfig;
     return Option.fromNullishOr(
       getAutoUpdateDisabledReason({
@@ -819,12 +828,165 @@ export const make = Effect.gen(function* () {
       }),
     ).pipe(Effect.withSpan("desktop.updates.installDownloadedUpdate"));
 
+  // Staging only clones the app bundle; quitting waits for the install action and its confirmation.
+  const stageNewestLocalBuild = Effect.fn("desktop.updates.stageNewestLocalBuild")(function* (
+    releaseDir: string,
+  ) {
+    const update = yield* LocalAppReplace.findLocalUpdate({
+      fileSystem,
+      path: environment.path,
+      releaseDir,
+      arch: environment.processArch,
+      installedVersion: environment.appVersion,
+    });
+    const pending = yield* Ref.get(stagedLocalUpdateRef);
+    if (Option.isSome(pending) && Option.isSome(update)) {
+      if (pending.value.update.buildId === update.value.buildId) return pending;
+    }
+    if (Option.isSome(pending)) {
+      yield* fileSystem.remove(pending.value.stagingDir, { recursive: true }).pipe(Effect.ignore);
+      yield* Ref.set(stagedLocalUpdateRef, Option.none());
+    }
+    if (Option.isNone(update)) return Option.none<LocalAppReplace.StagedLocalUpdate>();
+    const staged = yield* LocalAppReplace.stageLocalUpdate({
+      fileSystem,
+      path: environment.path,
+      update: update.value,
+    });
+    yield* Ref.set(stagedLocalUpdateRef, Option.some(staged));
+    return Option.some(staged);
+  });
+
+  const checkLocalBuild = Effect.fn("desktop.updates.checkLocalBuild")(function* (
+    build: LocalAppReplace.LocalBuildInfo,
+  ) {
+    if (!(yield* tryStartUpdateAction("check"))) return false;
+    return yield* Effect.gen(function* () {
+      const startedAt = yield* currentIsoTimestamp;
+      yield* updateState((state) => reduceDesktopUpdateStateOnCheckStart(state, startedAt));
+      const found = yield* Effect.gen(function* () {
+        const staged = yield* stageNewestLocalBuild(build.releaseDir);
+        const commit = Option.isSome(staged)
+          ? Option.none<string>()
+          : yield* LocalAppReplace.findNewCommit(build);
+        return { staged, commit };
+      }).pipe(Effect.result);
+      const checkedAt = yield* currentIsoTimestamp;
+      if (found._tag === "Failure") {
+        yield* updateState((state) =>
+          reduceDesktopUpdateStateOnCheckFailure(state, found.failure.message, checkedAt),
+        );
+        return false;
+      }
+      const { staged, commit } = found.success;
+      yield* updateState((state) =>
+        Option.isSome(staged)
+          ? reduceDesktopUpdateStateOnDownloadComplete(state, staged.value.update.label)
+          : Option.isSome(commit)
+            ? reduceDesktopUpdateStateOnUpdateAvailable(state, commit.value, checkedAt)
+            : reduceDesktopUpdateStateOnNoUpdate(state, checkedAt),
+      );
+      return true;
+    }).pipe(Effect.ensuring(finishUpdateAction("check")));
+  });
+
+  const buildLocalUpdate = Effect.fn("desktop.updates.buildLocalUpdate")(function* (
+    build: LocalAppReplace.LocalBuildInfo,
+  ) {
+    const state = yield* Ref.get(updateStateRef);
+    if (state.status !== "available" || !(yield* tryStartUpdateAction("download"))) {
+      return { accepted: false, completed: false };
+    }
+    return yield* Effect.gen(function* () {
+      yield* setState({
+        ...reduceDesktopUpdateStateOnDownloadStart(state),
+        downloadPercent: null,
+        buildOutput: [],
+      });
+      yield* logUpdaterInfo("building local update", { commit: state.availableVersion });
+      yield* Effect.scoped(
+        Effect.gen(function* () {
+          const output = yield* Queue.sliding<ReadonlyArray<string>>(1);
+          // Each state change is an IPC broadcast, so output reaches the renderer at most 4x a second.
+          yield* Queue.take(output).pipe(
+            Effect.flatMap((lines) =>
+              updateState((current) =>
+                current.status === "downloading" ? { ...current, buildOutput: lines } : current,
+              ),
+            ),
+            Effect.andThen(Effect.sleep(BUILD_OUTPUT_INTERVAL)),
+            Effect.forever,
+            Effect.forkScoped,
+          );
+          yield* LocalAppReplace.buildLocalUpdate({
+            fileSystem,
+            path: environment.path,
+            releaseDir: build.releaseDir,
+            onOutput: (lines) => Queue.offerUnsafe(output, lines),
+          });
+        }),
+      );
+      const staged = yield* stageNewestLocalBuild(build.releaseDir);
+      if (Option.isNone(staged)) {
+        return yield* new LocalAppReplace.LocalAppReplaceError({
+          message: `The build left no new app bundle in ${build.releaseDir}`,
+        });
+      }
+      yield* updateState((current) =>
+        reduceDesktopUpdateStateOnDownloadComplete(current, staged.value.update.label),
+      );
+      return { accepted: true, completed: true };
+    }).pipe(
+      Effect.catchTags({
+        LocalAppReplaceError: Effect.fn("desktop.updates.handleLocalReplaceFailure")(
+          function* (error) {
+            yield* updateState((current) =>
+              reduceDesktopUpdateStateOnDownloadFailure(current, error.message),
+            );
+            yield* logUpdaterError(error.message, { errorTag: error._tag });
+            return { accepted: true, completed: false };
+          },
+        ),
+      }),
+      Effect.onInterrupt(() =>
+        updateState((current) => (current.status === "downloading" ? state : current)).pipe(
+          Effect.asVoid,
+        ),
+      ),
+      Effect.ensuring(finishUpdateAction("download")),
+    );
+  });
+
+  const installLocalReplace = Effect.fn("desktop.updates.installLocalReplace")(function* (
+    staged: LocalAppReplace.StagedLocalUpdate,
+  ) {
+    yield* Ref.set(desktopState.quitting, true);
+    const instances = yield* pool.list;
+    yield* Effect.forEach(
+      instances,
+      (instance) => instance.stop({ timeout: Duration.seconds(5) }),
+      { concurrency: "unbounded" },
+    );
+    yield* staged.swap;
+    if (Option.isSome(electronApp)) yield* electronApp.value.quit;
+  });
+
   const installWithExpectedVersion = Effect.fn("desktop.updates.install")(function* (
     expectedVersion?: string,
   ) {
     if (yield* Ref.get(desktopState.quitting)) {
       return {
         accepted: false,
+        completed: false,
+        failed: false,
+        state: yield* Ref.get(updateStateRef),
+      };
+    }
+    const stagedLocalUpdate = yield* Ref.get(stagedLocalUpdateRef);
+    if (Option.isSome(stagedLocalUpdate)) {
+      yield* installLocalReplace(stagedLocalUpdate.value);
+      return {
+        accepted: true,
         completed: false,
         failed: false,
         state: yield* Ref.get(updateStateRef),
@@ -1091,6 +1253,25 @@ export const make = Effect.gen(function* () {
       }
 
       const settings = yield* desktopSettings.get;
+      if (
+        environment.platform === "darwin" &&
+        environment.isPackaged &&
+        Option.isNone(appUpdateYmlConfig) &&
+        !config.mockUpdates
+      ) {
+        const localBuild = yield* LocalAppReplace.readLocalBuildInfo(
+          fileSystem,
+          environment.appPath,
+        );
+        if (Option.isSome(localBuild)) {
+          yield* Ref.set(localBuildRef, localBuild);
+          yield* setState({
+            ...createBaseUpdateState(settings.updateChannel, Option.none(), environment),
+            localBuild: true,
+          });
+          return;
+        }
+      }
       const disabledReason = yield* resolveDisabledReason;
       yield* setState(yield* baseUpdateState(settings.updateChannel, disabledReason));
       if (Option.isSome(disabledReason)) {
@@ -1200,6 +1381,13 @@ export const make = Effect.gen(function* () {
       options?: { readonly allowDowngrade?: boolean },
     ) {
       yield* Effect.annotateCurrentSpan({ reason });
+      const localBuild = yield* Ref.get(localBuildRef);
+      if (Option.isSome(localBuild)) {
+        return {
+          checked: yield* checkLocalBuild(localBuild.value),
+          state: yield* Ref.get(updateStateRef),
+        };
+      }
       if (!(yield* Ref.get(updaterConfiguredRef))) {
         return {
           checked: false,
@@ -1213,7 +1401,10 @@ export const make = Effect.gen(function* () {
       };
     }),
     download: Effect.gen(function* () {
-      const result = yield* downloadAvailableUpdate;
+      const localBuild = yield* Ref.get(localBuildRef);
+      const result = yield* Option.isSome(localBuild)
+        ? buildLocalUpdate(localBuild.value)
+        : downloadAvailableUpdate;
       return {
         accepted: result.accepted,
         completed: result.completed,
