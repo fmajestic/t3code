@@ -77,6 +77,25 @@ describe("desktop update button state", () => {
     ).toContain("1.2.0 downloaded");
   });
 
+  it("says a local build was built, not downloaded", () => {
+    const state: DesktopUpdateState = {
+      ...baseState,
+      localBuild: true,
+      status: "downloaded",
+      availableVersion: "abc1234",
+      downloadedVersion: "0.0.46-fork.1",
+    };
+    expect(getDesktopUpdateButtonTooltip(state)).toBe(
+      "Update 0.0.46-fork.1 built. Click to restart and install.",
+    );
+    expect(
+      getDesktopUpdateButtonTooltip({ ...state, status: "error", errorContext: "check" }),
+    ).toBe("Update 0.0.46-fork.1 built. Click to restart and install.");
+    expect(
+      getDesktopUpdateButtonTooltip({ ...state, status: "error", errorContext: "install" }),
+    ).toBe("Install failed for 0.0.46-fork.1. Click to retry.");
+  });
+
   it("keeps install action available after an install error", () => {
     const state: DesktopUpdateState = {
       ...baseState,

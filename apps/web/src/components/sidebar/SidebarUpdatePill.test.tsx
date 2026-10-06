@@ -44,6 +44,23 @@ describe("sidebar update release notes popover", () => {
     ).toBe(false);
   });
 
+  it("uses the popover for a running local build's output", () => {
+    const building = {
+      ...nightlyState,
+      channel: "latest",
+      releaseNotes: [],
+      status: "downloading",
+      localBuild: true,
+    } as const;
+    expect(shouldUseSidebarUpdateReleaseNotesPopover(true, building)).toBe(true);
+    expect(
+      shouldUseSidebarUpdateReleaseNotesPopover(true, { ...building, status: "available" }),
+    ).toBe(false);
+    expect(
+      shouldUseSidebarUpdateReleaseNotesPopover(true, { ...building, localBuild: false }),
+    ).toBe(false);
+  });
+
   it("cancels trigger presses without canceling other open reasons", () => {
     const cancelTriggerPress = vi.fn();
     const cancelHover = vi.fn();

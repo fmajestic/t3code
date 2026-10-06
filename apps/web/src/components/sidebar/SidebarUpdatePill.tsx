@@ -32,6 +32,7 @@ import {
   shouldContinueDesktopUpdateCheckAnimation,
   shouldShowDesktopUpdateCheckIcon,
 } from "./DesktopUpdateStatusIcon";
+import { SidebarLocalBuildOutput } from "./SidebarLocalBuildOutput";
 import { SidebarUpdateReleaseNotes } from "./SidebarUpdateReleaseNotes";
 import { SidebarUpdateCapsule } from "./SidebarUpdateCapsule";
 import { UpdateEverythingDialog } from "./UpdateEverythingDialog";
@@ -52,7 +53,14 @@ export function shouldUseSidebarUpdateReleaseNotesPopover(
   showUpdateDetails: boolean,
   state: DesktopUpdateState | null,
 ): boolean {
-  return showUpdateDetails && state?.channel === "nightly" && state.releaseNotes.length > 0;
+  return (
+    showUpdateDetails &&
+    ((state?.channel === "nightly" && state.releaseNotes.length > 0) || isLocalBuildRunning(state))
+  );
+}
+
+function isLocalBuildRunning(state: DesktopUpdateState | null): state is DesktopUpdateState {
+  return state?.localBuild === true && state.status === "downloading";
 }
 
 export function handleSidebarUpdateReleaseNotesPopoverOpenChange(
@@ -148,7 +156,12 @@ async function downloadLocalUpdate(
     const actionError = shouldToastDesktopUpdateActionResult(result)
       ? getDesktopUpdateActionError(result)
       : null;
-    if (actionError) reportError("Could not download update", actionError);
+    if (actionError) {
+      reportError(
+        result.state.localBuild ? "Could not build update" : "Could not download update",
+        actionError,
+      );
+    }
     return result.completed;
   } catch (error) {
     reportError(
@@ -387,6 +400,7 @@ function SidebarUpdateControl() {
       key={showCheckIcon ? checkAnimationKey : iconStatus}
       downloadPercent={state?.downloadPercent ?? null}
       isCheckAnimating={showCheckIcon && !prefersReducedMotion}
+      localBuild={state?.localBuild === true}
       onCheckAnimationIteration={handleCheckAnimationIteration}
       status={iconStatus}
     />
@@ -527,7 +541,9 @@ function SidebarUpdateControl() {
         {showReleaseNotesPopover && state ? (
           <PopoverPopup
             align="center"
-            aria-label="Nightly update release notes"
+            aria-label={
+              isLocalBuildRunning(state) ? "Local build output" : "Nightly update release notes"
+            }
             initialFocus={false}
             onKeyDownCapture={(event) => {
               if (
@@ -541,11 +557,15 @@ function SidebarUpdateControl() {
             side="top"
             tooltipStyle
           >
-            <SidebarUpdateReleaseNotes
-              shell={window.desktopBridge}
-              state={state}
-              tooltip={tooltip}
-            />
+            {isLocalBuildRunning(state) ? (
+              <SidebarLocalBuildOutput lines={state.buildOutput ?? []} tooltip={tooltip} />
+            ) : (
+              <SidebarUpdateReleaseNotes
+                shell={window.desktopBridge}
+                state={state}
+                tooltip={tooltip}
+              />
+            )}
           </PopoverPopup>
         ) : null}
       </Popover>
