@@ -19,7 +19,7 @@ if (!projectRoot) {
 const worktree = NodePath.dirname(import.meta.dirname);
 
 // `shell` resolves `vp` through PATH, including Windows command shims.
-const install = NodeChildProcess.spawnSync("vp i", {
+const install = NodeChildProcess.spawnSync("vp run i:desktop", {
   cwd: worktree,
   shell: true,
   stdio: "inherit",

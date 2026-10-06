@@ -162,3 +162,7 @@ Architecture and its constraints: `docs/internals/overview.md`. Glossary: `docs/
 
 - Don't verify with browsers or computer use unless the user explicitly agrees or requests it.
 - Security is important, but should not be over-indexed on, especially for dev mode/maintainer-only features.
+
+## Fork
+
+This checkout is a personal fork; see `FORK.md`. Install with `vp run i:desktop` instead of `vp i`, so the mobile app's dependencies are skipped.
