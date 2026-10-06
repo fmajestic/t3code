@@ -52,7 +52,7 @@ if (!projectRoot) {
 // Install exactly the locked dependencies so setup never rewrites the lockfile.
 // A stale lockfile must fail setup rather than silently resolving a new one.
 // Output is piped, not inherited, so a failure can keep its tail in the marker.
-const install = NodeChildProcess.spawn("vp i --frozen-lockfile -- --yes", {
+const install = NodeChildProcess.spawn("vp run i:desktop -- --yes", {
   cwd: worktree,
   shell: true,
   stdio: ["ignore", "pipe", "pipe"],
