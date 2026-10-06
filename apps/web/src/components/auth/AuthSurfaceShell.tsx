@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { APP_DISPLAY_NAME, APP_STAGE_LABEL } from "../../branding";
+import { useAlphaStageArt } from "../AlphaStageArt";
 import { resolveSidebarStageBackdropVariant, StageBackdropArt } from "../SidebarStageBackdrop";
 import { StandalonePage } from "../ui/standalone-page";
 
@@ -8,7 +9,8 @@ import { StandalonePage } from "../ui/standalone-page";
  * Branded masthead for the CLI-connect authorize and callback pages.
  */
 export function AuthSurfaceShell({ children }: { readonly children: ReactNode }) {
-  const stageVariant = resolveSidebarStageBackdropVariant(APP_STAGE_LABEL);
+  const [alphaArt] = useAlphaStageArt();
+  const stageVariant = resolveSidebarStageBackdropVariant(APP_STAGE_LABEL, true, alphaArt);
 
   return (
     <StandalonePage

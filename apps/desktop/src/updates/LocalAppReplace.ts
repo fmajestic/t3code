@@ -55,6 +55,8 @@ export function appBundleFromExecPath(execPath: string): Option.Option<string> {
 const SWAP_SCRIPT = `
 while kill -0 "$1" 2>/dev/null; do sleep 0.2; done
 rm -rf "$2" && mv "$3" "$2" && rmdir "$(dirname "$3")"
+# A bundle replaced in place keeps its old cached icon until LaunchServices sees it change.
+touch "$2" && /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$2"
 open "$2"
 `;
 

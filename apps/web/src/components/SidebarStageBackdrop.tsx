@@ -4,9 +4,15 @@ import { useId } from "react";
 import { APP_STAGE_LABEL } from "../branding";
 import { resolveServerBackedAppStageLabel } from "../branding.logic";
 import { primaryServerConfigAtom } from "../state/server";
+import {
+  AlphaStageArt,
+  type AlphaStageArtVariant,
+  DEFAULT_ALPHA_STAGE_ART,
+  useAlphaStageArt,
+} from "./AlphaStageArt";
 
-export type SidebarStageBackdropVariant = "nightly" | "dev";
-export type EnvironmentIdentificationPillLabel = "Dev" | "Nightly";
+export type SidebarStageBackdropVariant = "nightly" | "dev" | AlphaStageArtVariant;
+export type EnvironmentIdentificationPillLabel = "Dev" | "Nightly" | "Alpha";
 
 // A wide viewBox keeps the 96-unit art height at a fixed scale while sidebar resizing reveals
 // more horizontal canvas instead of zooming the scene.
@@ -15,11 +21,13 @@ const STAGE_BACKDROP_VIEW_BOX = "0 0 8192 96";
 export function resolveSidebarStageBackdropVariant(
   stageLabel: string,
   enabled = true,
+  alphaArt: AlphaStageArtVariant = DEFAULT_ALPHA_STAGE_ART,
 ): SidebarStageBackdropVariant | null {
   if (!enabled) return null;
   const normalized = stageLabel.trim().toLowerCase();
   if (normalized === "nightly") return "nightly";
   if (normalized === "dev") return "dev";
+  if (normalized === "alpha") return alphaArt;
   return null;
 }
 
@@ -29,6 +37,7 @@ export function resolveEnvironmentIdentificationPillLabel(
   const normalized = stageLabel.trim().toLowerCase();
   if (normalized === "dev") return "Dev";
   if (normalized === "nightly") return "Nightly";
+  if (normalized === "alpha") return "Alpha";
   return null;
 }
 
@@ -43,7 +52,8 @@ export function useEnvironmentStageLabel(): string {
 }
 
 export function useSidebarStageBackdropVariant(enabled = true): SidebarStageBackdropVariant | null {
-  return resolveSidebarStageBackdropVariant(useEnvironmentStageLabel(), enabled);
+  const [alphaArt] = useAlphaStageArt();
+  return resolveSidebarStageBackdropVariant(useEnvironmentStageLabel(), enabled, alphaArt);
 }
 
 /** Stage-channel header art; palettes mirror the per-channel app icons in `assets/`. */
@@ -58,12 +68,20 @@ export function SidebarStageBackdrop({ variant }: { variant: SidebarStageBackdro
   );
 }
 
-export function StageBackdropArt({ variant }: { variant: SidebarStageBackdropVariant }) {
-  return variant === "nightly" ? <NightlySkyArt /> : <DevBlueprintArt />;
+export function StageBackdropArt({
+  variant,
+  compact = false,
+}: {
+  variant: SidebarStageBackdropVariant;
+  compact?: boolean;
+}) {
+  if (variant === "nightly") return <NightlySkyArt compact={compact} />;
+  if (variant === "dev") return <DevBlueprintArt compact={compact} />;
+  return <AlphaStageArt variant={variant} compact={compact} />;
 }
 
 export function StageBackdropButtonArt({ variant }: { variant: SidebarStageBackdropVariant }) {
-  return variant === "nightly" ? <NightlySkyArt compact /> : <DevBlueprintArt compact />;
+  return <StageBackdropArt variant={variant} compact />;
 }
 
 const NIGHTLY_STARS: ReadonlyArray<{

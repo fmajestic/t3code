@@ -69,6 +69,13 @@ import {
   resolveEnvironmentIdentificationPillLabel,
   useEnvironmentStageLabel,
 } from "../SidebarStageBackdrop";
+import {
+  ALPHA_STAGE_ART_LABELS,
+  AlphaStageArtVariant,
+  DEFAULT_ALPHA_STAGE_ART,
+  useAlphaStageArt,
+} from "../AlphaStageArt";
+import { useEnvironmentIdentificationMode } from "../../hooks/useSettings";
 import { isElectron } from "../../env";
 import { buildHostedChannelSelectionUrl, type HostedAppChannel } from "../../hostedPairing";
 import { useCustomThemes } from "../../hooks/useCustomThemes";
@@ -170,6 +177,8 @@ import {
 import { searchableSetting } from "./settingsSearch";
 import { ProjectFavicon } from "../ProjectFavicon";
 import { PanelAnimationsPreview } from "./PanelAnimationsPreview";
+
+const isAlphaStageArtVariant = Schema.is(AlphaStageArtVariant);
 
 const ENVIRONMENT_IDENTIFICATION_LABELS: Record<EnvironmentIdentificationMode, string> = {
   artwork: "Artwork",
@@ -1167,6 +1176,11 @@ export function AppearanceSettingsPanel() {
   const environmentStageLabel = useEnvironmentStageLabel();
   const showEnvironmentIdentification =
     resolveEnvironmentIdentificationPillLabel(environmentStageLabel) !== null;
+  const [alphaArt, setAlphaArt] = useAlphaStageArt();
+  const effectiveEnvironmentIdentificationMode = useEnvironmentIdentificationMode();
+  const showAlphaArtwork =
+    resolveEnvironmentIdentificationPillLabel(environmentStageLabel) === "Alpha" &&
+    effectiveEnvironmentIdentificationMode === "artwork";
   const glassOpacityRatio =
     (settings.glassOpacity - MIN_GLASS_OPACITY) / (MAX_GLASS_OPACITY - MIN_GLASS_OPACITY);
   const glassOpacitySliderStyle = {
@@ -1306,7 +1320,7 @@ export function AppearanceSettingsPanel() {
         {showEnvironmentIdentification ? (
           <SettingsRow
             {...searchableSetting("environment-identification")}
-            description="Choose how Dev and Nightly environments are identified."
+            description="Choose how Dev, Nightly and Alpha environments are identified."
             resetAction={
               settings.environmentIdentificationMode !== DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE ? (
                 <SettingResetButton
@@ -1339,6 +1353,40 @@ export function AppearanceSettingsPanel() {
                 </SelectTrigger>
                 <SelectPopup align="end" alignItemWithTrigger={false}>
                   {Object.entries(ENVIRONMENT_IDENTIFICATION_LABELS).map(([value, label]) => (
+                    <SelectItem hideIndicator key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
+            }
+          />
+        ) : null}
+
+        {showAlphaArtwork ? (
+          <SettingsRow
+            {...searchableSetting("alpha-artwork")}
+            description="Choose the sidebar and send button artwork for Alpha builds."
+            resetAction={
+              alphaArt !== DEFAULT_ALPHA_STAGE_ART ? (
+                <SettingResetButton
+                  label="Alpha artwork"
+                  onClick={() => setAlphaArt(DEFAULT_ALPHA_STAGE_ART)}
+                />
+              ) : null
+            }
+            control={
+              <Select
+                value={alphaArt}
+                onValueChange={(value) => {
+                  if (isAlphaStageArtVariant(value)) setAlphaArt(value);
+                }}
+              >
+                <SelectTrigger size="sm" className="w-full sm:w-40" aria-label="Alpha artwork">
+                  <SelectValue>{ALPHA_STAGE_ART_LABELS[alphaArt]}</SelectValue>
+                </SelectTrigger>
+                <SelectPopup align="end" alignItemWithTrigger={false}>
+                  {Object.entries(ALPHA_STAGE_ART_LABELS).map(([value, label]) => (
                     <SelectItem hideIndicator key={value} value={value}>
                       {label}
                     </SelectItem>

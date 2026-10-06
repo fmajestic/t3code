@@ -13,6 +13,7 @@ import {
   SidebarStageBackdrop,
   useEnvironmentStageLabel,
 } from "../SidebarStageBackdrop";
+import { useAlphaStageArt } from "../AlphaStageArt";
 import { Badge } from "../ui/badge";
 import {
   SidebarFooter,
@@ -37,9 +38,11 @@ export const SidebarChromeHeader = memo(function SidebarChromeHeader({
 }) {
   const stageLabel = useEnvironmentStageLabel();
   const environmentIdentificationMode = useEnvironmentIdentificationMode();
+  const [alphaArt] = useAlphaStageArt();
   const backdropVariant = resolveSidebarStageBackdropVariant(
     stageLabel,
     environmentIdentificationMode === "artwork",
+    alphaArt,
   );
   const pillLabel =
     environmentIdentificationMode === "pill"

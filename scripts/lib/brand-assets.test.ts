@@ -25,7 +25,7 @@ describe("brand-assets", () => {
         targetRelativePath: "dist/client/favicon-32x32.png",
       },
       {
-        sourceRelativePath: BRAND_ASSET_PATHS.productionWebAppleTouchIconPng,
+        sourceRelativePath: BRAND_ASSET_PATHS.majesticWebAppleTouchIconPng,
         targetRelativePath: "dist/client/apple-touch-icon.png",
       },
     ]);
@@ -61,7 +61,7 @@ describe("brand-assets", () => {
 
   it("can target hosted web dist directly", () => {
     expect(resolveWebIconOverrides("production", "apps/web/dist")).toContainEqual({
-      sourceRelativePath: BRAND_ASSET_PATHS.productionWebAppleTouchIconPng,
+      sourceRelativePath: BRAND_ASSET_PATHS.majesticWebAppleTouchIconPng,
       targetRelativePath: "apps/web/dist/apple-touch-icon.png",
     });
   });

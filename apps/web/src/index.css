@@ -673,6 +673,47 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
     --stage-night-glow-highlight: oklch(0.553749 0.176543 271.958);
     --stage-night-glow-secondary: oklch(0.345571 0.117466 273.568);
     --stage-night-sparkle: oklch(0.880867 0.057747 269.011);
+    /* Fork-local Alpha artwork palettes, see AlphaStageArt.tsx. */
+    --stage-contour-top: #1d4744;
+    --stage-contour-mid: #173638;
+    --stage-contour-bottom: #112530;
+    --stage-contour-scrim: #0a1a1e;
+    --stage-contour-line: #cfeee4;
+    --stage-contour-mark: #f2c879;
+    --stage-ridge-sky-top: #55387c;
+    --stage-ridge-sky-mid: #c8607c;
+    --stage-ridge-sky-low: #ffa95a;
+    --stage-ridge-sky-horizon: #ffd27a;
+    --stage-ridge-sun-core: #fff3c4;
+    --stage-ridge-sun-glow: #ffe08a;
+    --stage-ridge-sun-haze: #ffb860;
+    --stage-ridge-sun-edge: #ff9a50;
+    --stage-ridge-scrim: #2a1a4a;
+    --stage-ridge-sun: #fff6d6;
+    --stage-ridge-far: #b4606f;
+    --stage-ridge-mid: #84446b;
+    --stage-ridge-near: #3a2048;
+    --stage-sunrise-sky-top: #1f2457;
+    --stage-sunrise-sky-mid: #6a3f86;
+    --stage-sunrise-sky-low: #e2788a;
+    --stage-sunrise-sky-horizon: #ffc06e;
+    --stage-sunrise-water-top: #3d306c;
+    --stage-sunrise-water-bottom: #221a44;
+    --stage-sunrise-glow-core: #fff0b8;
+    --stage-sunrise-glow: #ffcf7a;
+    --stage-sunrise-glow-edge: #ff9a6a;
+    --stage-sunrise-rays: #ffe2a0;
+    --stage-sunrise-scrim: #141a44;
+    --stage-sunrise-sun: #fff4cf;
+    --stage-sunrise-horizon: #ffe0a0;
+    --stage-sunrise-glint: #ffe7a8;
+    --stage-sunrise-star: #fff;
+    --stage-halftone-paper-start: #b93a55;
+    --stage-halftone-paper-mid: #8f2a62;
+    --stage-halftone-paper-end: #4a2580;
+    --stage-halftone-scrim: #2a0f2e;
+    --stage-halftone-ink-shadow: #1d2a8a;
+    --stage-halftone-ink: #ffcf4d;
 
     @variant dark {
       --stage-art-top: oklch(0.581473 0.149124 256.9);

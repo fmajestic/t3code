@@ -6,6 +6,10 @@ export const BRAND_ASSET_PATHS = {
   productionIconComposerProject: "assets/prod/app-icon.icon",
   productionIosIconPng: "assets/prod/black-ios-1024.png",
   productionMacIconPng: "assets/prod/black-macos-1024.png",
+  // Fork-local: Ridge artwork icon for local builds; regenerate with `resvg -w 1024 -h 1024` from the .svg.
+  majesticMacIconPng: "assets/majestic/ridge-macos-1024.png",
+  // Fork-local: the 824px tile of ridge-macos-1024.png, cropped and scaled to 180px.
+  majesticWebAppleTouchIconPng: "assets/majestic/ridge-web-apple-touch-180.png",
   productionLinuxIconPng: "assets/prod/black-universal-1024.png",
   productionWindowsIconIco: "assets/prod/t3-black-windows.ico",
   productionWebFaviconIco: "assets/prod/t3-black-web-favicon.ico",
@@ -74,7 +78,7 @@ const WEB_ICON_SOURCE_PATHS_BY_BRAND = {
     faviconIco: BRAND_ASSET_PATHS.productionWebFaviconIco,
     favicon16Png: BRAND_ASSET_PATHS.productionWebFavicon16Png,
     favicon32Png: BRAND_ASSET_PATHS.productionWebFavicon32Png,
-    appleTouchIconPng: BRAND_ASSET_PATHS.productionWebAppleTouchIconPng,
+    appleTouchIconPng: BRAND_ASSET_PATHS.majesticWebAppleTouchIconPng,
   },
 } as const satisfies Record<WebAssetBrand, Record<keyof typeof WEB_ICON_TARGET_FILENAMES, string>>;
 

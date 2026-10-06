@@ -1202,6 +1202,8 @@ export interface DesktopBridge {
    */
   pickThemeFiles?: () => Promise<readonly PickedThemeFile[] | null>;
   setTheme: (theme: DesktopTheme) => Promise<void>;
+  /** Fork-local: a PNG data URL for the running Dock tile, or null for the packaged icon. */
+  setDockIcon?: (image: string | null) => Promise<void>;
   showContextMenu: <T extends string>(
     items: readonly ContextMenuItem<T>[],
     position?: { x: number; y: number },

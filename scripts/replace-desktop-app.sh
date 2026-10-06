@@ -30,4 +30,7 @@ echo "Installing $zip"
 # ditto merges into an existing bundle, so stale files would survive and break the ad-hoc signature.
 rm -rf "$target"
 ditto -x -k "$zip" "$HOME/Applications/"
+# A bundle replaced in place keeps its old cached icon until LaunchServices sees it change.
+touch "$target"
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$target"
 echo "Installed $target"
