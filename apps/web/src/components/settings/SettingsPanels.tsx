@@ -78,6 +78,13 @@ import {
   resolveEnvironmentIdentificationPillLabel,
   useEnvironmentStageLabel,
 } from "../SidebarStageBackdrop";
+import {
+  BETA_STAGE_ART_LABELS,
+  BetaStageArtVariant,
+  DEFAULT_BETA_STAGE_ART,
+  useBetaStageArt,
+} from "../BetaStageArt";
+import { useEnvironmentIdentificationMode } from "../../hooks/useSettings";
 import { isElectron } from "../../env";
 import { buildHostedChannelSelectionUrl, type HostedAppChannel } from "../../hostedPairing";
 import { useCustomThemes } from "../../hooks/useCustomThemes";
@@ -179,6 +186,8 @@ import {
 import { searchableSetting } from "./settingsSearch";
 import { ProjectFavicon } from "../ProjectFavicon";
 import { PanelAnimationsPreview } from "./PanelAnimationsPreview";
+
+const isBetaStageArtVariant = Schema.is(BetaStageArtVariant);
 
 const ENVIRONMENT_IDENTIFICATION_LABELS: Record<EnvironmentIdentificationMode, string> = {
   artwork: "Artwork",
@@ -1105,6 +1114,11 @@ export function AppearanceSettingsPanel() {
   const environmentStageLabel = useEnvironmentStageLabel();
   const showEnvironmentIdentification =
     resolveEnvironmentIdentificationPillLabel(environmentStageLabel) !== null;
+  const [betaArt, setBetaArt] = useBetaStageArt();
+  const effectiveEnvironmentIdentificationMode = useEnvironmentIdentificationMode();
+  const showBetaArtwork =
+    resolveEnvironmentIdentificationPillLabel(environmentStageLabel) === "Beta" &&
+    effectiveEnvironmentIdentificationMode === "artwork";
   const glassOpacityRatio =
     (settings.glassOpacity - MIN_GLASS_OPACITY) / (MAX_GLASS_OPACITY - MIN_GLASS_OPACITY);
   const glassOpacitySliderStyle = {
@@ -1244,7 +1258,7 @@ export function AppearanceSettingsPanel() {
         {showEnvironmentIdentification ? (
           <SettingsRow
             {...searchableSetting("environment-identification")}
-            description="Choose how Dev and Nightly environments are identified."
+            description="Choose how Dev, Nightly and Beta environments are identified."
             resetAction={
               settings.environmentIdentificationMode !== DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE ? (
                 <SettingResetButton
@@ -1277,6 +1291,40 @@ export function AppearanceSettingsPanel() {
                 </SelectTrigger>
                 <SelectPopup align="end" alignItemWithTrigger={false}>
                   {Object.entries(ENVIRONMENT_IDENTIFICATION_LABELS).map(([value, label]) => (
+                    <SelectItem hideIndicator key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
+            }
+          />
+        ) : null}
+
+        {showBetaArtwork ? (
+          <SettingsRow
+            {...searchableSetting("beta-artwork")}
+            description="Choose the sidebar and send button artwork for Beta builds."
+            resetAction={
+              betaArt !== DEFAULT_BETA_STAGE_ART ? (
+                <SettingResetButton
+                  label="Beta artwork"
+                  onClick={() => setBetaArt(DEFAULT_BETA_STAGE_ART)}
+                />
+              ) : null
+            }
+            control={
+              <Select
+                value={betaArt}
+                onValueChange={(value) => {
+                  if (isBetaStageArtVariant(value)) setBetaArt(value);
+                }}
+              >
+                <SelectTrigger size="sm" className="w-full sm:w-40" aria-label="Beta artwork">
+                  <SelectValue>{BETA_STAGE_ART_LABELS[betaArt]}</SelectValue>
+                </SelectTrigger>
+                <SelectPopup align="end" alignItemWithTrigger={false}>
+                  {Object.entries(BETA_STAGE_ART_LABELS).map(([value, label]) => (
                     <SelectItem hideIndicator key={value} value={value}>
                       {label}
                     </SelectItem>

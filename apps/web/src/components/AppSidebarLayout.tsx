@@ -37,6 +37,7 @@ import { SettingsSidebarNav } from "./settings/SettingsSidebarNav";
 import { SidebarBrandWidthProbe, SidebarChromeHeader } from "./sidebar/SidebarChrome";
 import { MainAppLocationTracker } from "./sidebar/mainAppLocation";
 import { useSidebarStageBackdropVariant } from "./SidebarStageBackdrop";
+import { DockArtworkIcon } from "./DockArtworkIcon";
 import { useProjects } from "../state/entities";
 import {
   clampThreadSidebarWidth,
@@ -358,6 +359,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
         <SidebarControl />
         <NavigationHistoryShortcuts />
         <MainAppLocationTracker />
+        <DockArtworkIcon />
       </SidebarProvider>
     </PanelAnimationSuppressionProvider>
   );
