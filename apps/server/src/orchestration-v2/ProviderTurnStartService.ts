@@ -1,5 +1,4 @@
 import { modelSelectionsEqual } from "@t3tools/shared/model";
-import { projectComposerContextForProvider } from "@t3tools/shared/composerContextReferences";
 import {
   CommandId,
   latestProviderTurnForAttempt,
@@ -53,6 +52,7 @@ import {
   knownProviderFailureMessage,
   makeProviderFailure,
 } from "@t3tools/provider-core/server/failure";
+import { providerUserMessageText } from "./ProviderMessageText.ts";
 import * as RunExecutionService from "./RunExecutionService.ts";
 import * as RuntimePolicy from "./RuntimePolicy.ts";
 import {
@@ -490,6 +490,26 @@ export const layer: Layer.Layer<
           });
         },
       );
+      const providerText = yield* Effect.result(providerUserMessageText(message));
+      if (providerText._tag === "Failure") {
+        yield* settleRunBeforeStart({
+          signal: "provider-input-too-long",
+          status: "failed",
+          now: yield* DateTime.now,
+          providerInstanceId: run.providerInstanceId,
+          itemProviderThreadId: providerThread.id,
+          item: {
+            type: "error",
+            title: "Message is too long",
+            failure: makeProviderFailure({
+              class: "validation_error",
+              message: providerText.failure.message,
+            }),
+          },
+        });
+        return;
+      }
+      const userText = providerText.success;
       if (message.attachments.length === 0 && message.text.trimStart().startsWith("/")) {
         const isEmptyCompaction =
           message.text.trim().toLowerCase() === "/compact" && !projection.hasConversation;
@@ -522,10 +542,7 @@ export const layer: Layer.Layer<
           : yield* Effect.result(
               providerAuth.tryHandlePromptCommand({
                 instanceId: authInstanceId,
-                text: projectComposerContextForProvider({
-                  text: message.text,
-                  records: message.context?.records ?? [],
-                }),
+                text: userText,
                 hasAttachments: false,
               }),
             );
@@ -765,10 +782,6 @@ export const layer: Layer.Layer<
       });
       let effectiveHandoffs = handoffs;
       let resumeFellBack = false;
-      const userText = projectComposerContextForProvider({
-        text: message.text,
-        records: message.context?.records ?? [],
-      });
       // Codex and Claude parse /goal from the prompt, so it goes verbatim and history waits a turn.
       const goalDriver = session.driver === "codex" || session.driver === "claudeAgent";
       const goalCommand = goalDriver && parseGoalCommand(message) !== null;
