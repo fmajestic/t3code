@@ -967,6 +967,8 @@ interface StagePackageJson {
   readonly buildVersion: string;
   readonly t3codeCommitHash: string;
   readonly t3codeWebAuthn?: MacWebAuthnEntitlements;
+  // Fork-local: where an unpublished mac build reinstalls itself from, see LocalAppReplace.ts.
+  readonly t3LocalReleaseDir?: string;
   readonly private: true;
   readonly packageManager: string;
   readonly description: string;
@@ -3904,6 +3906,9 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
     t3codeCommitHash: commitHash,
     // Read by apps/desktop/src/preview/Passkeys.ts; must match the signed entitlements.
     ...(macWebAuthn ? { t3codeWebAuthn: macWebAuthn } : {}),
+    ...(options.platform === "mac" && !options.mockUpdates
+      ? { t3LocalReleaseDir: options.outputDir }
+      : {}),
     private: true,
     packageManager: rootPackageJson.packageManager,
     description:
@@ -4111,11 +4116,35 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
     yield* validateMacPackagedPayload({ stageDistDir, verbose: options.verbose });
   }
 
+  const forkLocalMacBuild = options.platform === "mac" && options.target === "dir";
   const copiedArtifacts = yield* copyDesktopBuildArtifacts(
     stageDistDir,
     options.outputDir,
-    options.target === "dir",
+    options.target === "dir" && !forkLocalMacBuild,
   );
+
+  // Fork-local: the `dir` target leaves only the bundle, in mac/, mac-arm64/ or mac-universal/.
+  // LocalAppReplace.ts reads the version from the `T3-Code-<version>-<arch>.app` name.
+  if (forkLocalMacBuild) {
+    const stageEntries = yield* fs.readDirectory(stageDistDir);
+    for (const entry of stageEntries.filter((name) => name.startsWith("mac"))) {
+      const bundles = yield* fs.readDirectory(path.join(stageDistDir, entry));
+      for (const bundle of bundles.filter((name) => name.endsWith(".app"))) {
+        const from = path.join(stageDistDir, entry, bundle);
+        const to = path.join(options.outputDir, `T3-Code-${appVersion}-${options.arch}.app`);
+        yield* fs.remove(to, { recursive: true, force: true });
+        yield* fs.rename(from, to).pipe(
+          Effect.catch(() =>
+            runCommand(ChildProcess.make("/usr/bin/ditto", [from, to]), {
+              label: `ditto ${from} ${to}`,
+              verbose: options.verbose,
+            }),
+          ),
+        );
+        copiedArtifacts.push(to);
+      }
+    }
+  }
 
   if (copiedArtifacts.length === 0) {
     return yield* new DesktopBuildNoArtifactsProducedError({
