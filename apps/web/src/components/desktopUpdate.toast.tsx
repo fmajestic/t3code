@@ -50,10 +50,12 @@ export function showDesktopUpdateDownloadedToast(
   shell: DesktopUpdateShell,
   state: DesktopUpdateState,
 ): void {
-  const releaseUrl = getDesktopUpdateReleaseUrl(getDesktopUpdateDownloadedVersion(state));
+  const releaseUrl = state.localBuild
+    ? null
+    : getDesktopUpdateReleaseUrl(getDesktopUpdateDownloadedVersion(state));
   toastManager.add({
     type: "success",
-    title: m(msg("Update downloaded")),
+    title: state.localBuild ? m(msg("Update built")) : m(msg("Update downloaded")),
     description: (
       <>
         <T>Restart the app from the update button to install it.</T>

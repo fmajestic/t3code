@@ -1,0 +1,67 @@
+import * as Option from "effect/Option";
+import { describe, expect, it } from "vite-plus/test";
+
+import {
+  appBundleFromExecPath,
+  appendBuildOutput,
+  localUpdateLabel,
+  newestReleaseApp,
+  releaseAppVersion,
+} from "./LocalAppReplace.ts";
+
+describe("LocalAppReplace", () => {
+  it("picks the newest release app bundle for the running arch", () => {
+    const apps = [
+      { name: "T3-Code-0.0.45-arm64.app", mtimeMs: 1 },
+      { name: "T3-Code-0.0.46-arm64.app", mtimeMs: 3 },
+      { name: "T3-Code-0.0.47-x64.app", mtimeMs: 9 },
+      { name: "T3-Code-0.0.47-arm64.zip", mtimeMs: 9 },
+      { name: "T3-Code-0.0.44-arm64.app", mtimeMs: 2 },
+    ];
+    expect(newestReleaseApp(apps, "arm64")).toEqual(
+      Option.some({ name: "T3-Code-0.0.46-arm64.app", mtimeMs: 3 }),
+    );
+    expect(newestReleaseApp(apps, "universal")).toEqual(Option.none());
+  });
+
+  it("resolves the app bundle from the main executable only", () => {
+    expect(
+      appBundleFromExecPath(
+        "/Users/me/Applications/T3 Code (Majestic).app/Contents/MacOS/T3 Code (Majestic)",
+      ),
+    ).toEqual(Option.some("/Users/me/Applications/T3 Code (Majestic).app"));
+    expect(appBundleFromExecPath("/usr/local/bin/node")).toEqual(Option.none());
+  });
+
+  it("reads a stamped prerelease version from the bundle name", () => {
+    expect(releaseAppVersion("T3-Code-0.0.46-fork.20261008.930-arm64.app")).toBe(
+      "0.0.46-fork.20261008.930",
+    );
+  });
+
+  it("labels a local build by version and build time", () => {
+    expect(localUpdateLabel({ name: "T3-Code-0.0.45-arm64.app", mtimeMs: 0 })).toMatch(
+      /^0\.0\.45 \(built .+\)$/,
+    );
+    expect(
+      localUpdateLabel({ name: "T3-Code-0.0.45-arm64.app", mtimeMs: 15 * 3_600_000 }),
+    ).not.toMatch(/AM|PM/);
+  });
+
+  it("keeps complete build output lines across chunks, with redraws replacing their line", () => {
+    const first = appendBuildOutput([], "", "\u001b[32mstep 1\u001b[0m\n\nstep 2\nhal");
+    expect(first).toEqual({ lines: ["step 1", "step 2"], pending: "hal" });
+    expect(appendBuildOutput(first.lines, first.pending, "f\r50%\r100%\r\nnext\r\n")).toEqual({
+      lines: ["step 1", "step 2", "100%", "next"],
+      pending: "",
+    });
+  });
+
+  it("keeps only the last 16 build output lines", () => {
+    const chunk = Array.from({ length: 20 }, (_, index) => `line ${index}\n`).join("");
+    const { lines } = appendBuildOutput([], "", chunk);
+    expect(lines).toHaveLength(16);
+    expect(lines[0]).toBe("line 4");
+    expect(lines.at(-1)).toBe("line 19");
+  });
+});
