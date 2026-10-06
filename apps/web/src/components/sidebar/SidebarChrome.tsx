@@ -22,6 +22,7 @@ import {
   SidebarStageBackdrop,
   useEnvironmentStageLabel,
 } from "../SidebarStageBackdrop";
+import { useBetaStageArt } from "../BetaStageArt";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import {
@@ -51,9 +52,11 @@ export const SidebarChromeHeader = memo(function SidebarChromeHeader({
   const stageLabel = useEnvironmentStageLabel();
   const environmentIdentificationMode = useEnvironmentIdentificationMode();
   const gt = useGT();
+  const [betaArt] = useBetaStageArt();
   const backdropVariant = resolveSidebarStageBackdropVariant(
     stageLabel,
     environmentIdentificationMode,
+    betaArt,
   );
   const pillLabel =
     environmentIdentificationMode === "pill"

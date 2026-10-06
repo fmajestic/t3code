@@ -5,15 +5,22 @@ import { useId } from "react";
 import { APP_STAGE_LABEL } from "../branding";
 import { resolveServerBackedAppStageLabel } from "../branding.logic";
 import { primaryServerConfigAtom } from "../state/server";
+import {
+  BetaStageArt,
+  type BetaStageArtVariant,
+  DEFAULT_BETA_STAGE_ART,
+  useBetaStageArt,
+} from "./BetaStageArt";
 
-export type SidebarStageBackdropVariant = "nightly" | "dev";
-export type EnvironmentIdentificationPillLabel = "Dev" | "Nightly";
+export type SidebarStageBackdropVariant = "nightly" | "dev" | BetaStageArtVariant;
+export type EnvironmentIdentificationPillLabel = "Dev" | "Nightly" | "Beta";
 
 const STAGE_BACKDROP_VIEW_BOX = "0 0 8192 96";
 
 export function resolveSidebarStageBackdropVariant(
   stageLabel: string,
   mode: EnvironmentIdentificationMode = "artwork",
+  betaArt: BetaStageArtVariant = DEFAULT_BETA_STAGE_ART,
 ): SidebarStageBackdropVariant | null {
   if (mode === "nightly-artwork") return "nightly";
   if (mode === "dev-artwork") return "dev";
@@ -21,6 +28,7 @@ export function resolveSidebarStageBackdropVariant(
   const normalized = stageLabel.trim().toLowerCase();
   if (normalized === "nightly") return "nightly";
   if (normalized === "dev") return "dev";
+  if (normalized === "beta") return betaArt;
   return null;
 }
 
@@ -32,6 +40,8 @@ export function resolveEnvironmentIdentificationPillLabel(
   if (normalized === "dev") return "Dev";
   // oxlint-disable-next-line t3code/no-untranslated-copy -- release channel names
   if (normalized === "nightly") return "Nightly";
+  // oxlint-disable-next-line t3code/no-untranslated-copy -- release channel names
+  if (normalized === "beta") return "Beta";
   return null;
 }
 
@@ -48,7 +58,8 @@ export function useEnvironmentStageLabel(): string {
 export function useSidebarStageBackdropVariant(
   mode: EnvironmentIdentificationMode,
 ): SidebarStageBackdropVariant | null {
-  return resolveSidebarStageBackdropVariant(useEnvironmentStageLabel(), mode);
+  const [betaArt] = useBetaStageArt();
+  return resolveSidebarStageBackdropVariant(useEnvironmentStageLabel(), mode, betaArt);
 }
 
 export function SidebarStageBackdrop({ variant }: { variant: SidebarStageBackdropVariant }) {
@@ -62,12 +73,20 @@ export function SidebarStageBackdrop({ variant }: { variant: SidebarStageBackdro
   );
 }
 
-function StageBackdropArt({ variant }: { variant: SidebarStageBackdropVariant }) {
-  return variant === "nightly" ? <NightlySkyArt /> : <DevBlueprintArt />;
+export function StageBackdropArt({
+  variant,
+  compact = false,
+}: {
+  variant: SidebarStageBackdropVariant;
+  compact?: boolean;
+}) {
+  if (variant === "nightly") return <NightlySkyArt compact={compact} />;
+  if (variant === "dev") return <DevBlueprintArt compact={compact} />;
+  return <BetaStageArt variant={variant} compact={compact} />;
 }
 
 export function StageBackdropButtonArt({ variant }: { variant: SidebarStageBackdropVariant }) {
-  return variant === "nightly" ? <NightlySkyArt compact /> : <DevBlueprintArt compact />;
+  return <StageBackdropArt variant={variant} compact />;
 }
 
 const NIGHTLY_STARS: ReadonlyArray<{
