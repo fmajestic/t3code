@@ -284,6 +284,10 @@ export interface DesktopUpdateState {
   notAppliedVersion?: string;
   /** Off only because a managed policy rules out this channel; switching channels turns it on. */
   channelBlockedByPolicy?: true;
+  /** Fork-local: updates come from building the checkout this app was built from. */
+  localBuild?: boolean;
+  /** Fork-local: the last lines the local build printed. */
+  buildOutput?: ReadonlyArray<string>;
 }
 
 export interface DesktopUpdateReleaseNote {
@@ -327,6 +331,8 @@ export const DesktopUpdateStateSchema = Schema.Struct({
   errorContext: Schema.NullOr(Schema.Literals(["check", "download", "install"])),
   canRetry: Schema.Boolean,
   notAppliedVersion: Schema.optionalKey(Schema.String),
+  localBuild: Schema.optionalKey(Schema.Boolean),
+  buildOutput: Schema.optionalKey(Schema.Array(Schema.String)),
 });
 
 export const DesktopCliCommandStateSchema = Schema.Struct({

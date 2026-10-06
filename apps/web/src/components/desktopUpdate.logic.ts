@@ -87,6 +87,19 @@ export function getArm64IntelBuildWarningDescription(state: DesktopUpdateState):
 }
 
 export function getDesktopUpdateButtonTooltip(state: DesktopUpdateState): string {
+  if (state.localBuild) {
+    if (state.status === "available") return `Build ${state.availableVersion ?? "new commits"}`;
+    if (state.status === "downloading") return `Building ${state.availableVersion ?? "update"}…`;
+    if (state.status === "error" && state.errorContext === "download" && state.availableVersion) {
+      return `Build failed for ${state.availableVersion}. Click to retry.`;
+    }
+    if (state.status === "downloaded") {
+      return `Update ${state.downloadedVersion ?? state.availableVersion ?? "ready"} built. Click to restart and install.`;
+    }
+    if (state.status === "error" && state.errorContext !== "install" && state.downloadedVersion) {
+      return `Update ${state.downloadedVersion} built. Click to restart and install.`;
+    }
+  }
   if (
     state.notAppliedVersion !== undefined &&
     (state.status === "available" || state.status === "downloaded") &&
