@@ -87,6 +87,8 @@ export class DesktopEnvironment extends Context.Service<
 >()("@t3tools/desktop/app/DesktopEnvironment") {}
 
 const APP_BASE_NAME = "T3 Code";
+// Fork-local: matches productName in apps/desktop/package.json; the stage label stays Beta for the artwork.
+const BETA_DISPLAY_LABEL = "Majestic";
 
 function resolveDesktopAppStageLabel(input: {
   readonly isDevelopment: boolean;
@@ -107,7 +109,7 @@ export function resolveDesktopAppBranding(input: {
   return {
     baseName: APP_BASE_NAME,
     stageLabel,
-    displayName: `${APP_BASE_NAME} (${stageLabel})`,
+    displayName: `${APP_BASE_NAME} (${stageLabel === "Beta" ? BETA_DISPLAY_LABEL : stageLabel})`,
   };
 }
 
