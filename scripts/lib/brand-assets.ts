@@ -6,6 +6,16 @@ export const BRAND_ASSET_PATHS = {
   productionIconComposerProject: "assets/prod/app-icon.icon",
   productionIosIconPng: "assets/prod/black-ios-1024.png",
   productionMacIconPng: "assets/prod/black-macos-1024.png",
+  // Fork-local: Ridge artwork icons, exported from the Icon Composer project like the upstream variants.
+  majesticIconComposerProject: "assets/majestic/app-icon.icon",
+  majesticMacIconPng: "assets/majestic/ridge-macos-1024.png",
+  majesticUniversalIconPng: "assets/majestic/ridge-universal-1024.png",
+  majesticIco: "assets/majestic/ridge.ico",
+  majesticWebFavicon16Png: "assets/majestic/ridge-web-favicon-16x16.png",
+  majesticWebFavicon32Png: "assets/majestic/ridge-web-favicon-32x32.png",
+  majesticWebAppleTouchIconPng: "assets/majestic/ridge-web-apple-touch-180.png",
+  majesticWebIcon192Png: "assets/majestic/ridge-web-icon-192x192.png",
+  majesticWebIcon512Png: "assets/majestic/ridge-web-icon-512x512.png",
   productionLinuxIconPng: "assets/prod/black-universal-1024.png",
   productionWindowsIconIco: "assets/prod/t3-black-windows.ico",
   productionWebFaviconIco: "assets/prod/t3-black-web-favicon.ico",
@@ -37,7 +47,7 @@ export const BRAND_ASSET_PATHS = {
   developmentWebIcon512Png: "assets/dev/blueprint-web-icon-512x512.png",
 } as const;
 
-export type WebAssetBrand = "development" | "nightly" | "production";
+export type WebAssetBrand = "development" | "nightly" | "production" | "majestic";
 
 export const WEB_ASSET_CHANNELS = ["latest", "nightly"] as const;
 
@@ -85,6 +95,14 @@ const WEB_ICON_SOURCE_PATHS_BY_BRAND = {
     appleTouchIconPng: BRAND_ASSET_PATHS.productionWebAppleTouchIconPng,
     icon192Png: BRAND_ASSET_PATHS.productionWebIcon192Png,
     icon512Png: BRAND_ASSET_PATHS.productionWebIcon512Png,
+  },
+  majestic: {
+    faviconIco: BRAND_ASSET_PATHS.majesticIco,
+    favicon16Png: BRAND_ASSET_PATHS.majesticWebFavicon16Png,
+    favicon32Png: BRAND_ASSET_PATHS.majesticWebFavicon32Png,
+    appleTouchIconPng: BRAND_ASSET_PATHS.majesticWebAppleTouchIconPng,
+    icon192Png: BRAND_ASSET_PATHS.majesticWebIcon192Png,
+    icon512Png: BRAND_ASSET_PATHS.majesticWebIcon512Png,
   },
 } as const satisfies Record<WebAssetBrand, Record<keyof typeof WEB_ICON_TARGET_FILENAMES, string>>;
 

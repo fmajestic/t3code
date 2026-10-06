@@ -46,6 +46,7 @@ import { SidebarBrandWidthProbe } from "./sidebar/SidebarChrome";
 import { isAppModalPage } from "./sidebar/mainAppLocation";
 import type { SidebarRouteReveal } from "./sidebar/routeReveal";
 import { useSidebarStageBackdropVariant } from "./SidebarStageBackdrop";
+import { DockArtworkIcon } from "./DockArtworkIcon";
 import {
   clampThreadSidebarWidth,
   resolveInitialThreadSidebarWidth,
@@ -503,6 +504,7 @@ export function AppSidebarLayout({
         <BackgroundThreadAnnouncer />
         <SidebarControl showSidebar={showSidebar} />
         {isElectron ? <HistorySwipeNavigation /> : null}
+        <DockArtworkIcon />
       </SidebarProvider>
     </PanelAnimationSuppressionProvider>
   );

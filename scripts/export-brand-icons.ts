@@ -253,6 +253,22 @@ const ICON_VARIANTS = [
       windowsIco: BRAND_ASSET_PATHS.productionWindowsIconIco,
     },
   },
+  {
+    label: "majestic",
+    source: BRAND_ASSET_PATHS.majesticIconComposerProject,
+    outputs: {
+      ios: BRAND_ASSET_PATHS.majesticUniversalIconPng,
+      macos: BRAND_ASSET_PATHS.majesticMacIconPng,
+      universal: BRAND_ASSET_PATHS.majesticUniversalIconPng,
+      appleTouch: BRAND_ASSET_PATHS.majesticWebAppleTouchIconPng,
+      webIcon192: BRAND_ASSET_PATHS.majesticWebIcon192Png,
+      webIcon512: BRAND_ASSET_PATHS.majesticWebIcon512Png,
+      favicon16: BRAND_ASSET_PATHS.majesticWebFavicon16Png,
+      favicon32: BRAND_ASSET_PATHS.majesticWebFavicon32Png,
+      faviconIco: BRAND_ASSET_PATHS.majesticIco,
+      windowsIco: BRAND_ASSET_PATHS.majesticIco,
+    },
+  },
 ] as const satisfies ReadonlyArray<IconVariant>;
 
 const RepositoryRoot = Effect.service(Path.Path).pipe(
