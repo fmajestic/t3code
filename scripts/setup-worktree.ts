@@ -16,7 +16,7 @@ const worktree = NodePath.dirname(import.meta.dirname);
 // through vp and leave stdin closed so other prompts fail instead of hanging.
 // Install exactly the locked dependencies so setup never rewrites the lockfile.
 // A stale lockfile must fail setup rather than silently resolving a new one.
-const install = NodeChildProcess.spawnSync("vp i --frozen-lockfile -- --yes", {
+const install = NodeChildProcess.spawnSync("vp run i:desktop -- --yes", {
   cwd: worktree,
   shell: true,
   stdio: ["ignore", "inherit", "inherit"],
