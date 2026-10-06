@@ -358,6 +358,13 @@ export const SETTINGS_SEARCH_ITEMS = [
     targetId: "appearance-interface",
   },
   {
+    id: "beta-artwork",
+    title: "Beta artwork",
+    to: "/settings/appearance",
+    searchTerms: ["beta sidebar header art contour ridge sunrise halftone"],
+    targetId: "appearance-interface",
+  },
+  {
     id: "interface-font",
     title: "Interface font",
     to: "/settings/appearance",

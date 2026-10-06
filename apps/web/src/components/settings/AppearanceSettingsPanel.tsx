@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { useState } from "react";
+import * as Schema from "effect/Schema";
 import {
   DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE,
   DEFAULT_UNIFIED_SETTINGS,
@@ -14,10 +15,18 @@ import {
   MIN_PANEL_ANIMATION_DURATION_MS,
 } from "@t3tools/contracts/settings";
 import {
+  resolveEnvironmentIdentificationPillLabel,
   resolveSidebarStageBackdropVariant,
   type SidebarStageBackdropVariant,
   useEnvironmentStageLabel,
 } from "../SidebarStageBackdrop";
+import {
+  BETA_STAGE_ART_LABELS,
+  BetaStageArtVariant,
+  DEFAULT_BETA_STAGE_ART,
+  useBetaStageArt,
+} from "../BetaStageArt";
+import { useEnvironmentIdentificationMode } from "../../hooks/useSettings";
 import { useCustomThemes } from "../../hooks/useCustomThemes";
 import { useTheme } from "../../hooks/useTheme";
 import { useScopedSettings, useUpdateScopedSettings } from "./useScopedSettings";
@@ -35,6 +44,8 @@ import { AdvancedSettings } from "./AdvancedSettings";
 import { PanelAnimationsPreview } from "./PanelAnimationsPreview";
 import { TypographySection } from "./TypographySettings";
 import { ThreadDetailsItemsRow } from "./ThreadDetailsItemsRow";
+
+const isBetaStageArtVariant = Schema.is(BetaStageArtVariant);
 
 const ENVIRONMENT_IDENTIFICATION_LABELS: Record<EnvironmentIdentificationMode, string> = {
   artwork: "Artwork",
@@ -60,6 +71,15 @@ function environmentIdentificationOptions(
   if (stageVariant === "nightly") {
     return [
       ["artwork", "Nightly artwork"],
+      ["dev-artwork", "Dev artwork"],
+      ["pill", "Version pill"],
+      ["none", "None"],
+    ];
+  }
+  if (stageVariant) {
+    return [
+      ["artwork", "Beta artwork"],
+      ["nightly-artwork", "Nightly artwork"],
       ["dev-artwork", "Dev artwork"],
       ["pill", "Version pill"],
       ["none", "None"],
@@ -106,6 +126,11 @@ export function AppearanceSettingsPanel() {
     environmentIdentificationOptionList.find(
       ([value]) => value === settings.environmentIdentificationMode,
     )?.[1] ?? ENVIRONMENT_IDENTIFICATION_LABELS[settings.environmentIdentificationMode];
+  const [betaArt, setBetaArt] = useBetaStageArt();
+  const effectiveEnvironmentIdentificationMode = useEnvironmentIdentificationMode();
+  const showBetaArtwork =
+    resolveEnvironmentIdentificationPillLabel(environmentStageLabel) === "Beta" &&
+    effectiveEnvironmentIdentificationMode === "artwork";
   const glassOpacityRatio =
     (settings.glassOpacity - MIN_GLASS_OPACITY) / (MAX_GLASS_OPACITY - MIN_GLASS_OPACITY);
   const glassOpacitySliderStyle = {
@@ -337,6 +362,7 @@ export function AppearanceSettingsPanel() {
           targetIds={[
             searchableSetting("panel-animations").id,
             searchableSetting("environment-identification").id,
+            searchableSetting("beta-artwork").id,
             // Environment identification's search result lands on this section.
             "appearance-interface",
             searchableSetting("composer-context").id,
@@ -397,7 +423,7 @@ export function AppearanceSettingsPanel() {
             {...searchableSetting("environment-identification")}
             description={
               environmentStageVariant
-                ? "Choose how Dev and Nightly environments are identified."
+                ? "Choose how Dev, Nightly and Beta environments are identified."
                 : "Show Dev or Nightly artwork in the sidebar header."
             }
             resetAction={
@@ -439,6 +465,39 @@ export function AppearanceSettingsPanel() {
               </Select>
             }
           />
+          {showBetaArtwork ? (
+            <SettingsRow
+              {...searchableSetting("beta-artwork")}
+              description="Choose the sidebar and send button artwork for Beta builds."
+              resetAction={
+                betaArt !== DEFAULT_BETA_STAGE_ART ? (
+                  <SettingResetButton
+                    label="Beta artwork"
+                    onClick={() => setBetaArt(DEFAULT_BETA_STAGE_ART)}
+                  />
+                ) : null
+              }
+              control={
+                <Select
+                  value={betaArt}
+                  onValueChange={(value) => {
+                    if (isBetaStageArtVariant(value)) setBetaArt(value);
+                  }}
+                >
+                  <SelectTrigger size="sm" className="w-full sm:w-40" aria-label="Beta artwork">
+                    <SelectValue>{BETA_STAGE_ART_LABELS[betaArt]}</SelectValue>
+                  </SelectTrigger>
+                  <SelectPopup align="end" alignItemWithTrigger={false}>
+                    {Object.entries(BETA_STAGE_ART_LABELS).map(([value, label]) => (
+                      <SelectItem hideIndicator key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
+              }
+            />
+          ) : null}
           <SettingsRow
             {...searchableSetting("composer-context")}
             description="Keep branch and worktree controls below the composer after a thread starts."
