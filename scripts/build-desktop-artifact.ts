@@ -926,6 +926,8 @@ interface StagePackageJson {
   readonly version: string;
   readonly buildVersion: string;
   readonly t3codeCommitHash: string;
+  // Fork-local: where an unpublished mac build reinstalls itself from, see LocalAppReplace.ts.
+  readonly t3LocalReleaseDir?: string;
   readonly private: true;
   readonly packageManager: string;
   readonly description: string;
@@ -3709,6 +3711,9 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
     version: appVersion,
     buildVersion: appVersion,
     t3codeCommitHash: commitHash,
+    ...(options.platform === "mac" && !options.mockUpdates
+      ? { t3LocalReleaseDir: options.outputDir }
+      : {}),
     private: true,
     packageManager: rootPackageJson.packageManager,
     description:

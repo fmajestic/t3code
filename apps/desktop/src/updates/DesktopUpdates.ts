@@ -28,10 +28,12 @@ import * as DesktopConfig from "../app/DesktopConfig.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopObservability from "../app/DesktopObservability.ts";
 import * as DesktopState from "../app/DesktopState.ts";
+import * as ElectronApp from "../electron/ElectronApp.ts";
 import * as ElectronUpdater from "../electron/ElectronUpdater.ts";
 import * as ElectronWindow from "../electron/ElectronWindow.ts";
 import * as IpcChannels from "../ipc/channels.ts";
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
+import * as LocalAppReplace from "./LocalAppReplace.ts";
 import { normalizeDesktopUpdateReleaseNotes } from "./releaseNotes.ts";
 import { resolveDefaultDesktopUpdateChannel } from "./updateChannels.ts";
 import {
@@ -288,6 +290,10 @@ export const make = Effect.gen(function* () {
   const activeUpdateActionRef = yield* Ref.make<Option.Option<UpdateAction>>(Option.none());
   const finishedUpdateActions = yield* PubSub.unbounded<UpdateAction>();
   const updaterConfiguredRef = yield* Ref.make(false);
+  const localReleaseDirRef = yield* Ref.make(Option.none<string>());
+  const stagedLocalUpdateRef = yield* Ref.make(Option.none<LocalAppReplace.StagedLocalUpdate>());
+  // Optional so the update tests need no ElectronApp; only the local reinstall quits through it.
+  const electronApp = yield* Effect.serviceOption(ElectronApp.ElectronApp);
   const lastLoggedDownloadMilestoneRef = yield* Ref.make(-1);
   const updateStateRef = yield* Ref.make<DesktopUpdateState>(
     createInitialDesktopUpdateState(
@@ -682,12 +688,84 @@ export const make = Effect.gen(function* () {
       }),
     ).pipe(Effect.withSpan("desktop.updates.installDownloadedUpdate"));
 
+  // Checking only stages the zip; quitting waits for the install action and its confirmation.
+  const checkLocalReplace = Effect.fn("desktop.updates.checkLocalReplace")(function* (
+    releaseDir: string,
+  ) {
+    const startedAt = yield* currentIsoTimestamp;
+    yield* updateState((state) => reduceDesktopUpdateStateOnCheckStart(state, startedAt));
+    const staged = yield* Effect.gen(function* () {
+      const update = yield* LocalAppReplace.findLocalUpdate({
+        fileSystem,
+        path: environment.path,
+        releaseDir,
+        arch: environment.processArch,
+        installedVersion: environment.appVersion,
+      });
+      const pending = yield* Ref.get(stagedLocalUpdateRef);
+      if (Option.isNone(update)) return Option.none<LocalAppReplace.StagedLocalUpdate>();
+      if (Option.isSome(pending) && pending.value.update.buildId === update.value.buildId) {
+        return pending;
+      }
+      if (Option.isSome(pending)) {
+        yield* fileSystem.remove(pending.value.stagingDir, { recursive: true }).pipe(Effect.ignore);
+        yield* Ref.set(stagedLocalUpdateRef, Option.none());
+      }
+      return Option.some(
+        yield* LocalAppReplace.stageLocalUpdate({
+          fileSystem,
+          path: environment.path,
+          update: update.value,
+        }),
+      );
+    }).pipe(Effect.result);
+    const checkedAt = yield* currentIsoTimestamp;
+    if (staged._tag === "Failure") {
+      yield* updateState((state) =>
+        reduceDesktopUpdateStateOnCheckFailure(state, staged.failure.message, checkedAt),
+      );
+      return false;
+    }
+    yield* Ref.set(stagedLocalUpdateRef, staged.success);
+    yield* updateState((state) =>
+      Option.match(staged.success, {
+        onNone: () => reduceDesktopUpdateStateOnNoUpdate(state, checkedAt),
+        onSome: ({ update }) => reduceDesktopUpdateStateOnDownloadComplete(state, update.label),
+      }),
+    );
+    return true;
+  });
+
+  const installLocalReplace = Effect.fn("desktop.updates.installLocalReplace")(function* (
+    staged: LocalAppReplace.StagedLocalUpdate,
+  ) {
+    yield* Ref.set(desktopState.quitting, true);
+    const instances = yield* pool.list;
+    yield* Effect.forEach(
+      instances,
+      (instance) => instance.stop({ timeout: Duration.seconds(5) }),
+      { concurrency: "unbounded" },
+    );
+    yield* staged.swap;
+    if (Option.isSome(electronApp)) yield* electronApp.value.quit;
+  });
+
   const installWithExpectedVersion = Effect.fn("desktop.updates.install")(function* (
     expectedVersion?: string,
   ) {
     if (yield* Ref.get(desktopState.quitting)) {
       return {
         accepted: false,
+        completed: false,
+        failed: false,
+        state: yield* Ref.get(updateStateRef),
+      };
+    }
+    const stagedLocalUpdate = yield* Ref.get(stagedLocalUpdateRef);
+    if (Option.isSome(stagedLocalUpdate)) {
+      yield* installLocalReplace(stagedLocalUpdate.value);
+      return {
+        accepted: true,
         completed: false,
         failed: false,
         state: yield* Ref.get(updateStateRef),
@@ -923,6 +1001,22 @@ export const make = Effect.gen(function* () {
       }
 
       const settings = yield* desktopSettings.get;
+      if (
+        environment.platform === "darwin" &&
+        environment.isPackaged &&
+        Option.isNone(appUpdateYmlConfig) &&
+        !config.mockUpdates
+      ) {
+        const localReleaseDir = yield* LocalAppReplace.readLocalReleaseDir(
+          fileSystem,
+          environment.appPath,
+        );
+        if (Option.isSome(localReleaseDir)) {
+          yield* Ref.set(localReleaseDirRef, localReleaseDir);
+          yield* setState(createBaseUpdateState(settings.updateChannel, true, environment));
+          return;
+        }
+      }
       const enabled = yield* shouldEnableAutoUpdates;
       yield* setState(createBaseUpdateState(settings.updateChannel, enabled, environment));
       if (!enabled) {
@@ -1012,6 +1106,13 @@ export const make = Effect.gen(function* () {
     }),
     check: Effect.fn("desktop.updates.check")(function* (reason: string) {
       yield* Effect.annotateCurrentSpan({ reason });
+      const localReleaseDir = yield* Ref.get(localReleaseDirRef);
+      if (Option.isSome(localReleaseDir)) {
+        return {
+          checked: yield* checkLocalReplace(localReleaseDir.value),
+          state: yield* Ref.get(updateStateRef),
+        };
+      }
       if (!(yield* Ref.get(updaterConfiguredRef))) {
         return {
           checked: false,
