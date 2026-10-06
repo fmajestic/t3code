@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
 
 import { APP_DISPLAY_NAME, APP_STAGE_LABEL } from "../../branding";
+import { useBetaStageArt } from "../BetaStageArt";
 import { resolveSidebarStageBackdropVariant, StageBackdropArt } from "../SidebarStageBackdrop";
 import { StandalonePage } from "../ui/standalone-page";
 
 export function AuthSurfaceShell({ children }: { readonly children: ReactNode }) {
-  const stageVariant = resolveSidebarStageBackdropVariant(APP_STAGE_LABEL);
+  const [betaArt] = useBetaStageArt();
+  const stageVariant = resolveSidebarStageBackdropVariant(APP_STAGE_LABEL, true, betaArt);
 
   return (
     <StandalonePage
