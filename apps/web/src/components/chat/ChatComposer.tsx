@@ -209,6 +209,7 @@ import {
   ComposerRestingImagePreviews,
 } from "./ComposerAttachmentStrip";
 import { CollapsedComposerStopAction, ComposerPrimaryActions } from "./ComposerPrimaryActions";
+import { getDisplayModelName } from "./providerIconUtils";
 import { ComposerFooterPrimaryActions } from "./ComposerFooterControls";
 import { ComposerPendingUserInputPanel } from "./ComposerPendingUserInputPanel";
 import { resolveComposerMenuActiveItemId } from "./composerMenuHighlight";
@@ -373,6 +374,8 @@ export interface ChatComposerProps {
   canInterrupt: boolean;
   isSendBusy: boolean;
   canResume: boolean;
+  /** The model the resumable run used; resuming with a different composer model continues with it. */
+  resumeRunModelSelection: ModelSelection | null;
   isRevertingCheckpoint?: boolean;
   sendDisabledReason: string | null;
   isPreparingWorktree: boolean;
@@ -520,6 +523,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     canInterrupt,
     isSendBusy,
     canResume,
+    resumeRunModelSelection,
     isRevertingCheckpoint = false,
     sendDisabledReason: externalSendDisabledReason,
     isPreparingWorktree,
@@ -1220,6 +1224,18 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     : null;
   const showResumeAction =
     canResume && !composerDraftHasUserContent(composerDraft) && !isEditingQueuedMessage;
+  const selectedModelOption = modelOptionsByInstance
+    .get(selectedModelSelection.instanceId)
+    ?.find((option) => option.slug === selectedModelSelection.model);
+  const resumeModelName =
+    showResumeAction &&
+    resumeRunModelSelection !== null &&
+    (resumeRunModelSelection.instanceId !== selectedModelSelection.instanceId ||
+      resumeRunModelSelection.model !== selectedModelSelection.model)
+      ? selectedModelOption
+        ? getDisplayModelName(selectedModelOption)
+        : selectedModelSelection.model
+      : null;
   const collapsedComposerPrimaryActionDisabled =
     phase === "running" ||
     isSendBusy ||
@@ -1228,11 +1244,13 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     projectSelectionRequired ||
     environmentUnavailable !== null ||
     (!composerSendState.hasSendableContent && !showResumeAction);
-  const collapsedComposerPrimaryActionLabel = showResumeAction
-    ? "Resume thread"
-    : props.resumeCompactionTokens !== null && !props.keepFullHistory
-      ? "Open composer to compact and send"
-      : "Send message";
+  const collapsedComposerPrimaryActionLabel = resumeModelName
+    ? `Continue with ${resumeModelName}`
+    : showResumeAction
+      ? "Resume thread"
+      : props.resumeCompactionTokens !== null && !props.keepFullHistory
+        ? "Open composer to compact and send"
+        : "Send message";
   const showMobilePendingAnswerActions =
     isMobileViewport && !isComposerCollapsedMobile && pendingPrimaryAction !== null;
 
@@ -3711,6 +3729,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                     isPreparingWorktree={isPreparingWorktree}
                     hasSendableContent={composerSendState.hasSendableContent || voiceInputActive}
                     canResume={showResumeAction}
+                    resumeModelName={resumeModelName}
                     preserveComposerFocusOnPointerDown={isMobileViewport}
                     isEditingQueuedMessage={isEditingQueuedMessage}
                     onSubmitMessage={handleSubmitMessageStable}
