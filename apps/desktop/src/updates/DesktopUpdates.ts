@@ -7,6 +7,7 @@ import {
   type DesktopUpdateCheckResult,
   type DesktopUpdateState,
 } from "@t3tools/contracts";
+import { resolveDateTimeLocale } from "@t3tools/shared/dateTimeLocale";
 import { errorTag } from "@t3tools/shared/observability";
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
@@ -838,6 +839,9 @@ export const make = Effect.gen(function* () {
       releaseDir,
       arch: environment.processArch,
       installedVersion: environment.appVersion,
+      locale: resolveDateTimeLocale(
+        Option.isSome(electronApp) ? yield* electronApp.value.systemLocale : null,
+      ),
     });
     const pending = yield* Ref.get(stagedLocalUpdateRef);
     if (Option.isSome(pending) && Option.isSome(update)) {

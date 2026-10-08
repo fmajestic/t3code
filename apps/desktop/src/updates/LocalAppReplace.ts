@@ -4,6 +4,7 @@ import * as NodeChildProcess from "node:child_process";
 import * as NodeFS from "node:fs";
 import * as NodeUtil from "node:util";
 
+import { createDateTimeFormatter, type DateTimeLocale } from "@t3tools/shared/dateTimeLocale";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Option from "effect/Option";
@@ -179,14 +180,13 @@ export interface LocalUpdate {
   readonly label: string;
 }
 
-export function localUpdateLabel(app: ReleaseApp): string {
+export function localUpdateLabel(app: ReleaseApp, locale: DateTimeLocale): string {
   const version = releaseAppVersion(app.name);
-  const builtAt = new Intl.DateTimeFormat(undefined, {
+  const builtAt = createDateTimeFormatter(locale, {
     month: "short",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-    hourCycle: "h23",
   }).format(app.mtimeMs);
   return `${version} (built ${builtAt})`;
 }
@@ -198,6 +198,7 @@ export const findLocalUpdate = Effect.fn("desktop.updates.findLocalUpdate")(func
   readonly releaseDir: string;
   readonly arch: string;
   readonly installedVersion: string;
+  readonly locale: DateTimeLocale;
 }) {
   const { fileSystem, path } = input;
   const names = yield* fileSystem
@@ -219,7 +220,7 @@ export const findLocalUpdate = Effect.fn("desktop.updates.findLocalUpdate")(func
       return {
         appPath,
         buildId: `${appPath}@${app.mtimeMs}`,
-        label: localUpdateLabel(app),
+        label: localUpdateLabel(app, input.locale),
       };
     }),
   );

@@ -1,6 +1,8 @@
 import * as Option from "effect/Option";
 import { describe, expect, it } from "vite-plus/test";
 
+import { resolveDateTimeLocale } from "@t3tools/shared/dateTimeLocale";
+
 import {
   appBundleFromExecPath,
   appendBuildOutput,
@@ -39,13 +41,15 @@ describe("LocalAppReplace", () => {
     );
   });
 
-  it("labels a local build by version and build time", () => {
-    expect(localUpdateLabel({ name: "T3-Code-0.0.45-arm64.app", mtimeMs: 0 })).toMatch(
-      /^0\.0\.45 \(built .+\)$/,
-    );
+  it("labels a local build by version and build time in the system locale", () => {
+    // @effect-diagnostics-next-line globalDate:off -- The label shows local wall-clock time.
+    const builtAt = new Date(2026, 9, 8, 15, 5).getTime();
     expect(
-      localUpdateLabel({ name: "T3-Code-0.0.45-arm64.app", mtimeMs: 15 * 3_600_000 }),
-    ).not.toMatch(/AM|PM/);
+      localUpdateLabel(
+        { name: "T3-Code-0.0.45-arm64.app", mtimeMs: builtAt },
+        resolveDateTimeLocale("en-US-u-rg-hrzzzz"),
+      ),
+    ).toBe("0.0.45 (built 8. Oct 15:05)");
   });
 
   it("keeps complete build output lines across chunks, with redraws replacing their line", () => {

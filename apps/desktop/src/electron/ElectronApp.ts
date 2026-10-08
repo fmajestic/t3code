@@ -122,8 +122,13 @@ export const make = ElectronApp.of({
     };
   }),
   name: Effect.sync(() => Electron.app.name),
-  // NSLocale returns en_GB-style tags; Intl requires hyphens.
-  systemLocale: Effect.sync(() => Electron.app.getSystemLocale().replace(/_/g, "-")),
+  // macOS reports NSLocale tags such as `en_GB` and `en_US@rg=hrzzzz`, which `Intl` rejects.
+  systemLocale: Effect.sync(() =>
+    Electron.app
+      .getSystemLocale()
+      .replace(/_/g, "-")
+      .replace(/@rg=(\w+)$/, "-u-rg-$1"),
+  ),
   whenReady: Effect.gen(function* () {
     const isPackaged = Electron.app.isPackaged;
     yield* Effect.tryPromise({

@@ -1,4 +1,9 @@
 import { type TimestampFormat } from "@t3tools/contracts/settings";
+import {
+  createDateTimeFormatter,
+  resolveDateTimeLocale,
+  type DateTimeFormatter,
+} from "@t3tools/shared/dateTimeLocale";
 
 function getTimestampFormatOptions(
   timestampFormat: TimestampFormat,
@@ -20,25 +25,12 @@ function getTimestampFormatOptions(
   };
 }
 
-function resolveTimestampLocale(systemLocale: string | null | undefined): string | undefined {
-  const tag = systemLocale?.trim();
-  if (!tag) return undefined;
-
-  try {
-    // Reject structurally invalid tags; let ICU fall back for valid tags it lacks data for.
-    Intl.DateTimeFormat.supportedLocalesOf([tag]);
-    return tag;
-  } catch {
-    return undefined;
-  }
-}
-
 function readHostSystemLocale(): string | null {
   if (typeof window === "undefined") return null;
   return window.desktopBridge?.getSystemLocale() ?? null;
 }
 
-const timestampLocale = resolveTimestampLocale(readHostSystemLocale());
+const timestampLocale = resolveDateTimeLocale(readHostSystemLocale());
 
 const WEEKDAY_INDEXES = [0, 1, 2, 3, 4, 5, 6] as const;
 type WeekdayIndex = (typeof WEEKDAY_INDEXES)[number];
@@ -66,21 +58,48 @@ function resolveWeekStartsOn(locale: string | undefined): WeekdayIndex | undefin
   }
 }
 
-export const weekStartsOn = resolveWeekStartsOn(timestampLocale);
+export const weekStartsOn = resolveWeekStartsOn(timestampLocale.shape);
 
-const timestampFormatterCache = new Map<string, Intl.DateTimeFormat>();
+const dateTimeFormatterCache = new Map<string, DateTimeFormatter>();
+
+/** A formatter in the host locale, for dates and times that do not follow the timestamp setting. */
+export function getDateTimeFormatter(options: Intl.DateTimeFormatOptions): DateTimeFormatter {
+  const cacheKey = JSON.stringify(options);
+  const cachedFormatter = dateTimeFormatterCache.get(cacheKey);
+  if (cachedFormatter) {
+    return cachedFormatter;
+  }
+
+  const formatter = createDateTimeFormatter(timestampLocale, options);
+  dateTimeFormatterCache.set(cacheKey, formatter);
+  return formatter;
+}
+
+/** e.g. `8. 10. 2026. 15:05:00` on a Croatian host. */
+export function formatDateAndTime(date: Date): string {
+  return getDateTimeFormatter({
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(date);
+}
+
+const timestampFormatterCache = new Map<string, DateTimeFormatter>();
 
 function getTimestampFormatter(
   timestampFormat: TimestampFormat,
   includeSeconds: boolean,
-): Intl.DateTimeFormat {
+): DateTimeFormatter {
   const cacheKey = `${timestampFormat}:${includeSeconds ? "seconds" : "minutes"}`;
   const cachedFormatter = timestampFormatterCache.get(cacheKey);
   if (cachedFormatter) {
     return cachedFormatter;
   }
 
-  const formatter = new Intl.DateTimeFormat(
+  const formatter = createDateTimeFormatter(
     timestampLocale,
     getTimestampFormatOptions(timestampFormat, includeSeconds),
   );
@@ -136,11 +155,11 @@ export function formatShortTimestamp(isoDate: string, timestampFormat: Timestamp
   return getTimestampFormatter(timestampFormat, false).format(date);
 }
 
-const numericDateFormatter = new Intl.DateTimeFormat(timestampLocale, {
+const numericDateFormatter = createDateTimeFormatter(timestampLocale, {
   month: "numeric",
   day: "numeric",
 });
-const numericDateWithYearFormatter = new Intl.DateTimeFormat(timestampLocale, {
+const numericDateWithYearFormatter = createDateTimeFormatter(timestampLocale, {
   month: "numeric",
   day: "numeric",
   year: "numeric",
