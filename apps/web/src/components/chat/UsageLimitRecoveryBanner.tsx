@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { toastManager } from "../ui/toast";
 import type { ComposerBannerStackItem } from "./ComposerBannerStack";
+import { formatDateAndTime } from "../../timestampFormat";
 
 type RecoveryProps = {
   runId: RunId;
@@ -28,7 +29,7 @@ export function usageLimitRecoveryBannerItem(props: RecoveryProps): ComposerBann
     icon: <GaugeIcon />,
     title: "Usage limit reached",
     description: resetAt
-      ? `Resets ${new Date(resetAt).toLocaleString()}`
+      ? `Resets ${formatDateAndTime(new Date(resetAt))}`
       : "Reset time unavailable; retry manually",
     actions: canSchedule ? <RecoveryActions key={`${runId}:${resetAt}`} {...props} /> : null,
   };

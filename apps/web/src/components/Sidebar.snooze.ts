@@ -5,7 +5,7 @@ import {
   type SnoozePreset,
 } from "@t3tools/client-runtime/state/thread-settled";
 
-import { formatShortTimestamp, parseTimestampDate } from "../timestampFormat";
+import { formatShortTimestamp, getDateTimeFormatter, parseTimestampDate } from "../timestampFormat";
 
 export { snoozeWakeLabel, type SnoozePreset };
 
@@ -25,7 +25,7 @@ export function resolveSnoozePresets(
       ...preset,
       whenLabel:
         preset.id === "next-week"
-          ? `${wake.toLocaleDateString(undefined, { weekday: "short" })} ${time}`
+          ? `${getDateTimeFormatter({ weekday: "short" }).format(wake)} ${time}`
           : time,
     };
   });
