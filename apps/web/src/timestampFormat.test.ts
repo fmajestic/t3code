@@ -13,25 +13,7 @@ import {
   formatUpcomingTimestamp,
   msUntilRelativeTimeChange,
   relativeTimeElapsedMs,
-  resolveTimestampLocale,
 } from "./timestampFormat";
-
-describe("resolveTimestampLocale", () => {
-  it("defers to the runtime default when the host reports no locale", () => {
-    expect(resolveTimestampLocale(null)).toBeUndefined();
-    expect(resolveTimestampLocale(undefined)).toBeUndefined();
-    expect(resolveTimestampLocale("   ")).toBeUndefined();
-  });
-
-  it("uses a BCP-47 tag reported by the host", () => {
-    expect(resolveTimestampLocale("en-GB")).toBe("en-GB");
-  });
-
-  it("defers to the runtime default rather than throwing on an unusable tag", () => {
-    expect(resolveTimestampLocale("not a locale")).toBeUndefined();
-    expect(resolveTimestampLocale("en_GB")).toBeUndefined();
-  });
-});
 
 describe("formatShortTimestamp", () => {
   afterEach(() => {
@@ -209,6 +191,20 @@ describe("formatDayAwareTimestamp", () => {
     const messageAt = iso(2026, 7, 12, 15, 44);
 
     expect(formatWithHostLocale(messageAt, "locale", now)).toBe("12/08 15:44");
+
+    vi.unstubAllGlobals();
+  });
+
+  it("orders the date like the host's region override", async () => {
+    vi.stubGlobal("window", {
+      desktopBridge: { getSystemLocale: () => "en-US-u-rg-hrzzzz" },
+    });
+    vi.resetModules();
+
+    const { formatDayAwareTimestamp: formatWithHostLocale } = await import("./timestampFormat");
+    const messageAt = iso(2026, 7, 12, 15, 44);
+
+    expect(formatWithHostLocale(messageAt, "locale", now)).toBe("12. 08. 15:44");
 
     vi.unstubAllGlobals();
   });
