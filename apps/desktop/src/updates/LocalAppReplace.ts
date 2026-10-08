@@ -5,6 +5,7 @@
 import * as NodeChildProcess from "node:child_process";
 import * as NodeUtil from "node:util";
 
+import { createDateTimeFormatter, type DateTimeLocale } from "@t3tools/shared/dateTimeLocale";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Option from "effect/Option";
@@ -77,14 +78,13 @@ export interface LocalUpdate {
   readonly label: string;
 }
 
-export function localUpdateLabel(zip: ReleaseZip): string {
+export function localUpdateLabel(zip: ReleaseZip, locale: DateTimeLocale): string {
   const version = releaseZipVersion(zip.name);
-  const builtAt = new Intl.DateTimeFormat(undefined, {
+  const builtAt = createDateTimeFormatter(locale, {
     month: "short",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-    hourCycle: "h23",
   }).format(zip.mtimeMs);
   return `${version} (built ${builtAt})`;
 }
@@ -99,6 +99,7 @@ export const findLocalUpdate = Effect.fn("desktop.updates.findLocalUpdate")(func
   readonly releaseDir: string;
   readonly arch: string;
   readonly installedVersion: string;
+  readonly locale: DateTimeLocale;
 }) {
   const { fileSystem, path } = input;
   const names = yield* fileSystem
@@ -132,7 +133,7 @@ export const findLocalUpdate = Effect.fn("desktop.updates.findLocalUpdate")(func
     : Option.some<LocalUpdate>({
         zipPath,
         buildId: `${zipPath}@${zip.mtimeMs}`,
-        label: localUpdateLabel(zip),
+        label: localUpdateLabel(zip, input.locale),
       });
 });
 

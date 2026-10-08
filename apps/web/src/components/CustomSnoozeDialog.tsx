@@ -9,7 +9,7 @@ import {
 import { Button } from "./ui/button";
 import { CalendarIcon } from "lucide-react";
 import { Calendar } from "./ui/calendar";
-import { weekStartsOn } from "../timestampFormat";
+import { getDateTimeFormatter, weekStartsOn } from "../timestampFormat";
 import { Popover, PopoverTrigger, PopoverPopup } from "./ui/popover";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -123,11 +123,11 @@ function CustomSnoozeDialog() {
                             />
                           }
                         >
-                          {date.toLocaleDateString(undefined, {
+                          {getDateTimeFormatter({
                             month: "short",
                             day: "numeric",
                             year: "numeric",
-                          })}
+                          }).format(date)}
                           <CalendarIcon className="size-4 text-muted-foreground" />
                         </PopoverTrigger>
                         <PopoverPopup align="start" aria-label="Choose snooze date">

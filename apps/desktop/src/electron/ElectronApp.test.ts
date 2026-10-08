@@ -128,6 +128,15 @@ describe("ElectronApp", () => {
     }).pipe(Effect.provide(ElectronApp.layer)),
   );
 
+  it.effect("carries a macOS region-format override as a BCP-47 extension", () =>
+    Effect.gen(function* () {
+      getSystemLocaleMock.mockImplementationOnce(() => "en_US@rg=hrzzzz");
+      const electronApp = yield* ElectronApp.ElectronApp;
+
+      assert.strictEqual(yield* electronApp.systemLocale, "en-US-u-rg-hrzzzz");
+    }).pipe(Effect.provide(ElectronApp.layer)),
+  );
+
   it.effect("reports which app metadata property failed", () =>
     Effect.gen(function* () {
       const cause = new Error("version unavailable");

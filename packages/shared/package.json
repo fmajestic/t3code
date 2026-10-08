@@ -391,6 +391,10 @@
       "types": "./src/dateTime.ts",
       "import": "./src/dateTime.ts"
     },
+    "./dateTimeLocale": {
+      "types": "./src/dateTimeLocale.ts",
+      "import": "./src/dateTimeLocale.ts"
+    },
     "./cliRelease": {
       "types": "./src/cliRelease.ts",
       "import": "./src/cliRelease.ts"

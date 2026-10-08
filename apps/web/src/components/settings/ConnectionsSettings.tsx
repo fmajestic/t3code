@@ -63,7 +63,11 @@ import * as Option from "effect/Option";
 import { useCopyToClipboard } from "../../hooks/useCopyToClipboard";
 import { cn } from "../../lib/utils";
 import { isLocalEnvironmentDisabled } from "../../localEnvironment";
-import { formatElapsedDurationLabel, formatExpiresInLabel } from "../../timestampFormat";
+import {
+  formatElapsedDurationLabel,
+  formatExpiresInLabel,
+  getDateTimeFormatter,
+} from "../../timestampFormat";
 import { resolveDesktopPairingUrl, resolveHostedPairingUrl } from "./pairingUrls";
 import {
   applyWslEnableSelection,
@@ -213,7 +217,7 @@ const EMPTY_DISCOVERED_SSH_HOSTS: ReadonlyArray<DesktopDiscoveredSshHost> = [];
 const BACKEND_VALUE_DEFAULT_WSL = "backend:default-wsl";
 const BACKEND_VALUE_WSL_OFF = "backend:wsl-off";
 
-const accessTimestampFormatter = new Intl.DateTimeFormat(undefined, {
+const accessTimestampFormatter = getDateTimeFormatter({
   dateStyle: "medium",
   timeStyle: "short",
 });

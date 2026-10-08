@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 
 import { type SlowRpcAckRequest, useSlowRpcAckRequests } from "../rpc/requestLatencyState";
 import { toastManager } from "./ui/toast";
+import { getDateTimeFormatter } from "../timestampFormat";
 
 function describeSlowRequests(requests: ReadonlyArray<SlowRpcAckRequest>): string {
   const count = requests.length;
@@ -23,7 +24,12 @@ function SlowRequestDetails({ requests }: { requests: ReadonlyArray<SlowRpcAckRe
         >
           <div className="wrap-break-word font-medium text-foreground">{request.tag}</div>
           <div className="mt-0.5 text-3xs opacity-75">
-            Started {new Date(request.startedAt).toLocaleTimeString()}
+            Started{" "}
+            {getDateTimeFormatter({
+              hour: "numeric",
+              minute: "2-digit",
+              second: "2-digit",
+            }).format(new Date(request.startedAt))}
           </div>
         </li>
       ))}

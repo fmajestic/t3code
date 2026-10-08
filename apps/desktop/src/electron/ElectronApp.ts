@@ -127,9 +127,15 @@ export const make = ElectronApp.of({
   }),
   name: Effect.sync(() => Electron.app.name),
   // macOS derives this from NSLocale, which uses POSIX-style identifiers
-  // (`en_GB`). `Intl` rejects those outright rather than normalizing them, so
-  // the tag is normalized here rather than in the renderer that consumes it.
-  systemLocale: Effect.sync(() => Electron.app.getSystemLocale().replace(/_/g, "-")),
+  // (`en_GB`) and spells a region-format override `en_US@rg=hrzzzz`. `Intl`
+  // rejects both outright, so the tag is normalized to BCP-47 here rather than
+  // in the renderer that consumes it.
+  systemLocale: Effect.sync(() =>
+    Electron.app
+      .getSystemLocale()
+      .replace(/_/g, "-")
+      .replace(/@rg=(\w+)$/, "-u-rg-$1"),
+  ),
   whenReady: Effect.gen(function* () {
     const isPackaged = Electron.app.isPackaged;
     yield* Effect.tryPromise({

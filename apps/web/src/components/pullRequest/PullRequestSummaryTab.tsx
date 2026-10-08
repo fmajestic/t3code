@@ -20,7 +20,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { pullRequestEnvironment } from "~/state/pullRequests";
 import { cn } from "~/lib/utils";
 import { useOpenLink } from "~/browser/useOpenLink";
-import { formatRelativeTimeLabel } from "~/timestampFormat";
+import { formatDateAndTime, formatRelativeTimeLabel } from "~/timestampFormat";
 
 import { Button } from "../ui/button";
 import { PullRequestEditButton } from "./PullRequestEditButton";
@@ -97,7 +97,7 @@ function CommentIdentity({
           <time dateTime={comment.createdAt}>{formatRelativeTimeLabel(comment.createdAt)}</time>
         </TooltipTrigger>
         <TooltipPopup>
-          {new Date(comment.createdAt).toLocaleString()}
+          {formatDateAndTime(new Date(comment.createdAt))}
           {comment.url ? " · Open comment on host" : ""}
         </TooltipPopup>
       </Tooltip>
@@ -428,7 +428,7 @@ function CommentGroup({
                       <TooltipTrigger render={<time dateTime={latest} />}>
                         {formatRelativeTimeLabel(latest)}
                       </TooltipTrigger>
-                      <TooltipPopup>{new Date(latest).toLocaleString()}</TooltipPopup>
+                      <TooltipPopup>{formatDateAndTime(new Date(latest))}</TooltipPopup>
                     </Tooltip>
                   </span>
                 ) : null}
