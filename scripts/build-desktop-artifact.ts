@@ -3934,6 +3934,28 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
     copiedArtifacts.push(to);
   }
 
+  // Fork-local: the `dir` target leaves only the bundle, in mac/, mac-arm64/ or mac-universal/.
+  // LocalAppReplace.ts reads the version from the `T3-Code-<version>-<arch>.app` name.
+  if (options.platform === "mac" && options.target === "dir") {
+    for (const entry of stageEntries.filter((name) => name.startsWith("mac"))) {
+      const bundles = yield* fs.readDirectory(path.join(stageDistDir, entry));
+      for (const bundle of bundles.filter((name) => name.endsWith(".app"))) {
+        const from = path.join(stageDistDir, entry, bundle);
+        const to = path.join(options.outputDir, `T3-Code-${appVersion}-${options.arch}.app`);
+        yield* fs.remove(to, { recursive: true, force: true });
+        yield* fs.rename(from, to).pipe(
+          Effect.catch(() =>
+            runCommand(ChildProcess.make("/usr/bin/ditto", [from, to]), {
+              label: `ditto ${from} ${to}`,
+              verbose: options.verbose,
+            }),
+          ),
+        );
+        copiedArtifacts.push(to);
+      }
+    }
+  }
+
   if (copiedArtifacts.length === 0) {
     return yield* new DesktopBuildNoArtifactsProducedError({
       distPath: stageDistDir,

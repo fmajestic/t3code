@@ -691,7 +691,7 @@ export const make = Effect.gen(function* () {
       }),
     ).pipe(Effect.withSpan("desktop.updates.installDownloadedUpdate"));
 
-  // Staging only extracts the zip; quitting waits for the install action and its confirmation.
+  // Staging only clones the app bundle; quitting waits for the install action and its confirmation.
   const stageNewestLocalBuild = Effect.fn("desktop.updates.stageNewestLocalBuild")(function* (
     releaseDir: string,
   ) {
@@ -723,7 +723,7 @@ export const make = Effect.gen(function* () {
     return Option.some(staged);
   });
 
-  // A zip built outside the app installs directly; otherwise a new commit is offered as a build.
+  // A bundle built outside the app installs directly; otherwise a new commit is offered as a build.
   const checkLocalBuild = Effect.fn("desktop.updates.checkLocalBuild")(function* (
     build: LocalAppReplace.LocalBuildInfo,
   ) {
@@ -796,7 +796,7 @@ export const make = Effect.gen(function* () {
       const staged = yield* stageNewestLocalBuild(build.releaseDir);
       if (Option.isNone(staged)) {
         return yield* new LocalAppReplace.LocalAppReplaceError({
-          message: `The build left no new zip in ${build.releaseDir}`,
+          message: `The build left no new app bundle in ${build.releaseDir}`,
         });
       }
       yield* updateState((current) =>

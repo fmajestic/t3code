@@ -7,23 +7,23 @@ import {
   appBundleFromExecPath,
   appendBuildOutput,
   localUpdateLabel,
-  newestReleaseZip,
-  releaseZipVersion,
+  newestReleaseApp,
+  releaseAppVersion,
 } from "./LocalAppReplace.ts";
 
 describe("LocalAppReplace", () => {
-  it("picks the newest release zip for the running arch", () => {
-    const zips = [
-      { name: "T3-Code-0.0.45-arm64.zip", mtimeMs: 1 },
-      { name: "T3-Code-0.0.46-arm64.zip", mtimeMs: 3 },
-      { name: "T3-Code-0.0.47-x64.zip", mtimeMs: 9 },
-      { name: "T3-Code-0.0.47-arm64.dmg", mtimeMs: 9 },
-      { name: "T3-Code-0.0.44-arm64.zip", mtimeMs: 2 },
+  it("picks the newest release app bundle for the running arch", () => {
+    const apps = [
+      { name: "T3-Code-0.0.45-arm64.app", mtimeMs: 1 },
+      { name: "T3-Code-0.0.46-arm64.app", mtimeMs: 3 },
+      { name: "T3-Code-0.0.47-x64.app", mtimeMs: 9 },
+      { name: "T3-Code-0.0.47-arm64.zip", mtimeMs: 9 },
+      { name: "T3-Code-0.0.44-arm64.app", mtimeMs: 2 },
     ];
-    expect(newestReleaseZip(zips, "arm64")).toEqual(
-      Option.some({ name: "T3-Code-0.0.46-arm64.zip", mtimeMs: 3 }),
+    expect(newestReleaseApp(apps, "arm64")).toEqual(
+      Option.some({ name: "T3-Code-0.0.46-arm64.app", mtimeMs: 3 }),
     );
-    expect(newestReleaseZip(zips, "universal")).toEqual(Option.none());
+    expect(newestReleaseApp(apps, "universal")).toEqual(Option.none());
   });
 
   it("resolves the app bundle from the main executable only", () => {
@@ -35,8 +35,8 @@ describe("LocalAppReplace", () => {
     expect(appBundleFromExecPath("/usr/local/bin/node")).toEqual(Option.none());
   });
 
-  it("reads a stamped prerelease version from the zip name", () => {
-    expect(releaseZipVersion("T3-Code-0.0.46-fork.20261008.930-arm64.zip")).toBe(
+  it("reads a stamped prerelease version from the bundle name", () => {
+    expect(releaseAppVersion("T3-Code-0.0.46-fork.20261008.930-arm64.app")).toBe(
       "0.0.46-fork.20261008.930",
     );
   });
@@ -46,7 +46,7 @@ describe("LocalAppReplace", () => {
     const builtAt = new Date(2026, 9, 8, 15, 5).getTime();
     expect(
       localUpdateLabel(
-        { name: "T3-Code-0.0.45-arm64.zip", mtimeMs: builtAt },
+        { name: "T3-Code-0.0.45-arm64.app", mtimeMs: builtAt },
         resolveDateTimeLocale("en-US-u-rg-hrzzzz"),
       ),
     ).toBe("0.0.45 (built 8. Oct 15:05)");

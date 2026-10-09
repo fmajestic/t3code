@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Fork-local: build the arm64 desktop app with a version the in-app local update can tell apart.
+// Fork-local: build the arm64 desktop app bundle, unpackaged, with a version the in-app local
+// update can tell apart, and drop the bundles of earlier builds.
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as DateTime from "effect/DateTime";
@@ -16,7 +17,7 @@ class ForkDistBuildFailedError extends Schema.TaggedError<ForkDistBuildFailedErr
   { exitCode: Schema.Int },
 ) {
   override get message(): string {
-    return `dist:desktop:dmg:arm64 exited with code ${this.exitCode}.`;
+    return `build-desktop-artifact.ts exited with code ${this.exitCode}.`;
   }
 }
 
@@ -51,19 +52,39 @@ const program = Effect.gen(function* () {
     () =>
       Effect.gen(function* () {
         const child = yield* spawner.spawn(
-          ChildProcess.make("vp", ["run", "dist:desktop:dmg:arm64"], {
-            cwd: rootDir,
-            env: { T3CODE_DESKTOP_VERSION: buildVersion },
-            extendEnv: true,
-            stdout: "inherit",
-            stderr: "inherit",
-          }),
+          ChildProcess.make(
+            "node",
+            [
+              "scripts/build-desktop-artifact.ts",
+              "--platform",
+              "mac",
+              "--target",
+              "dir",
+              "--arch",
+              "arm64",
+            ],
+            {
+              cwd: rootDir,
+              env: { T3CODE_DESKTOP_VERSION: buildVersion },
+              extendEnv: true,
+              stdout: "inherit",
+              stderr: "inherit",
+            },
+          ),
         );
         const exitCode = Number(yield* child.exitCode);
         if (exitCode !== 0) return yield* new ForkDistBuildFailedError({ exitCode });
       }).pipe(Effect.scoped),
     () => updateReleasePackageVersions(baseVersion, { rootDir }).pipe(Effect.orDie),
   );
+
+  const releaseDir = path.join(rootDir, "release");
+  const built = `T3-Code-${buildVersion}-arm64.app`;
+  for (const name of yield* fs.readDirectory(releaseDir)) {
+    if (name !== built && /^T3-Code-.+-arm64\.app$/.test(name)) {
+      yield* fs.remove(path.join(releaseDir, name), { recursive: true });
+    }
+  }
 });
 
 if (import.meta.main) {
