@@ -116,6 +116,7 @@ const handleCheckForUpdatesMenuClick = Effect.gen(function* () {
 export const make = Effect.gen(function* () {
   const electronMenu = yield* ElectronMenu.ElectronMenu;
   const environment = yield* DesktopEnvironment.DesktopEnvironment;
+  const desktopWindow = yield* DesktopWindow.DesktopWindow;
   const context = yield* Effect.context<DesktopApplicationMenuRuntimeServices>();
   const runPromise = Effect.runPromiseWith(context);
 
@@ -136,6 +137,7 @@ export const make = Effect.gen(function* () {
   };
 
   const configure = Effect.gen(function* () {
+    const registerQuitAccelerator = !(yield* desktopWindow.quitShortcutDisabled);
     const checkForUpdatesClick = () => {
       runMenuEffect("check-for-updates", handleCheckForUpdatesMenuClick);
     };
@@ -181,7 +183,11 @@ export const make = Effect.gen(function* () {
           { role: "hideOthers" },
           { role: "unhide" },
           { type: "separator" },
-          { role: "quit", label: `Quit ${environment.displayName}` },
+          {
+            role: "quit",
+            label: `Quit ${environment.displayName}`,
+            registerAccelerator: registerQuitAccelerator,
+          },
         ],
       });
     }
@@ -203,7 +209,7 @@ export const make = Effect.gen(function* () {
           // Cmd/Ctrl+W belongs to the renderer's tab close; it must never close the window.
           environment.platform === "darwin"
             ? { label: "Close Window", click: (_item, window) => window?.close() }
-            : { role: "quit" },
+            : { role: "quit", registerAccelerator: registerQuitAccelerator },
         ],
       },
       {
