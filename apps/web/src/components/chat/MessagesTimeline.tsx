@@ -2340,12 +2340,22 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
           </div>
         ) : null}
         <div onCopyCapture={onBodyCopyCapture}>
-          <CollapsibleUserMessageBody
-            text={resolvedContext.text}
-            renderContextReference={renderContextReference}
-            skills={ctx.skills}
-            markdownCwd={ctx.markdownCwd}
-          />
+          <AssistantCitationSource
+            messageId={row.message.id}
+            role="user"
+            {...(ctx.threadRef ? { threadRef: ctx.threadRef } : {})}
+            itemKey={row.id}
+            request={ctx.citationRequest}
+            listRef={ctx.listRef}
+          >
+            <CollapsibleUserMessageBody
+              text={resolvedContext.text}
+              renderContextReference={renderContextReference}
+              skills={ctx.skills}
+              markdownCwd={ctx.markdownCwd}
+              cited={ctx.citationRequest?.citation.messageId === row.message.id}
+            />
+          </AssistantCitationSource>
         </div>
       </div>
       {row.projectedItem &&
@@ -4497,9 +4507,16 @@ const CollapsibleUserMessageBody = memo(function CollapsibleUserMessageBody(prop
   renderContextReference: (reference: ChatMarkdownContextReference) => ReactNode;
   skills: ReadonlyArray<Pick<ServerProviderSkill, "name" | "displayName">>;
   markdownCwd: string | undefined;
+  cited?: boolean;
   footer?: ReactNode;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  // A citation can point into the clipped part, so opening one expands the body.
+  const [expanded, setExpanded] = useState(props.cited === true);
+  const [wasCited, setWasCited] = useState(props.cited);
+  if (props.cited !== wasCited) {
+    setWasCited(props.cited);
+    if (props.cited) setExpanded(true);
+  }
   const revealForFind = () => setExpanded(true);
   const revealRef = findRevealRef(revealForFind);
   const hasVisibleBody = props.text.trim().length > 0;
