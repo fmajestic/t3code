@@ -1,0 +1,209 @@
+# Fork-local: build the Windows desktop app in CI, so this fork's fixes reach
+# Windows without a local toolchain. Every push to the fork branch replaces the
+# assets on one rolling release, and nothing else in the repository's workflows
+# runs on that branch.
+#
+# Deliberately not a tag trigger. Upstream's release.yml builds on `v*.*.*` tags
+# and needs the maintainers' runners, secrets and environments, so a tag here
+# would start a release that cannot finish.
+#
+# The version is fork-shaped rather than preview-shaped, which is what gives
+# the build an update feed: isDesktopPreviewVersion in
+# scripts/build-desktop-artifact.ts is false for it, so electron-builder writes
+# app-update.yml, a latest.yml manifest and a blockmap. Nothing here is signed,
+# and Windows does not need a signature to update: electron-updater verifies
+# the publisher only when app-update.yml names one, which a signed build does.
+# The rolling release must therefore stay a regular release, because that is
+# what /releases/latest resolves to, and it must keep latest.yml beside the
+# installer or Check for updates fails on a missing channel file.
+
+name: Fork Windows build
+
+on:
+  push:
+    branches:
+      - fork
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fork-windows-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Windows x64
+    # Stock Windows runners, not the blacksmith ones the release workflows use.
+    runs-on: windows-2025
+    timeout-minutes: 75
+    env:
+      FORK_RELEASE_TAG: fork-windows
+      # Pinned rather than inherited from GITHUB_REPOSITORY, so the feed can
+      # never resolve to upstream if this workflow is ever run against it.
+      T3CODE_DESKTOP_UPDATE_REPOSITORY: fmajestic/t3code
+    steps:
+      # Not actions/checkout: its post-job credential cleanup runs submodule
+      # foreach even with submodules disabled, which fails on the orphaned
+      # gitlinks in the vendored .repos tree. The repository is public, so git
+      # needs no credentials.
+      - name: Checkout
+        shell: bash
+        env:
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git checkout --detach FETCH_HEAD
+
+      # No package cache: restoring a Linux-shaped store onto Windows measured
+      # slower than installing without one, and the lockfile rarely changes
+      # between fork commits.
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          cache: false
+          run-install: false
+
+      - name: Install build dependencies
+        run: vp install --filter=t3... --filter=@t3tools/web... --filter=@t3tools/desktop... --filter=@t3tools/scripts...
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+          targets: x86_64-pc-windows-msvc
+
+      # The Rust resource monitor only changes when its own sources do, and
+      # rebuilding it costs about as much as installing the Spectre libraries
+      # it needs. A hit skips both, and the desktop build's own MSVC preflight.
+      - name: Cache resource monitor
+        id: resource_monitor_cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: native/resource-monitor/target/x86_64-pc-windows-msvc/release/t3-resource-monitor.exe
+          key: fork-windows-resource-monitor-v1-${{ hashFiles('native/resource-monitor/Cargo.lock', 'native/resource-monitor/Cargo.toml', 'native/resource-monitor/src/**') }}
+
+      # The runner image ships MSVC without the Spectre-mitigated libraries the
+      # resource monitor links against.
+      - name: Install Spectre-mitigated MSVC libs
+        if: steps.resource_monitor_cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $installPath = & $vswhere -products * -latest -property installationPath
+          $setupExe = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\setup.exe"
+          $proc = Start-Process -FilePath $setupExe `
+            -ArgumentList "modify", "--installPath", "`"$installPath`"", "--add", `
+            "Microsoft.VisualStudio.Component.VC.Runtimes.x86.x64.Spectre", "--quiet", "--norestart" `
+            -Wait -PassThru -NoNewWindow
+          if ($null -eq $proc -or $proc.ExitCode -ne 0) {
+            $code = if ($null -ne $proc) { $proc.ExitCode } else { 1 }
+            Write-Error "Visual Studio Installer failed with exit code $code"
+            exit $code
+          }
+
+      # T3 Connect's public identifiers, the same ones .env.example ships.
+      # Without them the build has no cloud features.
+      - name: Enable T3 Connect
+        shell: bash
+        run: cp .env.example .env
+
+      # The next patch, shaped like upstream's nightlies, so the version reads as
+      # newer than the checkout it came from. The `-fork.` suffix is this fork's
+      # own version namespace (scripts/fork-dist-desktop.ts stamps it on mac
+      # builds), and it is what keeps the update feed: electron-builder omits
+      # the publish config for `-pr.` and `-preview.` versions. The run number
+      # only ever grows, so every build is newer than the one before it.
+      - name: Resolve build version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="$(node -p "require('./apps/server/package.json').version")"
+          next="$(node -p "const [a, b, c] = process.argv[1].split('.').map(Number); [a, b, c + 1].join('.')" "$base")"
+          version="${next}-fork.$(date -u +%Y%m%d).${GITHUB_RUN_NUMBER}"
+          echo "Building ${version} (checkout is ${base})."
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Align package versions to build version
+        run: node scripts/update-release-package-versions.ts "${{ steps.version.outputs.version }}"
+
+      # Unsigned: there is no Trusted Signing identity here, and Windows only
+      # warns about the publisher at install time.
+      #
+      # No --wsl-runtime, so the app ships without the embedded Linux CLI
+      # archive and runs its backend natively on Windows. The WSL backend toggle
+      # falls back to the mounted server tree without it.
+      - name: Build installer
+        shell: bash
+        env:
+          T3CODE_DESKTOP_REUSE_RESOURCE_MONITOR: ${{ steps.resource_monitor_cache.outputs.cache-hit == 'true' }}
+        run: |
+          set -euo pipefail
+          vp run dist:desktop:artifact \
+            --platform win \
+            --target nsis \
+            --arch x64 \
+            --build-version "${{ steps.version.outputs.version }}" \
+            --verbose
+
+      # One rolling release instead of per-run artifacts: an installer runs about
+      # 150 MB against the free plan's 500 MB of artifact storage, so per-run
+      # artifacts would evict each other, and a stable URL beats digging
+      # through run pages.
+      #
+      # Not a prerelease: electron-updater resolves the feed through
+      # /releases/latest, which skips prereleases. latest.yml is what it reads
+      # next, and a missing one surfaces in the app as a failed check rather
+      # than as a missing build, so assert on it here.
+      - name: Publish installer
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p publish
+          shopt -s nullglob
+          installers=(release/*.exe)
+          manifests=(release/latest.yml)
+          blockmaps=(release/*.exe.blockmap)
+          if [[ ${#installers[@]} -eq 0 ]]; then
+            echo "::error::The build produced no installer."
+            exit 1
+          fi
+          if [[ ${#manifests[@]} -eq 0 || ${#blockmaps[@]} -eq 0 ]]; then
+            echo "::error::No latest.yml or blockmap, so the installed app would have no update feed."
+            exit 1
+          fi
+          cp "${installers[@]}" "${manifests[@]}" "${blockmaps[@]}" publish/
+
+          notes="Unsigned Windows x64 build of this fork's \`fork\` branch, replaced on every push. Version \`${{ steps.version.outputs.version }}\`. Check for updates in the app, or reinstall this."
+
+          if ! gh release view "$FORK_RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$FORK_RELEASE_TAG" \
+              --target "$GITHUB_SHA" \
+              --title "Windows build (fork)" \
+              --notes "$notes"
+          fi
+
+          # Asset names carry the version, so a rolling release would otherwise
+          # keep one installer per push, forever. The channel file names the
+          # asset it belongs to, so all three move together.
+          while read -r asset; do
+            gh release delete-asset "$FORK_RELEASE_TAG" "$asset" --yes
+          done < <(gh release view "$FORK_RELEASE_TAG" --json assets --jq '.assets[].name')
+
+          gh release upload "$FORK_RELEASE_TAG" publish/*
+          gh release edit "$FORK_RELEASE_TAG" \
+            --title "Windows build (fork)" \
+            --notes "$notes" \
+            --prerelease=false

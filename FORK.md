@@ -17,6 +17,7 @@ Each of these is meant to be dropped once upstream has it, through its own PR or
 ## Fork only
 
 - **Name**: local desktop builds are called "T3 Code (Majestic)", so the bundle installs next to the official app instead of replacing it.
+- **Windows builds from Actions**: every push to `fork` builds an unsigned Windows x64 installer on GitHub's own runners and replaces it on the fork's [fork-windows release](https://github.com/fmajestic/t3code/releases/tag/fork-windows). The installed app finds newer builds by itself, so Check for updates works like any other build; the installer is the fallback. `.github/workflows/fork-windows-build.yml` has the details.
 - **Header artwork**: choose the Alpha build's header artwork under Settings > Appearance. The Dock icon follows your choice.
 - **Local updates**: a local macOS build updates from the checkout it was built from. Check for updates installs a newer app bundle from its release folder, or offers to build the checkout when it has moved to another commit; the build log is `release/fork-build.log`. `vp run fork:dist:desktop:app` builds from the terminal: only the `.app`, no DMG or zip, stamped with a version the update check can tell apart, replacing the bundles of earlier builds.
 - **Install without mobile**: `vp run i:desktop` installs only what desktop, web, the server and the repo scripts need. Worktree setup uses it too.
