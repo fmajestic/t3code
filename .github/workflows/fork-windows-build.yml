@@ -1,0 +1,171 @@
+# Fork-local: build the Windows desktop app in CI, so this fork's fixes reach
+# Windows without a local toolchain. Every push to the fork branch replaces the
+# assets on one rolling release, and nothing else in the repository's workflows
+# runs on that branch.
+#
+# Deliberately not a tag trigger. Upstream's release.yml builds on `v*.*.*` tags
+# and needs the maintainers' runners, secrets and environments, so a tag here
+# would start a release that cannot finish.
+#
+# The version is preview-shaped, which is what keeps updates off: electron-builder
+# then writes no app-update.yml and no channel manifests, so the installed app
+# has no feed to poll and cannot be offered somebody else's build. Reinstall the
+# installer to move to a newer commit. See isDesktopPreviewVersion in
+# scripts/build-desktop-artifact.ts.
+
+name: Fork Windows build
+
+on:
+  push:
+    branches:
+      - fork
+      # Dropped once this lands on fork: the branch it was prototyped on.
+      - ci/windows-build
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fork-windows-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Windows x64
+    # Stock Windows runners, not the blacksmith ones the release workflows use.
+    runs-on: windows-2025
+    timeout-minutes: 75
+    env:
+      FORK_RELEASE_TAG: fork-windows
+    steps:
+      # Sparse checkout because the vendored .repos tree is large and nothing
+      # in this build reads it.
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+
+      # No package cache: restoring a Linux-shaped store onto Windows measured
+      # slower than installing without one, and the lockfile rarely changes
+      # between fork commits.
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          cache: false
+          run-install: false
+
+      - name: Install build dependencies
+        run: vp install --filter=t3... --filter=@t3tools/web... --filter=@t3tools/desktop... --filter=@t3tools/scripts...
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: stable
+          targets: x86_64-pc-windows-msvc
+
+      # The Rust resource monitor is the slowest part of the build and changes
+      # only when its own sources do. A hit also lets the desktop build's
+      # preflight skip the MSVC and Spectre checks below.
+      - name: Cache resource monitor
+        id: resource_monitor_cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: native/resource-monitor/target/x86_64-pc-windows-msvc/release/t3-resource-monitor.exe
+          key: fork-windows-resource-monitor-v1-${{ hashFiles('native/resource-monitor/Cargo.lock', 'native/resource-monitor/Cargo.toml', 'native/resource-monitor/src/**') }}
+
+      # The runner image ships MSVC without the Spectre-mitigated libraries the
+      # resource monitor links against.
+      - name: Install Spectre-mitigated MSVC libs
+        if: steps.resource_monitor_cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $installPath = & $vswhere -products * -latest -property installationPath
+          $setupExe = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\setup.exe"
+          $proc = Start-Process -FilePath $setupExe `
+            -ArgumentList "modify", "--installPath", "`"$installPath`"", "--add", `
+            "Microsoft.VisualStudio.Component.VC.Runtimes.x86.x64.Spectre", "--quiet", "--norestart" `
+            -Wait -PassThru -NoNewWindow
+          if ($null -eq $proc -or $proc.ExitCode -ne 0) {
+            $code = if ($null -ne $proc) { $proc.ExitCode } else { 1 }
+            Write-Error "Visual Studio Installer failed with exit code $code"
+            exit $code
+          }
+
+      # T3 Connect's public identifiers, the same ones .env.example ships.
+      # Without them the build has no cloud features.
+      - name: Enable T3 Connect
+        shell: bash
+        run: cp .env.example .env
+
+      # The next patch, shaped like upstream's nightlies, so the version reads as
+      # newer than the checkout it came from; the preview suffix keeps it below
+      # any stable release.
+      - name: Resolve build version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="$(node -p "require('./apps/server/package.json').version")"
+          next="$(node -p "const [a, b, c] = process.argv[1].split('.').map(Number); [a, b, c + 1].join('.')" "$base")"
+          version="${next}-preview.$(date -u +%Y%m%d).${GITHUB_RUN_NUMBER}"
+          echo "Building ${version} (checkout is ${base})."
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Align package versions to build version
+        run: node scripts/update-release-package-versions.ts "${{ steps.version.outputs.version }}"
+
+      # Unsigned: there is no Trusted Signing identity here, and Windows only
+      # warns about the publisher at install time.
+      #
+      # No --wsl-runtime, so the app ships without the embedded Linux CLI
+      # archive and runs its backend natively on Windows. The WSL backend toggle
+      # falls back to the mounted server tree without it.
+      - name: Build installer
+        shell: bash
+        env:
+          T3CODE_DESKTOP_REUSE_RESOURCE_MONITOR: ${{ steps.resource_monitor_cache.outputs.cache-hit == 'true' }}
+        run: |
+          set -euo pipefail
+          vp run dist:desktop:artifact \
+            --platform win \
+            --target nsis \
+            --arch x64 \
+            --build-version "${{ steps.version.outputs.version }}" \
+            --verbose
+
+      # One rolling release instead of per-run artifacts: an installer is well
+      # over the free plan's 500 MB of artifact storage, and a stable URL beats
+      # digging through run pages.
+      - name: Publish installer
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p publish
+          shopt -s nullglob
+          installers=(release/*.exe)
+          if [[ ${#installers[@]} -eq 0 ]]; then
+            echo "::error::The build produced no installer."
+            exit 1
+          fi
+          cp "${installers[@]}" publish/
+
+          release="$(gh release view "$FORK_RELEASE_TAG" --json isDraft --jq .isDraft 2>/dev/null || true)"
+          if [[ "$release" == "true" ]]; then
+            gh release edit "$FORK_RELEASE_TAG" --draft=false
+          fi
+          gh release upload "$FORK_RELEASE_TAG" publish/*.exe --clobber
+          gh release edit "$FORK_RELEASE_TAG" \
+            --title "Windows build (fork)" \
+            --notes "Unsigned Windows x64 build of this fork's \`fork\` branch, replaced on every push. Version \`${{ steps.version.outputs.version }}\`. Reinstall to update; the app has no update feed." \
+            --prerelease
