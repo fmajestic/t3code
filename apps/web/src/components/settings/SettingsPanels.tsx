@@ -153,6 +153,7 @@ const QUIT_CONFIRMATION_MODE_LABELS: Record<QuitConfirmationMode, string> = {
   direct: msg("Direct"),
   hold: msg("Hold"),
   "double-click": msg("Double press"),
+  off: msg("Off"),
 };
 
 const DEFAULT_DRIVER_KIND = ProviderDriverKind.make("codex");
@@ -1004,7 +1005,12 @@ export function GeneralSettingsPanel() {
         {isElectron ? (
           <SettingsRow
             {...setting("quit-confirmation")}
-            description={<T>Hold mode also quits on two quick presses.</T>}
+            description={
+              <T>
+                Hold mode also quits on two quick presses. Off passes the shortcut to the app, such
+                as the terminal.
+              </T>
+            }
             resetAction={
               settings.confirmQuit !== DEFAULT_UNIFIED_SETTINGS.confirmQuit ? (
                 <SettingResetButton
@@ -1019,7 +1025,12 @@ export function GeneralSettingsPanel() {
               <Select
                 value={settings.confirmQuit}
                 onValueChange={(value) => {
-                  if (value === "direct" || value === "hold" || value === "double-click") {
+                  if (
+                    value === "direct" ||
+                    value === "hold" ||
+                    value === "double-click" ||
+                    value === "off"
+                  ) {
                     updateSettings({ confirmQuit: value });
                   }
                 }}
