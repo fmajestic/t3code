@@ -21,4 +21,4 @@ Each of these is meant to be dropped once upstream has it, through its own PR or
 
 ## Syncing
 
-Rebase `fork` onto `upstream/main`. Drop any commit from Ahead of upstream that upstream now covers.
+Rebase `fork` onto `upstream/main`. Drop any commit from Ahead of upstream that upstream now covers. Then run `vp run i:desktop`: upstream often changes dependencies, and builds, including the one behind the update button, fail until they are installed.
