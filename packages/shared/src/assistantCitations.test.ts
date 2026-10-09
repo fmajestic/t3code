@@ -219,6 +219,20 @@ describe("assistant citation references", () => {
     },
   );
 
+  it("labels user quotes and keeps their role through a round trip", () => {
+    const userCitation: AssistantCitation = { ...legacyCitation, role: "user" };
+    const marker = serializeAssistantCitation(userCitation);
+    expect(marker).toBe(`[User quote](${legacyHref}&role=user)`);
+    expect(collectAssistantCitations(`See ${marker}`)[0]?.citation).toStrictEqual(userCitation);
+    expect(renderAssistantCitationsAsText(marker)).toContain("> User quote:");
+
+    const expanded = expandAssistantCitationsForProvider(
+      `${marker} ${serializeAssistantCitation(legacyCitation)}`,
+    );
+    expect(expanded).toMatch(/^\[user-quote-1\] \[assistant-quote-2\]/);
+    expect(expanded).toContain('a citation with role "user" quotes the user\'s own message');
+  });
+
   it("decodes provider context once per source and keeps instruction-looking text inside JSON", () => {
     const marker = serializeAssistantCitation(citation);
     const prompt = `Explain ${marker} and compare it with ${marker}.`;

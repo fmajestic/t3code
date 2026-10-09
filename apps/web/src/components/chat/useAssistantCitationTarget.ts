@@ -108,9 +108,12 @@ export function useAssistantCitationTarget({
       );
       return;
     }
-    if (source.kind !== "message" || source.message.role !== "assistant") {
+    if (
+      source.kind !== "message" ||
+      (source.message.role !== "assistant" && source.message.role !== "user")
+    ) {
       fail(
-        "The citation does not refer to an assistant response",
+        "The citation does not refer to a message",
         "The selected text is still saved in your citation.",
       );
       return;

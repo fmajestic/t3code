@@ -2500,12 +2500,22 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
           </div>
         ) : null}
         <div onCopyCapture={onBodyCopyCapture}>
-          <CollapsibleUserMessageBody
-            text={resolvedContext.text}
-            renderContextReference={renderContextReference}
-            skills={ctx.skills}
-            markdownCwd={ctx.markdownCwd}
-          />
+          <AssistantCitationSource
+            messageId={row.message.id}
+            role="user"
+            {...(ctx.threadRef ? { threadRef: ctx.threadRef } : {})}
+            itemKey={row.id}
+            request={ctx.citationRequest}
+            listRef={ctx.listRef}
+          >
+            <CollapsibleUserMessageBody
+              text={resolvedContext.text}
+              renderContextReference={renderContextReference}
+              skills={ctx.skills}
+              markdownCwd={ctx.markdownCwd}
+              cited={ctx.citationRequest?.citation.messageId === row.message.id}
+            />
+          </AssistantCitationSource>
         </div>
       </div>
       {row.projectedItem &&
@@ -4716,9 +4726,14 @@ const CollapsibleUserMessageBody = memo(function CollapsibleUserMessageBody(prop
   renderContextReference: (reference: ChatMarkdownContextReference) => ReactNode;
   skills: ReadonlyArray<Pick<ServerProviderSkill, "name" | "displayName">>;
   markdownCwd: string | undefined;
+  cited?: boolean;
   footer?: ReactNode;
 }) {
   const [expanded, setExpanded] = useState(false);
+  // A citation can point into the clipped part, so opening one expands the body.
+  useEffect(() => {
+    if (props.cited) setExpanded(true);
+  }, [props.cited]);
   // Find opens the body only when it selects a match in the clipped part.
   const revealForFind = useCallback(() => setExpanded(true), []);
   const findRevealRef = useFindRevealRef(revealForFind);

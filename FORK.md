@@ -10,6 +10,7 @@ Each of these is meant to be dropped once upstream has it, through its own PR or
 - **Continue a rate-limited thread with a new model**: after a usage limit, pick another model in the composer and press Resume to continue on that model. From [#16889](https://github.com/pingdotgg/t3code/pull/16889).
 - **Quit shortcut off**: Settings > General > Quit shortcut has an Off mode, so Ctrl+Q (Cmd+Q on macOS) reaches the terminal instead of quitting. The menu's Quit item still works. No upstream PR yet.
 - **Compact before sending is opt-in**: idle Claude threads no longer turn the send button into Compact and send unless Settings > General > Compact idle threads before sending is on, which also sets the idle minutes and token thresholds. No upstream PR yet.
+- **Quote user messages**: select text in a user message and choose Cite in composer, as with assistant responses. No upstream PR yet.
 - **Desktop build tests inside Electron**: the Windows native probe tests pass when the suite runs from an agent inside the desktop app. No upstream PR yet.
 
 ## Fork only

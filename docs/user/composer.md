@@ -93,9 +93,9 @@ returns to the remembered selection.
 
 Leaving reasoning level or service tier unset uses the provider's own configuration.
 
-## Quote an assistant response
+## Quote a message
 
-On web and desktop, select text within one assistant response and choose
+On web and desktop, select text within one assistant response or one user message and choose
 **Cite in composer**. You can add a comment about the quote and write instructions
 around it.
 

@@ -50,6 +50,7 @@ export function AssistantSelectionToolbar({
       const nativeSelection = window.getSelection();
       const captured = captureAssistantTextSelection(viewport, nativeSelection);
       const messageId = captured?.source.dataset.assistantCitationSource;
+      const role = captured?.source.dataset.assistantCitationRole;
       if (!captured || !messageId) {
         clear();
         return;
@@ -67,6 +68,7 @@ export function AssistantSelectionToolbar({
           version: 1,
           ...threadRef,
           messageId: MessageId.make(messageId),
+          ...(role === "user" ? { role } : {}),
           ...captured.selector,
         },
         position: resolveSelectionActionPosition({
