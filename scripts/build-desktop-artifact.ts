@@ -1062,7 +1062,8 @@ export function resolveWindowsServerAsarIgnoreGlobs(arch: typeof BuildArch.Type)
   ];
 }
 
-export const WINDOWS_PACKAGED_PAYLOAD_FILE_LIMIT = 80;
+// Built on Windows, the fork ships server-compile-cache (a file per server chunk) that upstream's Linux build skips.
+export const WINDOWS_PACKAGED_PAYLOAD_FILE_LIMIT = 130;
 export const WINDOWS_SERVER_RESOURCE_SOURCE_DIR = "apps/desktop/prod-resources/windows-server";
 export const WINDOWS_SERVER_EXTRA_RESOURCES = [
   {
