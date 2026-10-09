@@ -647,6 +647,9 @@ export function useSettingsRestore(onRestored?: () => void) {
     ...(settings.followUpBehavior !== DEFAULT_UNIFIED_SETTINGS.followUpBehavior
       ? ["Follow-up behavior"]
       : []),
+    ...(settings.compactBeforeResumeEnabled !== DEFAULT_UNIFIED_SETTINGS.compactBeforeResumeEnabled
+      ? ["Compact idle threads before sending"]
+      : []),
     ...(settings.contextWindowMeterEnabled !== DEFAULT_UNIFIED_SETTINGS.contextWindowMeterEnabled
       ? ["Context window indicator"]
       : []),
@@ -763,6 +766,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       composerRichTextEnabled: DEFAULT_UNIFIED_SETTINGS.composerRichTextEnabled,
       sendShortcut: DEFAULT_UNIFIED_SETTINGS.sendShortcut,
       followUpBehavior: DEFAULT_UNIFIED_SETTINGS.followUpBehavior,
+      compactBeforeResumeEnabled: DEFAULT_UNIFIED_SETTINGS.compactBeforeResumeEnabled,
       contextWindowMeterEnabled: DEFAULT_UNIFIED_SETTINGS.contextWindowMeterEnabled,
       environmentIdentificationMode: DEFAULT_UNIFIED_SETTINGS.environmentIdentificationMode,
       glassOpacity: DEFAULT_UNIFIED_SETTINGS.glassOpacity,
@@ -2911,6 +2915,33 @@ export function GeneralSettingsPanel() {
         />
 
         <TerminalOptionAsAltRow />
+
+        <SettingsRow
+          {...searchableSetting("compact-before-resume")}
+          description="Large Claude threads whose prompt cache has expired offer Compact and send, which runs /compact before your message instead of resending the whole history uncached."
+          resetAction={
+            settings.compactBeforeResumeEnabled !==
+            DEFAULT_UNIFIED_SETTINGS.compactBeforeResumeEnabled ? (
+              <SettingResetButton
+                label="compact idle threads before sending"
+                onClick={() =>
+                  updateSettings({
+                    compactBeforeResumeEnabled: DEFAULT_UNIFIED_SETTINGS.compactBeforeResumeEnabled,
+                  })
+                }
+              />
+            ) : null
+          }
+          control={
+            <Switch
+              checked={settings.compactBeforeResumeEnabled}
+              onCheckedChange={(checked) =>
+                updateSettings({ compactBeforeResumeEnabled: Boolean(checked) })
+              }
+              aria-label="Compact idle threads before sending"
+            />
+          }
+        />
 
         <SettingsRow
           serverScoped

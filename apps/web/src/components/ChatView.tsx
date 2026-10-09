@@ -5366,6 +5366,7 @@ export default function ChatView(props: ChatViewProps) {
     : null;
   const resumeCompactionTokens =
     activeContextWindow &&
+    settings.compactBeforeResumeEnabled &&
     !resumeCompactionPermanentlyDismissed &&
     !nativeResumeCompactionDismissed &&
     !compactDisabled &&

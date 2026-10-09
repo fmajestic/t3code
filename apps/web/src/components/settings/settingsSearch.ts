@@ -434,6 +434,12 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["queue steer running turn send default behavior composer"],
   },
   {
+    id: "compact-before-resume",
+    title: "Compact idle threads before sending",
+    to: "/settings/general",
+    searchTerms: ["compact compaction resume stale old idle context tokens history claude"],
+  },
+  {
     id: "terminal-option-as-alt",
     title: "Option as Alt in terminal",
     to: "/settings/general",
