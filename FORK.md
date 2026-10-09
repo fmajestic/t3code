@@ -15,7 +15,7 @@ Each of these is meant to be dropped once upstream has it, through its own PR or
 
 - **Name**: local desktop builds are called "T3 Code (Majestic)", so the bundle installs next to the official app instead of replacing it.
 - **Header artwork**: choose the Alpha build's header artwork under Settings > Appearance. The Dock icon follows your choice.
-- **Local updates**: a local macOS build checks the release folder it was built into for updates. `dev:replace-app` rebuilds the arm64 app and reinstalls it in `~/Applications`.
+- **Local updates**: a local macOS build updates from the checkout it was built from. Check for updates installs a newer zip from its release folder, or offers to build the checkout when it has moved to another commit; the build log is `release/fork-build.log`. `vp run fork:dist:desktop:dmg:arm64` builds from the terminal, stamped with a version the update check can tell apart.
 - **Install without mobile**: `vp run i:desktop` installs only what desktop, web, the server and the repo scripts need. Worktree setup uses it too.
 - **Regional date formats**: on macOS, dates and times use the order, separators and clock of the system region, while month and weekday names stay in the UI language.
 

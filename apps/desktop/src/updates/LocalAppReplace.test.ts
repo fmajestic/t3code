@@ -5,6 +5,7 @@ import { resolveDateTimeLocale } from "@t3tools/shared/dateTimeLocale";
 
 import {
   appBundleFromExecPath,
+  appendBuildOutput,
   localUpdateLabel,
   newestReleaseZip,
   releaseZipVersion,
@@ -49,5 +50,14 @@ describe("LocalAppReplace", () => {
         resolveDateTimeLocale("en-US-u-rg-hrzzzz"),
       ),
     ).toBe("0.0.45 (built 8. Oct 15:05)");
+  });
+
+  it("keeps the last complete build output lines across chunks and redraws", () => {
+    const first = appendBuildOutput([], "", "\u001b[32mstep 1\u001b[0m\n\nstep 2\nhal");
+    expect(first).toEqual({ lines: ["step 1", "step 2"], pending: "hal" });
+    expect(appendBuildOutput(first.lines, first.pending, "f\r50%\r100%\n")).toEqual({
+      lines: ["half", "50%", "100%"],
+      pending: "",
+    });
   });
 });

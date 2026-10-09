@@ -341,6 +341,7 @@ function SidebarUpdateControl() {
         key={showCheckIcon ? checkAnimationKey : iconStatus}
         downloadPercent={state?.downloadPercent ?? null}
         isCheckAnimating={showCheckIcon && !prefersReducedMotion}
+        localBuild={state?.localBuild === true}
         onCheckAnimationIteration={handleCheckAnimationIteration}
         status={iconStatus}
       />
@@ -386,6 +387,16 @@ function SidebarUpdateControl() {
               variant={showUpdateDetails ? "glass" : "default"}
             >
               {tooltip}
+              {state?.localBuild && isDownloading && state.buildOutput?.length ? (
+                <div className="mt-1 max-w-96 font-mono text-3xs text-muted-foreground">
+                  {state.buildOutput.map((line, index) => (
+                    // oxlint-disable-next-line react/no-array-index-key -- lines repeat, so the index is the identity
+                    <div key={index} className="truncate">
+                      {line}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </TooltipPopup>
           ) : null}
         </Tooltip>

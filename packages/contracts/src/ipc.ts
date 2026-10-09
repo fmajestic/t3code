@@ -284,6 +284,10 @@ export interface DesktopUpdateState {
   message: string | null;
   errorContext: "check" | "download" | "install" | null;
   canRetry: boolean;
+  /** Fork-local: updates come from building the checkout this app was built from. */
+  localBuild?: boolean;
+  /** Fork-local: the last lines the local build printed. */
+  buildOutput?: ReadonlyArray<string>;
 }
 
 export interface DesktopUpdateReleaseNote {
@@ -315,6 +319,8 @@ export const DesktopUpdateStateSchema = Schema.Struct({
   message: Schema.NullOr(Schema.String),
   errorContext: Schema.NullOr(Schema.Literals(["check", "download", "install"])),
   canRetry: Schema.Boolean,
+  localBuild: Schema.optionalKey(Schema.Boolean),
+  buildOutput: Schema.optionalKey(Schema.Array(Schema.String)),
 });
 
 /** The desktop app's `t3` command on PATH, managed from Settings. */

@@ -1,8 +1,9 @@
-// @effect-diagnostics nodeBuiltinImport:off -- The swap script is detached so it outlives this process.
-// Fork-local: unpublished macOS builds update by reinstalling the newest zip from the
-// release directory of the checkout that built them. build-desktop-artifact.ts bakes that
+// @effect-diagnostics nodeBuiltinImport:off -- The build and swap run as their own process groups.
+// Fork-local: unpublished macOS builds update by building the checkout that built them and
+// reinstalling the newest zip from its release directory. build-desktop-artifact.ts bakes that
 // directory into the packaged package.json as `t3LocalReleaseDir`.
 import * as NodeChildProcess from "node:child_process";
+import * as NodeFS from "node:fs";
 import * as NodeUtil from "node:util";
 
 import { createDateTimeFormatter, type DateTimeLocale } from "@t3tools/shared/dateTimeLocale";
@@ -19,7 +20,10 @@ export class LocalAppReplaceError extends Schema.TaggedError<LocalAppReplaceErro
   { message: Schema.String },
 ) {}
 
-const PackagedMetadata = Schema.Struct({ t3LocalReleaseDir: Schema.optionalKey(Schema.String) });
+const PackagedMetadata = Schema.Struct({
+  t3LocalReleaseDir: Schema.optionalKey(Schema.String),
+  t3codeCommitHash: Schema.optionalKey(Schema.String),
+});
 const decodePackagedMetadata = Schema.decodeUnknownOption(Schema.fromJsonString(PackagedMetadata));
 
 export interface ReleaseZip {
@@ -61,15 +65,115 @@ touch "$2" && /System/Library/Frameworks/CoreServices.framework/Frameworks/Launc
 open "$2"
 `;
 
-export const readLocalReleaseDir = (fileSystem: FileSystem.FileSystem, appPath: string) =>
+export interface LocalBuildInfo {
+  readonly releaseDir: string;
+  /** Short hash of the commit the running build came from. */
+  readonly commitHash: Option.Option<string>;
+}
+
+export const readLocalBuildInfo = (fileSystem: FileSystem.FileSystem, appPath: string) =>
   fileSystem.readFileString(`${appPath}/package.json`).pipe(
     Effect.map((raw) =>
       decodePackagedMetadata(raw).pipe(
-        Option.flatMap((metadata) => Option.fromNullishOr(metadata.t3LocalReleaseDir)),
+        Option.flatMap(({ t3LocalReleaseDir, t3codeCommitHash }) =>
+          Option.fromNullishOr(t3LocalReleaseDir).pipe(
+            Option.map((releaseDir): LocalBuildInfo => ({
+              releaseDir,
+              commitHash: Option.fromNullishOr(t3codeCommitHash),
+            })),
+          ),
+        ),
       ),
     ),
-    Effect.orElseSucceed(() => Option.none<string>()),
+    Effect.orElseSucceed(() => Option.none<LocalBuildInfo>()),
   );
+
+const git = (releaseDir: string, args: ReadonlyArray<string>) =>
+  Effect.tryPromise({
+    try: () => execFile("git", ["-C", releaseDir, ...args]),
+    catch: () =>
+      new LocalAppReplaceError({ message: `${releaseDir} is not inside a git checkout` }),
+  }).pipe(Effect.map(({ stdout }) => stdout.trim()));
+
+/** The checkout's HEAD as a short hash, or none when it is the commit the running build came from. */
+export const findNewCommit = Effect.fn("desktop.updates.findNewCommit")(function* (
+  build: LocalBuildInfo,
+) {
+  const head = yield* git(build.releaseDir, ["rev-parse", "HEAD"]);
+  return Option.isSome(build.commitHash) && head.startsWith(build.commitHash.value)
+    ? Option.none<string>()
+    : Option.some(head.slice(0, 12));
+});
+
+export const BUILD_LOG_NAME = "fork-build.log";
+
+const BUILD_OUTPUT_LINES = 3;
+
+/** Keeps the last few non-empty lines of a stream that may redraw lines with `\r`. */
+export function appendBuildOutput(
+  lines: ReadonlyArray<string>,
+  pending: string,
+  chunk: string,
+): { readonly lines: ReadonlyArray<string>; readonly pending: string } {
+  const parts = NodeUtil.stripVTControlCharacters(pending + chunk).split(/\r\n|\r|\n/);
+  const rest = parts.pop() ?? "";
+  const complete = parts.map((line) => line.trim()).filter((line) => line.length > 0);
+  return { lines: [...lines, ...complete].slice(-BUILD_OUTPUT_LINES), pending: rest };
+}
+
+/** Runs `fork:dist:desktop:dmg:arm64` in the checkout, logging to the release directory. */
+export const buildLocalUpdate = Effect.fn("desktop.updates.buildLocalUpdate")(function* (input: {
+  readonly fileSystem: FileSystem.FileSystem;
+  readonly path: Path.Path;
+  readonly releaseDir: string;
+  /** Called with the latest output lines; must not block. */
+  readonly onOutput: (lines: ReadonlyArray<string>) => void;
+}) {
+  const repoDir = yield* git(input.releaseDir, ["rev-parse", "--show-toplevel"]);
+  const logPath = input.path.join(input.releaseDir, BUILD_LOG_NAME);
+  yield* input.fileSystem
+    .makeDirectory(input.releaseDir, { recursive: true })
+    .pipe(
+      Effect.mapError(
+        () => new LocalAppReplaceError({ message: `Cannot create ${input.releaseDir}` }),
+      ),
+    );
+  yield* Effect.callback<void, LocalAppReplaceError>((resume) => {
+    const log = NodeFS.createWriteStream(logPath);
+    // Its own process group, so interrupting kills the build and not just vp.
+    const child = NodeChildProcess.spawn("vp", ["run", "fork:dist:desktop:dmg:arm64"], {
+      cwd: repoDir,
+      detached: true,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let output = { lines: [] as ReadonlyArray<string>, pending: "" };
+    const onData = (chunk: Buffer) => {
+      log.write(chunk);
+      output = appendBuildOutput(output.lines, output.pending, chunk.toString("utf8"));
+      input.onOutput(output.lines);
+    };
+    child.stdout.on("data", onData);
+    child.stderr.on("data", onData);
+    child.once("error", (error) => {
+      log.end();
+      resume(
+        Effect.fail(new LocalAppReplaceError({ message: `Could not start vp: ${error.message}` })),
+      );
+    });
+    // "close" rather than "exit", so the log has every chunk before the build counts as done.
+    child.once("close", (code) => {
+      log.end();
+      resume(
+        code === 0
+          ? Effect.void
+          : Effect.fail(new LocalAppReplaceError({ message: `Build failed, see ${logPath}` })),
+      );
+    });
+    return Effect.sync(() => {
+      if (child.pid !== undefined && child.exitCode === null) process.kill(-child.pid, "SIGTERM");
+    });
+  });
+});
 
 export interface LocalUpdate {
   readonly zipPath: string;
@@ -90,8 +194,9 @@ export function localUpdateLabel(zip: ReleaseZip, locale: DateTimeLocale): strin
 }
 
 /**
- * The newest release zip, or none when it is the running build. replace-desktop-app.sh stamps
- * every build with its own version, so a matching version means the same build.
+ * The newest release zip, or none when it is the running build or there is none.
+ * fork-dist-desktop.ts stamps every build with its own version, so a matching version means
+ * the same build.
  */
 export const findLocalUpdate = Effect.fn("desktop.updates.findLocalUpdate")(function* (input: {
   readonly fileSystem: FileSystem.FileSystem;
@@ -104,11 +209,7 @@ export const findLocalUpdate = Effect.fn("desktop.updates.findLocalUpdate")(func
   const { fileSystem, path } = input;
   const names = yield* fileSystem
     .readDirectory(input.releaseDir)
-    .pipe(
-      Effect.mapError(
-        () => new LocalAppReplaceError({ message: `Cannot read ${input.releaseDir}` }),
-      ),
-    );
+    .pipe(Effect.orElseSucceed((): ReadonlyArray<string> => []));
   const zips = yield* Effect.forEach(names, (name) =>
     fileSystem.stat(path.join(input.releaseDir, name)).pipe(
       Effect.map((info) => ({
@@ -118,23 +219,17 @@ export const findLocalUpdate = Effect.fn("desktop.updates.findLocalUpdate")(func
       Effect.orElseSucceed(() => ({ name, mtimeMs: 0 })),
     ),
   );
-  const zip = yield* Option.match(newestReleaseZip(zips, input.arch), {
-    onNone: () =>
-      Effect.fail(
-        new LocalAppReplaceError({
-          message: `No T3-Code-*-${input.arch}.zip in ${input.releaseDir}`,
-        }),
-      ),
-    onSome: Effect.succeed,
-  });
-  const zipPath = path.join(input.releaseDir, zip.name);
-  return releaseZipVersion(zip.name) === input.installedVersion
-    ? Option.none<LocalUpdate>()
-    : Option.some<LocalUpdate>({
+  return newestReleaseZip(zips, input.arch).pipe(
+    Option.filter((zip) => releaseZipVersion(zip.name) !== input.installedVersion),
+    Option.map((zip): LocalUpdate => {
+      const zipPath = path.join(input.releaseDir, zip.name);
+      return {
         zipPath,
         buildId: `${zipPath}@${zip.mtimeMs}`,
         label: localUpdateLabel(zip, input.locale),
-      });
+      };
+    }),
+  );
 });
 
 export interface StagedLocalUpdate {
