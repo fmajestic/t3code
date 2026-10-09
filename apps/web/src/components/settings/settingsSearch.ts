@@ -913,7 +913,11 @@ export const SETTINGS_SEARCH_ITEMS = [
     id: "quit-confirmation",
     title: msg("Quit shortcut"),
     to: "/settings/general",
-    searchTerms: [msg("confirmation desktop app exit direct hold double click press twice")],
+    searchTerms: [
+      msg(
+        "confirmation desktop app exit direct hold double click press twice off disable terminal ctrl+q",
+      ),
+    ],
     desktopOnly: true,
   },
   {

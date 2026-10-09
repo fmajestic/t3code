@@ -6,6 +6,8 @@ import * as Schema from "effect/Schema";
 import { applyLanguage } from "../../i18n/messages.ts";
 import * as DesktopClientSettings from "../../settings/DesktopClientSettings.ts";
 import * as DesktopSnapShot from "../../snapShot/DesktopSnapShot.ts";
+import * as DesktopApplicationMenu from "../../window/DesktopApplicationMenu.ts";
+import * as DesktopWindow from "../../window/DesktopWindow.ts";
 import * as IpcChannels from "../channels.ts";
 import * as DesktopIpc from "../DesktopIpc.ts";
 
@@ -26,8 +28,15 @@ export const setClientSettings = DesktopIpc.makeIpcMethod({
   handler: Effect.fn("desktop.ipc.clientSettings.set")(function* (settings) {
     const clientSettings = yield* DesktopClientSettings.DesktopClientSettings;
     const snapShot = yield* DesktopSnapShot.DesktopSnapShot;
+    const desktopWindow = yield* DesktopWindow.DesktopWindow;
+    const applicationMenu = yield* DesktopApplicationMenu.DesktopApplicationMenu;
     yield* clientSettings.set(settings);
     yield* snapShot.configure(settings);
     yield* applyLanguage(settings.language);
+    const quitShortcutDisabled = settings.confirmQuit === "off";
+    if (quitShortcutDisabled !== (yield* desktopWindow.quitShortcutDisabled)) {
+      yield* desktopWindow.setQuitShortcutDisabled(quitShortcutDisabled);
+      yield* applicationMenu.configure;
+    }
   }),
 });

@@ -170,6 +170,7 @@ export const make = Effect.gen(function* () {
   const environment = yield* DesktopEnvironment.DesktopEnvironment;
   const electronApp = yield* ElectronApp.ElectronApp;
   const clientSettings = yield* Effect.serviceOption(DesktopClientSettings.DesktopClientSettings);
+  const desktopWindow = yield* DesktopWindow.DesktopWindow;
   const context = yield* Effect.context<DesktopApplicationMenuRuntimeServices>();
   const runPromise = Effect.runPromiseWith(context);
   const runFork = Effect.runForkWith(context);
@@ -191,6 +192,7 @@ export const make = Effect.gen(function* () {
   };
 
   const configure = Effect.gen(function* () {
+    const registerQuitAccelerator = !(yield* desktopWindow.quitShortcutDisabled);
     const checkForUpdatesClick = () => {
       runMenuEffect("check-for-updates", handleCheckForUpdatesMenuClick);
     };
@@ -239,7 +241,11 @@ export const make = Effect.gen(function* () {
             label: m(msg("Show All", { $context: "macOS app menu item, shows hidden apps" })),
           },
           { type: "separator" },
-          { role: "quit", label: m(msg("Quit {appName}"), { appName: environment.displayName }) },
+          {
+            role: "quit",
+            label: m(msg("Quit {appName}"), { appName: environment.displayName }),
+            registerAccelerator: registerQuitAccelerator,
+          },
         ],
       });
     }
@@ -278,6 +284,7 @@ export const make = Effect.gen(function* () {
                   environment.platform === "win32"
                     ? m(msg("Exit", { $context: "File menu item, quits the app" }))
                     : m(msg("Quit")),
+                registerAccelerator: registerQuitAccelerator,
               },
         ],
       },
