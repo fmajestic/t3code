@@ -131,7 +131,7 @@ export function AssistantCitationEmbed({
       citation={citation}
       copyMarkdown={serializeAssistantCitation(citation)}
       cardCopyMarkdown={serializeAssistantCitation(quoted)}
-      label={gt("Go to quoted response: {label}", { label: assistantCitationLabel(quoted) })}
+      label={gt("Go to quoted message: {label}", { label: assistantCitationLabel(quoted) })}
       comment={comment}
       leading={leading}
       trailing={trailing}
@@ -260,7 +260,7 @@ export function AssistantCitationChip({
     <Link
       {...sourceLinkProps}
       className="inline-flex min-w-0 items-center gap-[0.2em] self-baseline text-inherit no-underline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-current rounded-sm"
-      aria-label={gt("View cited assistant text: {label}", { label })}
+      aria-label={gt("View cited text: {label}", { label })}
     >
       <QuoteIcon aria-hidden="true" />
       <ContextChipLabel className="max-w-[16em]" dir={textDirection(label)}>
