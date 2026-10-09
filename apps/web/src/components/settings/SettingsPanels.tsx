@@ -243,6 +243,7 @@ const QUIT_CONFIRMATION_MODE_LABELS: Record<QuitConfirmationMode, string> = {
   direct: "Direct",
   hold: "Hold",
   "double-click": "Double press",
+  off: "Off",
 };
 
 const BACKGROUND_ACTIVITY_PROFILE_LABELS: Record<BackgroundActivityProfile, string> = {
@@ -3284,7 +3285,7 @@ export function GeneralSettingsPanel() {
         {isElectron ? (
           <SettingsRow
             {...searchableSetting("quit-confirmation")}
-            description="Hold mode also quits on two quick presses."
+            description="Hold mode also quits on two quick presses. Off passes the shortcut to the app, such as the terminal."
             resetAction={
               settings.confirmQuit !== DEFAULT_UNIFIED_SETTINGS.confirmQuit ? (
                 <SettingResetButton
@@ -3299,7 +3300,12 @@ export function GeneralSettingsPanel() {
               <Select
                 value={settings.confirmQuit}
                 onValueChange={(value) => {
-                  if (value === "direct" || value === "hold" || value === "double-click") {
+                  if (
+                    value === "direct" ||
+                    value === "hold" ||
+                    value === "double-click" ||
+                    value === "off"
+                  ) {
                     updateSettings({ confirmQuit: value });
                   }
                 }}

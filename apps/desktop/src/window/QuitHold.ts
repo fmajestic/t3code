@@ -27,6 +27,8 @@ export interface QuitHoldKeyInput {
 export interface QuitShortcutOptions {
   readonly platform: NodeJS.Platform;
   readonly getMode: () => Promise<QuitConfirmationMode>;
+  // Read synchronously: the key reaches the page only if preventDefault is skipped in the same tick.
+  readonly isDisabled: () => boolean;
   readonly notify: (event: QuitShortcutHintEvent) => void;
   readonly concealWindow: () => void;
   readonly quit: () => void;
@@ -93,6 +95,7 @@ export function makeQuitShortcutHandler(
   };
 
   return (event, input) => {
+    if (options.isDisabled()) return;
     const key = input.key.toLowerCase();
     if (input.type === "keyUp") {
       if (key === "q") {
@@ -163,6 +166,10 @@ export function makeQuitShortcutHandler(
     void options.getMode().then(
       (resolvedMode) => {
         if (generation !== pressGeneration) return;
+        if (resolvedMode === "off") {
+          release();
+          return;
+        }
         if (resolvedMode === "direct") {
           quitNow();
           return;

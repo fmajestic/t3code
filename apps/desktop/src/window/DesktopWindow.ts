@@ -115,6 +115,8 @@ export class DesktopWindow extends Context.Service<
     readonly zoomMain: (direction: MainWindowZoomDirection) => Effect.Effect<void>;
     readonly runMainContentsCommand: (command: MainWindowContentsCommand) => Effect.Effect<void>;
     readonly syncAppearance: Effect.Effect<void>;
+    readonly quitShortcutDisabled: Effect.Effect<boolean>;
+    readonly setQuitShortcutDisabled: (disabled: boolean) => Effect.Effect<void>;
   }
 >()("@t3tools/desktop/window/DesktopWindow") {}
 
@@ -307,6 +309,10 @@ export const make = Effect.gen(function* () {
   const runFork = Effect.runForkWith(context);
   const runPromise = Effect.runPromiseWith(context);
   let flushMainWindowBounds: Effect.Effect<void> = Effect.void;
+  let quitShortcutDisabled = yield* clientSettings.get.pipe(
+    Effect.map(Option.exists((settings) => settings.confirmQuit === "off")),
+    Effect.orElseSucceed(() => false),
+  );
 
   const dismissConnectingSplash = Effect.gen(function* () {
     const splash = yield* Ref.getAndSet(splashWindowRef, Option.none());
@@ -650,6 +656,7 @@ export const make = Effect.gen(function* () {
             }),
           ),
         ),
+      isDisabled: () => quitShortcutDisabled,
       notify: (hint) => {
         if (!window.isDestroyed()) {
           window.webContents.send(QUIT_SHORTCUT_CHANNEL, hint);
@@ -972,6 +979,11 @@ export const make = Effect.gen(function* () {
   });
 
   return DesktopWindow.of({
+    quitShortcutDisabled: Effect.sync(() => quitShortcutDisabled),
+    setQuitShortcutDisabled: (disabled) =>
+      Effect.sync(() => {
+        quitShortcutDisabled = disabled;
+      }),
     createMain: createMain.pipe(Effect.flatMap(requireWindow)),
     ensureMain: ensureMain.pipe(Effect.flatMap(requireWindow)),
     revealOrCreateMain,
