@@ -49,9 +49,10 @@ Set **Auto-compact after** in the Claude provider settings to an integer between
 window. Leave it empty for Claude Code's default.
 
 You can also send `/compact` in an existing conversation. Web and desktop offer
-**Compact context** from the context meter. When you return to a large thread
-after more than an hour, a **Compact** chip with the thread's token count shows
-next to the send button. While it is on, Enter summarizes the history first, then
+**Compact context** from the context meter. To be offered compaction when you return
+to a large idle thread, turn on **Compact idle threads before sending** in
+Settings > General and set its idle minutes and token thresholds. A **Compact** chip with
+the thread's token count then shows next to the send button. While it is on, Enter summarizes the history first, then
 sends your message. Click the chip to switch it to **Full** and keep the full
 history for that message. See [commands and skills](./composer.md#commands-and-skills) for using
 composer commands.

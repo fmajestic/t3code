@@ -7690,12 +7690,14 @@ export default function ChatView(props: ChatViewProps) {
           ? "Compaction is unavailable for this provider"
           : "Compacting is unavailable right now"
     : null;
-  // Tokens a stale Claude session would re-read on its next turn. While set,
+  // Tokens a stale Claude session would re-read on its next turn, when the
+  // user opted into compact-before-send in Settings. While set,
   // the composer shows a Compact chip and Enter compacts first; turning the
   // chip off sends the next message with full history. Held queues and
   // multi-model sends never compact first, so the offer hides for them.
   const resumeCompactionTokens =
     activeContextWindow &&
+    settings.compactBeforeResumeEnabled &&
     !resumeCompactionPermanentlyDismissed &&
     !nativeResumeCompactionDismissed &&
     !compactDisabled &&
@@ -7706,6 +7708,8 @@ export default function ChatView(props: ChatViewProps) {
       usedTokens: activeContextWindow.usedTokens,
       updatedAt: activeContextWindow.updatedAt,
       now: `${nowMinute}:00.000Z`,
+      idleMinutes: settings.compactBeforeResumeIdleMinutes,
+      tokens: settings.compactBeforeResumeTokens,
     })
       ? activeContextWindow.usedTokens
       : null;

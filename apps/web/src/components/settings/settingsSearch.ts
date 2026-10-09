@@ -426,6 +426,26 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["queue steer running turn send default behavior composer"],
   },
   {
+    id: "compact-before-resume",
+    title: "Compact idle threads before sending",
+    to: "/settings/general",
+    searchTerms: ["compact compaction resume stale old idle context tokens history claude"],
+  },
+  {
+    id: "compact-before-resume-idle-minutes",
+    title: "Idle minutes before compacting",
+    to: "/settings/general",
+    targetId: "compact-before-resume",
+    searchTerms: ["compact compaction resume stale idle time threshold"],
+  },
+  {
+    id: "compact-before-resume-tokens",
+    title: "Context tokens before compacting",
+    to: "/settings/general",
+    targetId: "compact-before-resume",
+    searchTerms: ["compact compaction resume context tokens threshold size"],
+  },
+  {
     id: "provider-update-checks",
     title: "Provider update checks",
     to: "/settings/general",

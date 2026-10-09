@@ -91,6 +91,22 @@ export const SidebarAutoSettleAfterDays = Schema.Number.check(
 );
 export type SidebarAutoSettleAfterDays = typeof SidebarAutoSettleAfterDays.Type;
 const DEFAULT_SIDEBAR_AUTO_SETTLE_AFTER_DAYS: SidebarAutoSettleAfterDays = 3;
+export const MIN_COMPACT_BEFORE_RESUME_IDLE_MINUTES = 1;
+export const MAX_COMPACT_BEFORE_RESUME_IDLE_MINUTES = 1440;
+export const CompactBeforeResumeIdleMinutes = Schema.Int.check(
+  Schema.isBetween({
+    minimum: MIN_COMPACT_BEFORE_RESUME_IDLE_MINUTES,
+    maximum: MAX_COMPACT_BEFORE_RESUME_IDLE_MINUTES,
+  }),
+);
+export const MIN_COMPACT_BEFORE_RESUME_TOKENS = 10_000;
+export const MAX_COMPACT_BEFORE_RESUME_TOKENS = 1_000_000;
+export const CompactBeforeResumeTokens = Schema.Int.check(
+  Schema.isBetween({
+    minimum: MIN_COMPACT_BEFORE_RESUME_TOKENS,
+    maximum: MAX_COMPACT_BEFORE_RESUME_TOKENS,
+  }),
+);
 export const MIN_GLASS_OPACITY = 40;
 export const MAX_GLASS_OPACITY = 100;
 export const GlassOpacity = Schema.Int.check(
@@ -457,6 +473,17 @@ export const ClientSettingsSchema = Schema.Struct({
   ),
   followUpBehavior: Schema.Literals(["queue", "steer"]).pipe(
     Schema.withDecodingDefault(Effect.succeed("queue")),
+  ),
+  // Opt-in "Compact and send" for idle Claude threads. The defaults are Claude
+  // Code's own resume prompt conditions.
+  compactBeforeResumeEnabled: Schema.Boolean.pipe(
+    Schema.withDecodingDefault(Effect.succeed(false)),
+  ),
+  compactBeforeResumeIdleMinutes: CompactBeforeResumeIdleMinutes.pipe(
+    Schema.withDecodingDefault(Effect.succeed(70)),
+  ),
+  compactBeforeResumeTokens: CompactBeforeResumeTokens.pipe(
+    Schema.withDecodingDefault(Effect.succeed(100_000)),
   ),
   proactivePanelsEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   showSkillsInSlashMenu: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
@@ -1614,6 +1641,9 @@ export const ClientSettingsPatch = Schema.Struct({
   composerRichTextEnabled: Schema.optionalKey(Schema.Boolean),
   sendShortcut: Schema.optionalKey(Schema.Literals(["enter", "mod-enter-multiline", "mod-enter"])),
   followUpBehavior: Schema.optionalKey(Schema.Literals(["queue", "steer"])),
+  compactBeforeResumeEnabled: Schema.optionalKey(Schema.Boolean),
+  compactBeforeResumeIdleMinutes: Schema.optionalKey(CompactBeforeResumeIdleMinutes),
+  compactBeforeResumeTokens: Schema.optionalKey(CompactBeforeResumeTokens),
   proactivePanelsEnabled: Schema.optionalKey(Schema.Boolean),
   showSkillsInSlashMenu: Schema.optionalKey(Schema.Boolean),
   legacySidebarEnabled: Schema.optionalKey(Schema.Boolean),

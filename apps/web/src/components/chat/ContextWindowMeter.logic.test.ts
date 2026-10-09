@@ -142,10 +142,24 @@ describe("formatContextWindowCompactionMessage", () => {
 
 describe("shouldOfferResumeCompaction", () => {
   const now = "2026-08-24T12:00:00.000Z";
+  const claudeThresholds = { idleMinutes: 70, tokens: 100_000 };
+
+  it("uses the configured thresholds", () => {
+    const thresholds = { idleMinutes: 10, tokens: 20_000 };
+    const recentSmall = {
+      provider: "claudeAgent",
+      usedTokens: 20_000,
+      updatedAt: "2026-08-24T11:50:00.000Z",
+      now,
+    };
+    expect(shouldOfferResumeCompaction({ ...recentSmall, ...thresholds })).toBe(true);
+    expect(shouldOfferResumeCompaction({ ...recentSmall, ...claudeThresholds })).toBe(false);
+  });
 
   it("matches Claude's old-session age and context thresholds", () => {
     expect(
       shouldOfferResumeCompaction({
+        ...claudeThresholds,
         provider: "claudeAgent",
         usedTokens: 100_000,
         updatedAt: "2026-08-24T10:50:00.000Z",
@@ -157,6 +171,7 @@ describe("shouldOfferResumeCompaction", () => {
   it("does not prompt for recent or smaller sessions", () => {
     expect(
       shouldOfferResumeCompaction({
+        ...claudeThresholds,
         provider: "claudeAgent",
         usedTokens: 99_999,
         updatedAt: "2026-08-24T10:00:00.000Z",
@@ -165,6 +180,7 @@ describe("shouldOfferResumeCompaction", () => {
     ).toBe(false);
     expect(
       shouldOfferResumeCompaction({
+        ...claudeThresholds,
         provider: "claudeAgent",
         usedTokens: 200_000,
         updatedAt: "2026-08-24T10:51:00.000Z",
@@ -176,6 +192,7 @@ describe("shouldOfferResumeCompaction", () => {
   it("does not show Claude's resume prompt for another provider", () => {
     expect(
       shouldOfferResumeCompaction({
+        ...claudeThresholds,
         provider: "codex",
         usedTokens: 300_000,
         updatedAt: "2026-08-24T09:00:00.000Z",

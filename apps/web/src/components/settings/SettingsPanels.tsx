@@ -43,6 +43,10 @@ import {
   MIN_PANEL_ANIMATION_DURATION_MS,
   MIN_PROMPT_FONT_SIZE,
   MIN_SIDEBAR_AUTO_SETTLE_AFTER_DAYS,
+  MAX_COMPACT_BEFORE_RESUME_IDLE_MINUTES,
+  MAX_COMPACT_BEFORE_RESUME_TOKENS,
+  MIN_COMPACT_BEFORE_RESUME_IDLE_MINUTES,
+  MIN_COMPACT_BEFORE_RESUME_TOKENS,
   type ResponseStreamingMode,
   MIN_TERMINAL_FONT_SIZE,
   type QuitConfirmationMode,
@@ -633,6 +637,13 @@ export function useSettingsRestore(onRestored?: () => void) {
       ...(settings.followUpBehavior !== DEFAULT_UNIFIED_SETTINGS.followUpBehavior
         ? ["Follow-up behavior"]
         : []),
+      ...(settings.compactBeforeResumeEnabled !==
+        DEFAULT_UNIFIED_SETTINGS.compactBeforeResumeEnabled ||
+      settings.compactBeforeResumeIdleMinutes !==
+        DEFAULT_UNIFIED_SETTINGS.compactBeforeResumeIdleMinutes ||
+      settings.compactBeforeResumeTokens !== DEFAULT_UNIFIED_SETTINGS.compactBeforeResumeTokens
+        ? ["Compact idle threads before sending"]
+        : []),
       ...(settings.contextWindowMeterEnabled !== DEFAULT_UNIFIED_SETTINGS.contextWindowMeterEnabled
         ? ["Context window indicator"]
         : []),
@@ -697,6 +708,9 @@ export function useSettingsRestore(onRestored?: () => void) {
       settings.composerRichTextEnabled,
       settings.sendShortcut,
       settings.followUpBehavior,
+      settings.compactBeforeResumeEnabled,
+      settings.compactBeforeResumeIdleMinutes,
+      settings.compactBeforeResumeTokens,
       settings.addProjectBaseDirectory,
       settings.defaultThreadEnvMode,
       settings.newWorktreesStartFromOrigin,
@@ -819,6 +833,9 @@ export function useSettingsRestore(onRestored?: () => void) {
       composerRichTextEnabled: DEFAULT_UNIFIED_SETTINGS.composerRichTextEnabled,
       sendShortcut: DEFAULT_UNIFIED_SETTINGS.sendShortcut,
       followUpBehavior: DEFAULT_UNIFIED_SETTINGS.followUpBehavior,
+      compactBeforeResumeEnabled: DEFAULT_UNIFIED_SETTINGS.compactBeforeResumeEnabled,
+      compactBeforeResumeIdleMinutes: DEFAULT_UNIFIED_SETTINGS.compactBeforeResumeIdleMinutes,
+      compactBeforeResumeTokens: DEFAULT_UNIFIED_SETTINGS.compactBeforeResumeTokens,
       contextWindowMeterEnabled: DEFAULT_UNIFIED_SETTINGS.contextWindowMeterEnabled,
       environmentIdentificationMode: DEFAULT_UNIFIED_SETTINGS.environmentIdentificationMode,
       glassOpacity: DEFAULT_UNIFIED_SETTINGS.glassOpacity,
@@ -2091,12 +2108,18 @@ function FontFamilySettingsRow({
 
 const AUTO_SETTLE_DEFAULT_DAYS = DEFAULT_UNIFIED_SETTINGS.sidebarAutoSettleAfterDays ?? 3;
 
-function AutoSettleDaysInput({
+function IntegerSettingInput({
   value,
+  min,
+  max,
   onCommit,
+  "aria-label": ariaLabel,
 }: {
   value: number;
-  onCommit: (days: number) => void;
+  min: number;
+  max: number;
+  onCommit: (value: number) => void;
+  "aria-label": string;
 }) {
   // Local draft so the field can be emptied mid-edit; the setting only moves
   // on valid input and snaps back to the persisted value on blur.
@@ -2109,8 +2132,8 @@ function AutoSettleDaysInput({
     <Input
       size="sm"
       type="number"
-      min={MIN_SIDEBAR_AUTO_SETTLE_AFTER_DAYS}
-      max={MAX_SIDEBAR_AUTO_SETTLE_AFTER_DAYS}
+      min={min}
+      max={max}
       className="w-full sm:w-24"
       value={draft}
       onChange={(event) => {
@@ -2119,16 +2142,12 @@ function AutoSettleDaysInput({
         // committed 3 while the field shows 3.5) — commit only when the
         // persisted value matches the displayed one.
         const parsed = Number(event.target.value);
-        if (
-          Number.isInteger(parsed) &&
-          parsed >= MIN_SIDEBAR_AUTO_SETTLE_AFTER_DAYS &&
-          parsed <= MAX_SIDEBAR_AUTO_SETTLE_AFTER_DAYS
-        ) {
+        if (Number.isInteger(parsed) && parsed >= min && parsed <= max) {
           onCommit(parsed);
         }
       }}
       onBlur={() => setDraft(String(value))}
-      aria-label="Days of inactivity before auto-settle"
+      aria-label={ariaLabel}
     />
   );
 }
@@ -2523,8 +2542,11 @@ export function GeneralSettingsPanel() {
                 title={searchableSetting("days-before-auto-settle").title}
                 description="Any new activity un-settles a thread automatically."
                 control={
-                  <AutoSettleDaysInput
+                  <IntegerSettingInput
                     value={settings.sidebarAutoSettleAfterDays}
+                    min={MIN_SIDEBAR_AUTO_SETTLE_AFTER_DAYS}
+                    max={MAX_SIDEBAR_AUTO_SETTLE_AFTER_DAYS}
+                    aria-label="Days of inactivity before auto-settle"
                     onCommit={(days) => updateSettings({ sidebarAutoSettleAfterDays: days })}
                   />
                 }
@@ -2932,6 +2954,93 @@ export function GeneralSettingsPanel() {
             </Select>
           }
         />
+
+        <SettingsRow
+          {...searchableSetting("compact-before-resume")}
+          description="Idle Claude threads with a large context offer Compact and send, which runs /compact before your message."
+          resetAction={
+            settings.compactBeforeResumeEnabled !==
+            DEFAULT_UNIFIED_SETTINGS.compactBeforeResumeEnabled ? (
+              <SettingResetButton
+                label="compact idle threads before sending"
+                onClick={() =>
+                  updateSettings({
+                    compactBeforeResumeEnabled: DEFAULT_UNIFIED_SETTINGS.compactBeforeResumeEnabled,
+                  })
+                }
+              />
+            ) : null
+          }
+          control={
+            <Switch
+              checked={settings.compactBeforeResumeEnabled}
+              onCheckedChange={(checked) =>
+                updateSettings({ compactBeforeResumeEnabled: Boolean(checked) })
+              }
+              aria-label="Compact idle threads before sending"
+            />
+          }
+        />
+        {settings.compactBeforeResumeEnabled ? (
+          <>
+            <SettingsRow
+              title={searchableSetting("compact-before-resume-idle-minutes").title}
+              description="Minutes since the thread's last turn."
+              resetAction={
+                settings.compactBeforeResumeIdleMinutes !==
+                DEFAULT_UNIFIED_SETTINGS.compactBeforeResumeIdleMinutes ? (
+                  <SettingResetButton
+                    label="idle minutes"
+                    onClick={() =>
+                      updateSettings({
+                        compactBeforeResumeIdleMinutes:
+                          DEFAULT_UNIFIED_SETTINGS.compactBeforeResumeIdleMinutes,
+                      })
+                    }
+                  />
+                ) : null
+              }
+              control={
+                <IntegerSettingInput
+                  value={settings.compactBeforeResumeIdleMinutes}
+                  min={MIN_COMPACT_BEFORE_RESUME_IDLE_MINUTES}
+                  max={MAX_COMPACT_BEFORE_RESUME_IDLE_MINUTES}
+                  aria-label="Idle minutes before compacting"
+                  onCommit={(minutes) =>
+                    updateSettings({ compactBeforeResumeIdleMinutes: minutes })
+                  }
+                />
+              }
+            />
+            <SettingsRow
+              title={searchableSetting("compact-before-resume-tokens").title}
+              description="Context the thread would resend with its next message."
+              resetAction={
+                settings.compactBeforeResumeTokens !==
+                DEFAULT_UNIFIED_SETTINGS.compactBeforeResumeTokens ? (
+                  <SettingResetButton
+                    label="context tokens"
+                    onClick={() =>
+                      updateSettings({
+                        compactBeforeResumeTokens:
+                          DEFAULT_UNIFIED_SETTINGS.compactBeforeResumeTokens,
+                      })
+                    }
+                  />
+                ) : null
+              }
+              control={
+                <IntegerSettingInput
+                  value={settings.compactBeforeResumeTokens}
+                  min={MIN_COMPACT_BEFORE_RESUME_TOKENS}
+                  max={MAX_COMPACT_BEFORE_RESUME_TOKENS}
+                  aria-label="Context tokens before compacting"
+                  onCommit={(tokens) => updateSettings({ compactBeforeResumeTokens: tokens })}
+                />
+              }
+            />
+          </>
+        ) : null}
 
         <SettingsRow
           serverScoped

@@ -9,9 +9,6 @@ import {
 } from "../../providerInstances";
 import { getTriggerDisplayModelName, type ModelEsque } from "./providerIconUtils";
 
-const CLAUDE_RESUME_COMPACTION_MINUTES = 70;
-const CLAUDE_RESUME_COMPACTION_TOKENS = 100_000;
-
 export function providerSupportsManualCompaction(
   provider: ProviderInstanceEntry | null | undefined,
 ): boolean {
@@ -65,11 +62,10 @@ export function shouldOfferResumeCompaction(input: {
   readonly usedTokens: number | null | undefined;
   readonly updatedAt: string | null | undefined;
   readonly now: string;
+  readonly idleMinutes: number;
+  readonly tokens: number;
 }): boolean {
-  if (
-    input.provider !== "claudeAgent" ||
-    (input.usedTokens ?? 0) < CLAUDE_RESUME_COMPACTION_TOKENS
-  ) {
+  if (input.provider !== "claudeAgent" || (input.usedTokens ?? 0) < input.tokens) {
     return false;
   }
 
@@ -78,7 +74,7 @@ export function shouldOfferResumeCompaction(input: {
   return (
     Number.isFinite(updatedAt) &&
     Number.isFinite(now) &&
-    now - updatedAt >= CLAUDE_RESUME_COMPACTION_MINUTES * 60_000
+    now - updatedAt >= input.idleMinutes * 60_000
   );
 }
 

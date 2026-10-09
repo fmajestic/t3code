@@ -293,6 +293,20 @@ describe("ClientSettings default diff file state", () => {
   });
 });
 
+describe("ClientSettings compact before resume", () => {
+  it("keeps the full history by default", () => {
+    const settings = decodeClientSettings({});
+    expect(settings.compactBeforeResumeEnabled).toBe(false);
+    expect(settings.compactBeforeResumeIdleMinutes).toBe(70);
+    expect(settings.compactBeforeResumeTokens).toBe(100_000);
+  });
+
+  it("rejects thresholds outside their bounds", () => {
+    expect(() => decodeClientSettingsPatch({ compactBeforeResumeIdleMinutes: 0 })).toThrow();
+    expect(() => decodeClientSettingsPatch({ compactBeforeResumeTokens: 5_000 })).toThrow();
+  });
+});
+
 describe("ClientSettings diff colors", () => {
   it("keeps red and green for existing settings without a saved palette", () => {
     expect(decodeClientSettings({}).diffColorScheme).toBe("red-green");
