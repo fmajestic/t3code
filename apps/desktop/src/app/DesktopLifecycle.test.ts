@@ -98,6 +98,8 @@ function layerDesktopWindow(
     zoomMain: () => Effect.void,
     runMainContentsCommand: () => Effect.void,
     syncAppearance: Effect.void,
+    quitShortcutDisabled: Effect.succeed(false),
+    setQuitShortcutDisabled: () => Effect.void,
   });
 }
 
