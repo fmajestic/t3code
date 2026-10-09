@@ -160,12 +160,24 @@ jobs:
           fi
           cp "${installers[@]}" publish/
 
-          release="$(gh release view "$FORK_RELEASE_TAG" --json isDraft --jq .isDraft 2>/dev/null || true)"
-          if [[ "$release" == "true" ]]; then
-            gh release edit "$FORK_RELEASE_TAG" --draft=false
+          notes="Unsigned Windows x64 build of this fork's \`fork\` branch, replaced on every push. Version \`${{ steps.version.outputs.version }}\`. Reinstall to update; the app has no update feed."
+
+          if ! gh release view "$FORK_RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$FORK_RELEASE_TAG" \
+              --target "$GITHUB_SHA" \
+              --title "Windows build (fork)" \
+              --notes "$notes" \
+              --prerelease
           fi
+
+          # The asset name carries the version, so a rolling release would
+          # otherwise keep one installer per push, forever.
+          while read -r asset; do
+            gh release delete-asset "$FORK_RELEASE_TAG" "$asset" --yes
+          done < <(gh release view "$FORK_RELEASE_TAG" --json assets --jq '.assets[].name')
+
           gh release upload "$FORK_RELEASE_TAG" publish/*.exe --clobber
           gh release edit "$FORK_RELEASE_TAG" \
             --title "Windows build (fork)" \
-            --notes "Unsigned Windows x64 build of this fork's \`fork\` branch, replaced on every push. Version \`${{ steps.version.outputs.version }}\`. Reinstall to update; the app has no update feed." \
+            --notes "$notes" \
             --prerelease
