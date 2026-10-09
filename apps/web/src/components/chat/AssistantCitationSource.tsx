@@ -334,6 +334,7 @@ export function observeAssistantCitationSource({
 
 export function AssistantCitationSource({
   messageId,
+  role,
   threadRef,
   itemKey,
   request,
@@ -341,6 +342,7 @@ export function AssistantCitationSource({
   children,
 }: {
   messageId: MessageId;
+  role?: "user";
   threadRef?: ScopedThreadRef;
   itemKey: string;
   request: AssistantCitationTarget | null;
@@ -359,6 +361,7 @@ export function AssistantCitationSource({
     <div
       ref={rootRef}
       data-assistant-citation-source={messageId}
+      data-assistant-citation-role={role}
       data-assistant-citation-environment={threadRef?.environmentId}
       data-assistant-citation-thread={threadRef?.threadId}
     >
