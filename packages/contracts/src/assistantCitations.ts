@@ -11,6 +11,8 @@ export const AssistantCitation = Schema.Struct({
   environmentId: EnvironmentId.check(Schema.isMaxLength(512)),
   threadId: ThreadId.check(Schema.isMaxLength(512)),
   messageId: MessageId.check(Schema.isMaxLength(512)),
+  // Absent on assistant quotes, so links saved before user quotes still decode.
+  role: Schema.optional(Schema.Literal("user")),
   text: Schema.String.check(
     Schema.isNonEmpty(),
     Schema.isMaxLength(ASSISTANT_CITATION_MAX_TEXT_LENGTH),
