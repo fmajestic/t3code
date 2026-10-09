@@ -143,6 +143,8 @@ export class DesktopWindow extends Context.Service<
     // which is a preview guest whenever a browser page has focus.
     readonly runMainContentsCommand: (command: MainWindowContentsCommand) => Effect.Effect<void>;
     readonly syncAppearance: Effect.Effect<void>;
+    readonly quitShortcutDisabled: Effect.Effect<boolean>;
+    readonly setQuitShortcutDisabled: (disabled: boolean) => Effect.Effect<void>;
   }
 >()("@t3tools/desktop/window/DesktopWindow") {}
 
@@ -343,6 +345,10 @@ export const make = Effect.gen(function* () {
   const runFork = Effect.runForkWith(context);
   const runPromise = Effect.runPromiseWith(context);
   let flushMainWindowBounds: Effect.Effect<void> = Effect.void;
+  let quitShortcutDisabled = yield* clientSettings.get.pipe(
+    Effect.map(Option.exists((settings) => settings.confirmQuit === "off")),
+    Effect.orElseSucceed(() => false),
+  );
 
   const dismissConnectingSplash = Effect.gen(function* () {
     const splash = yield* Ref.getAndSet(splashWindowRef, Option.none());
@@ -644,7 +650,7 @@ export const make = Effect.gen(function* () {
     // press, so reject repeats before they reach the native window accelerator.
     // Deliberate presses still flow through the renderer or native menu.
     // Intercept the quit accelerator before the native menu sees it and apply
-    // the configured direct, hold, or double-press behavior.
+    // the configured direct, hold, or double-press behavior. Off lets it through to the page.
     const quitShortcutHandler = makeQuitShortcutHandler({
       platform: environment.platform,
       getMode: () =>
@@ -657,6 +663,7 @@ export const make = Effect.gen(function* () {
             }),
           ),
         ),
+      isDisabled: () => quitShortcutDisabled,
       notify: (hint) => {
         if (!window.isDestroyed()) {
           window.webContents.send(QUIT_SHORTCUT_CHANNEL, hint);
@@ -964,6 +971,11 @@ export const make = Effect.gen(function* () {
   });
 
   return DesktopWindow.of({
+    quitShortcutDisabled: Effect.sync(() => quitShortcutDisabled),
+    setQuitShortcutDisabled: (disabled) =>
+      Effect.sync(() => {
+        quitShortcutDisabled = disabled;
+      }),
     createMain,
     ensureMain,
     revealOrCreateMain,

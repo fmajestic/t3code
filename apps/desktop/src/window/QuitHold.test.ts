@@ -30,6 +30,7 @@ function makeHarness(options?: {
   mode?: QuitConfirmationMode;
   platform?: NodeJS.Platform;
   getMode?: () => Promise<QuitConfirmationMode>;
+  disabled?: boolean;
 }) {
   const notifications: Array<QuitShortcutHintEvent> = [];
   const concealWindow = vi.fn();
@@ -37,6 +38,7 @@ function makeHarness(options?: {
   const handler = makeQuitShortcutHandler({
     platform: options?.platform ?? "darwin",
     getMode: options?.getMode ?? (() => Promise.resolve(options?.mode ?? "hold")),
+    isDisabled: () => options?.disabled ?? false,
     notify: (event) => notifications.push(event),
     concealWindow,
     quit,
@@ -232,6 +234,25 @@ describe("makeQuitShortcutHandler", () => {
     await harness.send(makeInput({}));
     expect(harness.concealWindow).not.toHaveBeenCalled();
     expect(harness.quit).toHaveBeenCalledTimes(1);
+    expect(harness.notifications).toEqual([]);
+  });
+
+  it("passes the shortcut through to the page when disabled", async () => {
+    const harness = makeHarness({ disabled: true });
+    await harness.send(makeInput({}));
+    await harness.send(makeInput({ type: "keyUp" }));
+    await harness.send(makeInput({}));
+    expect(harness.preventDefault).not.toHaveBeenCalled();
+    expect(harness.quit).not.toHaveBeenCalled();
+    expect(harness.notifications).toEqual([]);
+  });
+
+  it("does nothing when the mode read resolves to off", async () => {
+    const harness = makeHarness({ mode: "off" });
+    await harness.send(makeInput({}));
+    await harness.holdFor(QUIT_HOLD_DURATION_MS + QUIT_HOLD_RELEASE_GRACE_MS);
+    vi.advanceTimersByTime(QUIT_HOLD_RELEASE_GRACE_MS * 2);
+    expect(harness.quit).not.toHaveBeenCalled();
     expect(harness.notifications).toEqual([]);
   });
 
