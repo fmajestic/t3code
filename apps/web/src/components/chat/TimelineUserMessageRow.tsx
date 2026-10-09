@@ -92,6 +92,7 @@ import {
   TimelineRowTimestamp,
 } from "./TimelineRowParts";
 import { UserMessageContextReferenceChip } from "./UserMessageContextChips";
+import { AssistantCitationSource } from "./AssistantCitationSource";
 import {
   resolvePreviewAnnotationImage,
   userMessageFileLabel,
@@ -1027,13 +1028,23 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
             ) : null}
             {fileCardsOnly || audioOnly ? null : (
               <div onCopyCapture={onBodyCopyCapture}>
-                <CollapsibleUserMessageBody
-                  text={resolvedContext.text}
-                  renderContextReference={renderContextReference}
-                  skills={ctx.skills}
-                  markdownCwd={ctx.markdownCwd}
-                  collapsible={!folded}
-                />
+                <AssistantCitationSource
+                  messageId={row.message.id}
+                  role="user"
+                  {...(ctx.threadRef ? { threadRef: ctx.threadRef } : {})}
+                  itemKey={row.id}
+                  request={ctx.citationRequest}
+                  listRef={ctx.listRef}
+                >
+                  <CollapsibleUserMessageBody
+                    text={resolvedContext.text}
+                    renderContextReference={renderContextReference}
+                    skills={ctx.skills}
+                    markdownCwd={ctx.markdownCwd}
+                    collapsible={!folded}
+                    cited={ctx.citationRequest?.citation.messageId === row.message.id}
+                  />
+                </AssistantCitationSource>
               </div>
             )}
           </div>
@@ -1140,8 +1151,15 @@ const CollapsibleUserMessageBody = memo(function CollapsibleUserMessageBody(prop
   skills: ReadonlyArray<ServerProviderSkill>;
   markdownCwd: string | undefined;
   collapsible?: boolean;
+  cited?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  // A citation can point into the clipped part, so opening one expands the body.
+  const [expanded, setExpanded] = useState(props.cited === true);
+  const [wasCited, setWasCited] = useState(props.cited);
+  if (props.cited !== wasCited) {
+    setWasCited(props.cited);
+    if (props.cited) setExpanded(true);
+  }
   const revealForFind = () => setExpanded(true);
   const revealRef = findRevealRef(revealForFind);
   const hasVisibleBody = props.text.trim().length > 0;
