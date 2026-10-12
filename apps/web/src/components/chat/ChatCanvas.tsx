@@ -104,7 +104,7 @@ export function ChatCanvas({
       : null;
   const context = {
     container,
-    lane: { padding: measurements.padding, minChatWidth: measurements.minChatWidth },
+    lane: { padding: measurements.padding, chatWidth: measurements.maxChatWidth },
     layout: resolveChatCanvasLayout({
       ...measurements,
       container,
