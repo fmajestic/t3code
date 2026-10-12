@@ -56,7 +56,7 @@ function Card({
       <ChatCanvasContext
         value={{
           container,
-          lane: { padding: 48, minChatWidth: 640 },
+          lane: { padding: 48, chatWidth: 768 },
           layout: resolveChatCanvasLayout({ container, preview: null }),
           previewKey: null,
           registerTimeline: () => {},

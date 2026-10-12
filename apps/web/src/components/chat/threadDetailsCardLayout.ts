@@ -14,6 +14,10 @@ export function resolveThreadDetailsCardDensity(
   return "essential";
 }
 
+/**
+ * The card pins to the top right while chat, at its configured width, fits to its left; chat
+ * shifts left off center to make room but never narrows. Otherwise it opens as a popover.
+ */
 export function resolveThreadDetailsCardLayout({
   container,
   lane,
@@ -22,7 +26,7 @@ export function resolveThreadDetailsCardLayout({
   topInset = 0,
 }: {
   container: { width: number; height: number };
-  lane: { padding: number; minChatWidth: number };
+  lane: { padding: number; chatWidth: number };
   frame: PreviewMiniPlayerFrame | null;
   overlapsDetailsCard?: boolean;
   topInset?: number;
@@ -30,7 +34,8 @@ export function resolveThreadDetailsCardLayout({
   const gap = THREAD_DETAILS_CARD_GAP;
   const width = THREAD_DETAILS_CARD_WIDTH;
   const x = container.width - width - gap;
-  if (x - DETAILS_CARD_CLEARANCE - lane.padding < lane.minChatWidth) return null;
+  const chatWidth = Math.min(lane.chatWidth, container.width - lane.padding * 2);
+  if (lane.padding + chatWidth + DETAILS_CARD_CLEARANCE > x) return null;
   const y = gap + topInset;
   const height =
     overlapsDetailsCard && frame && frame.x + frame.width > x - gap && frame.x < x + width + gap

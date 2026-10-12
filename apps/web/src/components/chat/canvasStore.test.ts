@@ -46,10 +46,10 @@ describe("chat canvas model", () => {
   it("moves the card into a popover when a preview below it leaves too little height", () => {
     const resolve = (fullContentHeight: number) =>
       resolveChatCanvasModel({
-        measurements: measurements(1100, 300),
+        measurements: measurements(1200, 300),
         detailsCardMeasurement: { threadRef, width: 280, fullContentHeight },
         threadRef,
-        preview: { ...preview, position: { x: 760, y: 150 }, lastInteraction: "drag" },
+        preview: { ...preview, position: { x: 860, y: 150 }, lastInteraction: "drag" },
         detailsCardInlineOpen: true,
       });
     const model = resolve(400);
@@ -59,10 +59,10 @@ describe("chat canvas model", () => {
 
   it("ignores a details card measured for another thread", () => {
     const model = resolveChatCanvasModel({
-      measurements: measurements(1100, 300),
+      measurements: measurements(1200, 300),
       detailsCardMeasurement: { threadRef: otherThreadRef, width: 280, fullContentHeight: 400 },
       threadRef,
-      preview: { ...preview, position: { x: 760, y: 150 }, lastInteraction: "drag" },
+      preview: { ...preview, position: { x: 860, y: 150 }, lastInteraction: "drag" },
       detailsCardInlineOpen: true,
     });
     expect(model.layout.overlapsDetailsCard).toBe(false);

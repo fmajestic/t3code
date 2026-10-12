@@ -243,7 +243,7 @@ describe("chat canvas layout", () => {
       const density = (result: ReturnType<typeof layout>) => {
         const card = resolveThreadDetailsCardLayout({
           container,
-          lane: { padding: 48, minChatWidth: 640 },
+          lane: { padding: 48, chatWidth: 736 },
           frame: result.frame,
           overlapsDetailsCard: result.overlapsDetailsCard,
         });
@@ -300,17 +300,19 @@ describe("workspace card beside chat", () => {
     expect(withCard(1028).chat).toEqual({ left: 48, width: 656, insetStart: 0, insetEnd: 276 });
     expect(withCard(1012).chat).toMatchObject({ left: 48, width: 640 });
   });
-  it("reserves the marker gutter across widths where the details card fits", () => {
-    for (let width = 1012; width <= 1440; width++) {
-      const container = { width, height: 900 };
+  it("docks the card where chat fits beside it at full width, shifting it off center", () => {
+    for (let width = 1100; width <= 1440; width++) {
       const card = resolveThreadDetailsCardLayout({
-        container,
-        lane: { padding: 48, minChatWidth: 640 },
+        container: { width, height: 900 },
+        lane: { padding: 48, chatWidth: 736 },
         frame: null,
-      })!;
+      });
+      expect(card === null).toBe(width < 1108);
+      if (!card) continue;
       const chat = withCard(width).chat;
+      expect(chat.width).toBe(736);
       expect(chat.left).toBeGreaterThanOrEqual(48);
-      expect(chat.width).toBeGreaterThanOrEqual(640);
+      expect(chat.left).toBeLessThanOrEqual((width - 736) / 2);
       expect(card.x - chat.left - chat.width).toBeGreaterThanOrEqual(32);
     }
   });

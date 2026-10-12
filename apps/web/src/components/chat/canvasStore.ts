@@ -96,7 +96,7 @@ export function resolveChatCanvasModel({
   const container = { width: measurements.width, height: measurements.height };
   const { findBar } = measurements;
   const detailsCardTopInset = findBar?.bottom ?? 0;
-  const lane = { padding: measurements.padding, minChatWidth: measurements.minChatWidth };
+  const lane = { padding: measurements.padding, chatWidth: measurements.maxChatWidth };
   // The preview avoids where an open inline card would sit, whether or not a
   // preview overlap has pushed the card itself into popover mode.
   const preferredDetailsCard = resolveThreadDetailsCardLayout({

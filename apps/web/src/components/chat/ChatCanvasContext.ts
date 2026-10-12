@@ -12,7 +12,7 @@ export interface DetailsCardMeasurement {
 
 export const ChatCanvasContext = createContext<{
   container: { width: number; height: number };
-  lane: { padding: number; minChatWidth: number };
+  lane: { padding: number; chatWidth: number };
   layout: ReturnType<typeof resolveChatCanvasLayout>;
   previewKey: string | null;
   registerTimeline: (element: HTMLElement | null) => void;
