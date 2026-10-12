@@ -313,6 +313,37 @@ describe("source file focus", () => {
     editorHasFocus();
   });
 
+  it("opens find with mod+f in a file the panel cannot edit", async () => {
+    using _settings = setup();
+    const style = document.createElement("style");
+    style.textContent = appCss;
+    document.head.append(style);
+    using _style = { [Symbol.dispose]: () => style.remove() };
+    await preloadHighlighter({ themes: Object.values(DEFAULT_THEMES), langs: ["typescript"] });
+    // Files outside the workspace are read-only.
+    state.file = {
+      relativePath: "/outside/server.ts",
+      contents: "const server = 1;\n",
+      byteLength: 18,
+      truncated: false,
+    };
+    await using screen = await render(
+      <div style={{ height: 400, display: "flex" }}>{filePreview("/outside/server.ts")}</div>,
+    );
+    const line = await vi.waitFor(() => {
+      const row = screen.container
+        .querySelector("diffs-container")
+        ?.shadowRoot?.querySelector<HTMLElement>('[data-line="1"]');
+      expect(row?.textContent).toContain("const server");
+      return row!;
+    });
+    await userEvent.click(line);
+    await userEvent.keyboard(
+      isMacPlatform(navigator.platform) ? "{Meta>}f{/Meta}" : "{Control>}f{/Control}",
+    );
+    await vi.waitFor(() => expect(deepActiveElement()).toBeInstanceOf(HTMLInputElement));
+  });
+
   it("focuses the editor when a file row is clicked or activated with Enter", async () => {
     using _settings = setup();
     localStorage.setItem("t3code.fileExplorerOpen", "true");

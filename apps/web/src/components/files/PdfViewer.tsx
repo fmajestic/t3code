@@ -16,6 +16,7 @@ import { m } from "~/i18n/messages";
 import { ChevronDownIcon, ChevronUpIcon, MinusIcon, PlusIcon, ScanIcon } from "lucide-react";
 import { Input } from "~/components/ui/input";
 import { observeResize } from "~/lib/observeResize";
+import { FILE_FIND_SCOPE_ATTRIBUTE } from "~/lib/editableFocus";
 import { FileSurfaceAction, FileSurfaceFailure, FileSurfaceLoading } from "./fileSurfaceChrome";
 import { readBoundedDocument } from "./readBoundedDocument";
 import { previewErrorText } from "./previewFailureMessages";
@@ -588,6 +589,7 @@ export default function PdfViewer(props: {
         role="region"
         aria-label={props.title}
         tabIndex={0}
+        {...{ [FILE_FIND_SCOPE_ATTRIBUTE]: "" }}
         className="relative min-h-0 min-w-0 w-full flex-1 overflow-auto scrollbar-gutter-stable bg-muted/40"
         onScroll={(event) => {
           setScrolled({ top: event.currentTarget.scrollTop, width, pdf });
