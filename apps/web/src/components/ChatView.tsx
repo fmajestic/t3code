@@ -179,7 +179,7 @@ import { useDeviceState } from "~/state/device";
 import { BranchToolbar, type BranchToolbarHandle } from "./BranchToolbar";
 import { ComposerContextPermissions } from "./ComposerContextPermissions";
 import { makeWorkspaceFileDropHandlers } from "./chat/workspaceFileDrop";
-import { isEditableFocused } from "../lib/editableFocus";
+import { isEditableFocused, isFileEditorFocused } from "../lib/editableFocus";
 import { DEFAULT_RESOLVED_KEYBINDINGS } from "@t3tools/shared/keybindings";
 import { shortcutLabelForCommand } from "../keybindings";
 import { cn } from "~/lib/utils";
@@ -2708,9 +2708,15 @@ export default function ChatView(props: ChatViewProps) {
       "thread.copyReference": ({ event }) => {
         if (!event.repeat) copyActiveThreadReference();
       },
-      "chat.find": () => {
-        if (!isServerThread || serverConfig?.threadFind !== true || activeThreadKey === null)
+      "chat.find": ({ event }) => {
+        if (
+          !isServerThread ||
+          serverConfig?.threadFind !== true ||
+          activeThreadKey === null ||
+          isFileEditorFocused(event.target)
+        ) {
           return false;
+        }
         openThreadFind(activeThreadKey);
       },
       "composer.cycleHost": ({ event }) => {

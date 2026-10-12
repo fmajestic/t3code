@@ -11,6 +11,7 @@ Each of these is meant to be dropped once upstream has it, through its own PR or
 - **Cited quotes reach the agent readable**: quotes in a message are sent as quoted text with their comments, not as raw `t3-citation` links. From [#16389](https://github.com/pingdotgg/t3code/pull/16389).
 - **Quit shortcut off**: Settings > General > Quit shortcut has an Off mode, so Ctrl+Q (Cmd+Q on macOS) reaches the terminal instead of quitting. The menu's Quit item still works. No upstream PR yet.
 - **Quote user messages**: select text in a user message and choose Cite in composer, as with assistant responses. No upstream PR yet.
+- **Cmd+F searches the open file**: with focus in the file editor in the right panel, Cmd+F (Ctrl+F) opens the editor's search instead of the thread search. No upstream PR yet.
 - **Desktop build tests inside Electron**: the Windows native probe tests pass when the suite runs from an agent inside the desktop app. No upstream PR yet.
 
 ## Fork only
