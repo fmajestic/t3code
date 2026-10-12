@@ -268,7 +268,7 @@ import { LinkPullRequestDialogHost } from "./pullRequest/LinkPullRequestDialog";
 import { useDeviceState } from "~/state/device";
 import { BranchToolbar, type BranchToolbarHandle } from "./BranchToolbar";
 import { makeWorkspaceFileDropHandlers } from "./chat/workspaceFileDrop";
-import { isEditableFocused } from "../lib/editableFocus";
+import { isEditableFocused, isFileEditorFocused } from "../lib/editableFocus";
 import { DEFAULT_RESOLVED_KEYBINDINGS } from "@t3tools/shared/keybindings";
 import { shortcutLabelForCommand } from "../keybindings";
 import { PersistentThreadTerminalDrawer } from "./PersistentThreadTerminals";
@@ -5825,8 +5825,14 @@ export default function ChatView(props: ChatViewProps) {
         if (!terminalUiState.terminalOpen && !canReadTerminal && !canOperateTerminal) return false;
         toggleTerminalVisibilityStable();
       },
-      "chat.find": () => {
-        if (!isServerThread || serverConfig?.threadFind !== true) return false;
+      "chat.find": ({ event }) => {
+        if (
+          !isServerThread ||
+          serverConfig?.threadFind !== true ||
+          isFileEditorFocused(event.target)
+        ) {
+          return false;
+        }
         openThreadFindStable();
       },
       "rightPanel.toggle": () => toggleRightPanelStable(),
