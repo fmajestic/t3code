@@ -8,6 +8,11 @@ import {
   withLinkedComposerPullRequestsFirst,
 } from "@t3tools/shared/composerPullRequestMatches";
 import { resolveFilesystemReadAccess } from "@t3tools/client-runtime/state/filesystem";
+import {
+  buildComposerPathBrowseEntries,
+  getComposerPathBrowse,
+  type ComposerPathSearchEntry,
+} from "@t3tools/client-runtime/state/threads";
 import { environmentSession } from "./session";
 import { useEnvironmentPresentation } from "./presentation";
 import type { VcsRefTarget } from "@t3tools/client-runtime/state/vcs";
@@ -38,6 +43,7 @@ import { AsyncResult, Atom } from "effect/reactivity";
 import { useEffect, useMemo, useState } from "react";
 
 import { appAtomRegistry } from "./atom-registry";
+import { filesystemEnvironment } from "./filesystem";
 import { orchestrationEnvironment } from "./orchestration";
 import { olderSettledThreads, threadFamilies } from "./threads";
 import { projectEnvironment } from "./projects";
@@ -406,6 +412,8 @@ export function usePaginatedBranches(target: VcsRefTarget) {
   };
 }
 
+const EMPTY_COMPOSER_PATH_ENTRIES: ReadonlyArray<ComposerPathSearchEntry> = [];
+
 export function useComposerPathSearch(target: ComposerPathSearchTarget) {
   const query = normalizeComposerPathSearchQuery(target.query);
   const normalizedTarget = { environmentId: target.environmentId, cwd: target.cwd, query };
@@ -423,7 +431,33 @@ export function useComposerPathSearch(target: ComposerPathSearchTarget) {
     sessionError: fileAccessSession.error,
   });
   const { canReadFiles } = fileAccess;
+  const browse = getComposerPathBrowse(normalizedTarget.query);
+  const browseTarget =
+    browse !== null && normalizedTarget.environmentId !== null && normalizedTarget.cwd !== null
+      ? {
+          environmentId: normalizedTarget.environmentId,
+          input: {
+            partialPath: browse.directoryPath,
+            cwd: normalizedTarget.cwd,
+            includeFiles: true,
+          },
+        }
+      : null;
+  const browseResult = useEnvironmentQuery(
+    canReadFiles && browseTarget !== null ? filesystemEnvironment.browse(browseTarget) : null,
+  );
+  const browseDirectoryPath = browse?.directoryPath ?? null;
+  const browseFilterQuery = browse?.filterQuery ?? "";
+  const browseEntries = useMemo(
+    () =>
+      browseDirectoryPath === null || browseResult.data === null
+        ? EMPTY_COMPOSER_PATH_ENTRIES
+        : buildComposerPathBrowseEntries(browseDirectoryPath, browseFilterQuery, browseResult.data),
+    [browseDirectoryPath, browseFilterQuery, browseResult.data],
+  );
   const searchTarget =
+    browse === null &&
+    getComposerPathBrowse(debouncedTarget.query) === null &&
     debouncedTarget.environmentId !== null &&
     debouncedTarget.cwd !== null &&
     debouncedTarget.query.length > 0
@@ -441,8 +475,25 @@ export function useComposerPathSearch(target: ComposerPathSearchTarget) {
   );
   const hasTarget = searchTarget !== null;
 
+  const searchEntries: ReadonlyArray<ComposerPathSearchEntry> = result.data?.entries ?? [];
+
+  if (browse !== null) {
+    const hasBrowseTarget = browseTarget !== null;
+    return {
+      entries: browseEntries,
+      error:
+        !hasBrowseTarget || fileAccess.isPending
+          ? null
+          : canReadFiles
+            ? browseResult.error
+            : (fileAccess.error ?? "This connection cannot browse host files."),
+      isPending: hasBrowseTarget && (fileAccess.isPending || browseResult.isPending),
+      refresh: browseResult.refresh,
+    };
+  }
+
   return {
-    entries: result.data?.entries ?? [],
+    entries: searchEntries,
     error:
       !hasTarget || fileAccess.isPending
         ? null

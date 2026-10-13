@@ -355,6 +355,11 @@ saved text context at the time of the drop; later messages and the contents of a
 are not copied. The agent can read the saved transcript after the source disconnects. Normal
 file attachment limits apply.
 
+Type `@` and part of a name to mention a file or folder from the project. To point at something
+outside it, start the path with `~/`, `/`, `./` or `../` (or a drive letter on Windows): the menu then lists one folder at a
+time on the server's machine. Choosing a folder opens it; the folder itself is the first entry,
+so you can mention it instead. Hidden entries appear once you type a leading `.`.
+
 Type `@` and part of a model or provider name, such as `@opus`, to name that model for the
 agent, for example when delegating. It does not change the thread's model. Join words with
 `:`, `/` or `-`, as in `@opus:opencode`.
