@@ -1,6 +1,9 @@
 import { useAtomValue } from "@effect/atom-react";
 import {
+  buildComposerPathBrowseEntries,
+  getComposerPathBrowse,
   type CheckpointDiffTarget,
+  type ComposerPathSearchEntry,
   type ComposerPathSearchTarget,
 } from "@t3tools/client-runtime/state/threads";
 import {
@@ -31,7 +34,7 @@ import { AsyncResult, Atom } from "effect/reactivity";
 import { useEffect, useState } from "react";
 
 import { appAtomRegistry } from "../rpc/atomRegistry";
-import { useFilesystemReadAccess } from "./filesystem";
+import { filesystemEnvironment, useFilesystemReadAccess } from "./filesystem";
 import { orchestrationEnvironment } from "./orchestration";
 import { olderSettledThreads, threadFamilies } from "./threads";
 import { isPaginatedBranchesNextPagePending } from "./paginatedBranches";
@@ -344,7 +347,56 @@ export function useProjectPathSearch(
 }
 
 export function useComposerPathSearch(target: ComposerPathSearchTarget) {
-  return useProjectPathSearch(target, COMPOSER_PATH_SEARCH_LIMIT);
+  const isBrowsing = getComposerPathBrowse(target.query) !== null;
+  const search = useProjectPathSearch(
+    isBrowsing ? { ...target, query: null } : target,
+    COMPOSER_PATH_SEARCH_LIMIT,
+  );
+  const browse = useComposerPathBrowse(target);
+  const searchEntries: ReadonlyArray<ComposerPathSearchEntry> = search.entries;
+  if (!isBrowsing) return { ...search, entries: searchEntries };
+  return { ...browse, searchedTarget: { ...target, query: target.query?.trim() ?? null } };
+}
+
+const EMPTY_COMPOSER_PATH_ENTRIES: ReadonlyArray<ComposerPathSearchEntry> = [];
+
+export function useComposerPathBrowse(target: ComposerPathSearchTarget) {
+  const browse = getComposerPathBrowse(target.query);
+  const directoryPath = browse?.directoryPath ?? null;
+  const filterQuery = browse?.filterQuery ?? "";
+  const fileAccess = useFilesystemReadAccess(browse === null ? null : target.environmentId);
+  const browseTarget =
+    target.environmentId !== null && directoryPath !== null
+      ? {
+          environmentId: target.environmentId,
+          input: {
+            partialPath: directoryPath,
+            includeFiles: true,
+            ...(target.cwd === null ? {} : { cwd: target.cwd }),
+          },
+        }
+      : null;
+  const hasTarget = browseTarget !== null;
+  const result = useEnvironmentQuery(
+    fileAccess.canReadFiles && browseTarget !== null
+      ? filesystemEnvironment.browse(browseTarget)
+      : null,
+  );
+  const entries =
+    directoryPath === null || result.data === null
+      ? EMPTY_COMPOSER_PATH_ENTRIES
+      : buildComposerPathBrowseEntries(directoryPath, filterQuery, result.data);
+
+  return {
+    entries,
+    error:
+      !hasTarget || fileAccess.isPending
+        ? null
+        : fileAccess.canReadFiles
+          ? result.error
+          : (fileAccess.error ?? "This connection cannot browse host files."),
+    isPending: hasTarget && (fileAccess.isPending || result.isPending),
+  };
 }
 
 interface ProjectContentSearchTarget {

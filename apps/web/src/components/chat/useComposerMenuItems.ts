@@ -22,7 +22,7 @@ import { formatProviderSkillDisplayName } from "@t3tools/shared/inlineSkills";
 
 import type { ComposerTrigger } from "../../composer-logic";
 import type { DraftId } from "../../composerDraftStore";
-import { basenameOfPath } from "../../pierre-icons";
+import { describeComposerPathEntry } from "@t3tools/client-runtime/state/threads";
 import {
   getProviderSkillsForSlashMenu,
   getProviderSlashCommandsForSlashMenu,
@@ -204,8 +204,8 @@ export function useComposerMenuItems({
           path: entry.path,
           pathKind: entry.kind,
           searchTarget: workspaceEntries.searchedTarget,
-          label: basenameOfPath(entry.path),
-          description: entry.path.slice(0, Math.max(0, entry.path.lastIndexOf("/"))),
+          ...(entry.browseQuery === undefined ? {} : { browseQuery: entry.browseQuery }),
+          ...describeComposerPathEntry(entry.path),
         })),
       ];
     }

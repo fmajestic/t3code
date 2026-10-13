@@ -41,6 +41,8 @@ export type ComposerCommandItem =
       path: string;
       pathKind: ProjectEntry["kind"];
       searchTarget: ComposerPathSearchTarget;
+      // Set on directories outside the project index: selecting one lists its children.
+      browseQuery?: string;
       label: string;
       description: string;
     }
