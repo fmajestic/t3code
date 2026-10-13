@@ -750,15 +750,21 @@ function OpenCommandPaletteDialog(props: {
       ? (browseAccess.error ?? "This connection cannot browse host folders.")
       : null;
   const browseEntries = browseResult?.entries ?? EMPTY_BROWSE_ENTRIES;
-  const { visibleEntries: visibleBrowseEntries, exactEntry: exactBrowseEntry } =
-    pinnedCloneDirectoryName
-      ? filterPinnedBrowseEntries({
-          browseEntries,
-          filterQuery: browsePath.filterQuery,
-          pinnedDirectoryName: pinnedCloneDirectoryName,
-          caseSensitive: !isWindowsPlatform(browseEnvironmentPlatform),
-        })
-      : filterFilesystemBrowseEntries(browseEntries, browsePath.filterQuery);
+  const {
+    visibleEntries: visibleBrowseEntries,
+    exactEntry: exactBrowseEntry,
+    filterQuery: browseFilterQuery,
+  } = pinnedCloneDirectoryName
+    ? filterPinnedBrowseEntries({
+        browseEntries,
+        filterQuery: browsePath.filterQuery,
+        pinnedDirectoryName: pinnedCloneDirectoryName,
+        caseSensitive: !isWindowsPlatform(browseEnvironmentPlatform),
+      })
+    : {
+        ...filterFilesystemBrowseEntries(browseEntries, browsePath.filterQuery),
+        filterQuery: browsePath.filterQuery,
+      };
 
   const prefetchBrowsePath = async (
     partialPath: string,
@@ -2292,7 +2298,9 @@ function OpenCommandPaletteDialog(props: {
     ? (browseResult?.parentPath ?? query.trim())
     : (exactBrowseEntry?.fullPath ?? query.trim());
 
-  const canBrowseUp = !relativePathNeedsActiveProject && browsePath.canBrowseUp;
+  // ".." only while nothing is typed after the last separator, so it never sits above the matches.
+  const canBrowseUp =
+    !relativePathNeedsActiveProject && browsePath.canBrowseUp && browseFilterQuery === "";
 
   const browseGroups = buildBrowseGroups({
     browseEntries: visibleBrowseEntries,

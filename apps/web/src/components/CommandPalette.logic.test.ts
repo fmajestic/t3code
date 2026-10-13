@@ -794,6 +794,7 @@ describe("filterPinnedBrowseEntries", () => {
     ).toEqual({
       visibleEntries: windowsEntries,
       exactEntry: windowsEntries[0],
+      filterQuery: "",
     });
   });
 });
