@@ -251,6 +251,7 @@ import {
   threadContextReference,
 } from "~/lib/composerContextRecords";
 import { matchComposerThreadItems } from "@t3tools/client-runtime/composerThreadItems";
+import { describeComposerPathEntry } from "@t3tools/client-runtime/state/threads";
 import { useThreadContextDrop, threadContextDropTargetProps } from "./threadContextDrag";
 import { readThreadShell, useThreadShells } from "~/state/entities";
 import { requestConfirmDialog } from "~/confirmDialog";
@@ -335,7 +336,6 @@ import {
   subscribeToPendingSnapShotAnimations,
 } from "../../lib/snapShotAnimation";
 import { resizeSnapShotSource } from "../../lib/snapShotSource";
-import { basenameOfPath } from "../../pierre-icons";
 import { cn, isMacPlatform, randomUUID } from "~/lib/utils";
 import {
   getComposerPromptLengthValidationMessage,
@@ -2621,8 +2621,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
           type: "path" as const,
           path: entry.path,
           pathKind: entry.kind,
-          label: basenameOfPath(entry.path),
-          description: entry.path.slice(0, Math.max(0, entry.path.lastIndexOf("/"))),
+          ...(entry.browseQuery === undefined ? {} : { browseQuery: entry.browseQuery }),
+          ...describeComposerPathEntry(entry.path),
         })),
       ];
     }
@@ -3769,6 +3769,18 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     });
     const { snapshot, trigger } = resolveActiveComposerTrigger();
     if (!trigger) return;
+    if (item.type === "path" && item.browseQuery !== undefined) {
+      const applied = applyPromptReplacement(
+        trigger.rangeStart,
+        trigger.rangeEnd,
+        `@${item.browseQuery}`,
+        { expectedText: snapshot.value.slice(trigger.rangeStart, trigger.rangeEnd) },
+      );
+      if (applied) {
+        setComposerHighlightedItemId(null);
+      }
+      return;
+    }
     if (item.type === "path") {
       const replacement = `${serializeComposerFileLink(item.path)} `;
       const replacementRangeEnd = extendReplacementRangeForTrailingSpace(

@@ -873,9 +873,56 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceEntries", (it) => {
         expect(result).toEqual({
           parentPath: cwd,
           entries: [
-            { name: "alpha", fullPath: path.join(cwd, "alpha") },
-            { name: "alpine", fullPath: path.join(cwd, "alpine") },
+            { name: "alpha", fullPath: path.join(cwd, "alpha"), kind: "directory" },
+            { name: "alpine", fullPath: path.join(cwd, "alpine"), kind: "directory" },
           ],
+        });
+      }),
+    );
+
+    it.effect("lists files alongside directories when includeFiles is set", () =>
+      Effect.gen(function* () {
+        const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
+        const path = yield* Path.Path;
+        const cwd = yield* makeTempDir({ prefix: "t3code-workspace-browse-files-" });
+        yield* writeTextFile(cwd, "alphabet.txt", "keep me");
+        yield* writeTextFile(cwd, "alpha/index.ts", "export {};\n");
+
+        const result = yield* workspaceEntries.browse({
+          partialPath: path.join(cwd, "alp"),
+          includeFiles: true,
+        });
+
+        expect(result.entries).toEqual([
+          { name: "alpha", fullPath: path.join(cwd, "alpha"), kind: "directory" },
+          { name: "alphabet.txt", fullPath: path.join(cwd, "alphabet.txt"), kind: "file" },
+        ]);
+      }),
+    );
+
+    it.effect("resolves ~ with either separator against the host home directory", () =>
+      Effect.gen(function* () {
+        const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
+        const path = yield* Path.Path;
+        const home = yield* makeTempDir({ prefix: "t3code-workspace-browse-home-" });
+        yield* writeTextFile(home, "notes.md", "");
+        yield* writeTextFile(home, "work/index.ts", "");
+
+        const browseHome = (partialPath: string) =>
+          workspaceEntries
+            .browse({ partialPath, includeFiles: true })
+            .pipe(Effect.provideService(HostProcess.HomeDirectory, home));
+
+        expect(yield* browseHome("~/")).toEqual({
+          parentPath: home,
+          entries: [
+            { name: "notes.md", fullPath: path.join(home, "notes.md"), kind: "file" },
+            { name: "work", fullPath: path.join(home, "work"), kind: "directory" },
+          ],
+        });
+        expect(yield* browseHome("~\\wo")).toEqual({
+          parentPath: home,
+          entries: [{ name: "work", fullPath: path.join(home, "work"), kind: "directory" }],
         });
       }),
     );
@@ -899,7 +946,7 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceEntries", (it) => {
         expect(directoryResult.entries.map((entry) => entry.name)).toEqual([".config", "config"]);
         expect(hiddenPrefixResult).toEqual({
           parentPath: cwd,
-          entries: [{ name: ".config", fullPath: path.join(cwd, ".config") }],
+          entries: [{ name: ".config", fullPath: path.join(cwd, ".config"), kind: "directory" }],
         });
       }),
     );
@@ -918,7 +965,7 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceEntries", (it) => {
 
         expect(result).toEqual({
           parentPath: cwd,
-          entries: [{ name: "packages", fullPath: path.join(cwd, "packages") }],
+          entries: [{ name: "packages", fullPath: path.join(cwd, "packages"), kind: "directory" }],
         });
       }),
     );
