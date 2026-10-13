@@ -12,6 +12,7 @@ Each of these is meant to be dropped once upstream has it, through its own PR or
 - **Quit shortcut off**: Settings > General > Quit shortcut has an Off mode, so Ctrl+Q (Cmd+Q on macOS) reaches the terminal instead of quitting. The menu's Quit item still works. No upstream PR yet.
 - **Quote user messages**: select text in a user message and choose Cite in composer, as with assistant responses. No upstream PR yet.
 - **Cmd+F searches the open file**: with focus in the file editor in the right panel, Cmd+F (Ctrl+F) opens the editor's search instead of the thread search. No upstream PR yet.
+- **`@` completes paths outside the project**: an `@` path starting with `~/`, `/`, `./`, `../` or a drive letter lists one folder at a time on the server, instead of searching the project. Proposed upstream in [discussion #17399](https://github.com/pingdotgg/t3code/discussions/17399), no PR yet.
 - **Desktop build tests inside Electron**: the Windows native probe tests pass when the suite runs from an agent inside the desktop app. No upstream PR yet.
 
 ## Fork only

@@ -33,6 +33,8 @@ export type ComposerCommandItem =
       readonly type: "path";
       readonly path: string;
       readonly kind: "file" | "directory";
+      // Set on directories outside the project index: selecting one lists its children.
+      readonly browseQuery?: string;
       readonly label: string;
       readonly description: string;
     }
