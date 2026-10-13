@@ -15,6 +15,7 @@ None right now.
 - **"Continue with \<model\>" after a usage limit**: picking another model in the composer while a thread is stopped on a usage limit labels the resume button "Continue with \<model\>". Upstream merged resuming on the picked model in [#17867](https://github.com/pingdotgg/t3code/pull/17867) and closed [#16889](https://github.com/pingdotgg/t3code/pull/16889), which also had this label.
 - **Quit shortcut off**: Settings > General > Quit shortcut has an Off mode, so Ctrl+Q (Cmd+Q on macOS) reaches the terminal instead of quitting. The menu's Quit item still works.
 - **Quote user messages**: select text in a user message and choose Cite in composer, as with assistant responses.
+- **`@` completes paths outside the project**: an `@` path starting with `~/`, `/`, `./`, `../` or a drive letter lists one folder at a time on the server, instead of searching the project. Proposed in [discussion #17399](https://github.com/pingdotgg/t3code/discussions/17399).
 
 ## Fork only
 

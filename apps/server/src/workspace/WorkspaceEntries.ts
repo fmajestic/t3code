@@ -12,6 +12,7 @@ import * as RcMap from "effect/RcMap";
 import * as Schema from "effect/Schema";
 
 import type {
+  FilesystemBrowseEntry,
   FilesystemBrowseInput,
   FilesystemBrowseResult,
   ProjectEntry,
@@ -167,14 +168,22 @@ export const make = Effect.gen(function* () {
   const workspacePaths = yield* WorkspacePaths.WorkspacePaths;
   const workspaceSearchIndexes = yield* WorkspaceSearchIndex.WorkspaceSearchIndexMap;
   let pendingSymlinkTargetStats = 0;
-  const statSymlinkTarget = (candidate: { readonly name: string; readonly fullPath: string }) => {
+  const statSymlinkTarget = (
+    candidate: { readonly name: string; readonly fullPath: string },
+    includeFiles: boolean,
+  ): Promise<FilesystemBrowseEntry | null> => {
     if (pendingSymlinkTargetStats >= MAX_PENDING_SYMLINK_TARGET_STATS) {
       return Promise.resolve(null);
     }
     pendingSymlinkTargetStats++;
     return NodeFSP.stat(candidate.fullPath)
       .then(
-        (stats) => (stats.isDirectory() ? candidate : null),
+        (stats) =>
+          stats.isDirectory()
+            ? { ...candidate, kind: "directory" as const }
+            : includeFiles && stats.isFile()
+              ? { ...candidate, kind: "file" as const }
+              : null,
         () => null,
       )
       .finally(() => {
@@ -273,7 +282,7 @@ export const make = Effect.gen(function* () {
 
       const showHidden = endsWithSeparator || prefix.startsWith(".");
       const lowerPrefix = prefix.toLowerCase();
-      const entries: Array<{ readonly name: string; readonly fullPath: string }> = [];
+      const entries: Array<FilesystemBrowseEntry> = [];
       const symlinkCandidates: Array<{ readonly name: string; readonly fullPath: string }> = [];
       for (const dirent of dirents) {
         if (
@@ -284,7 +293,9 @@ export const make = Effect.gen(function* () {
         }
         const fullPath = path.join(parentPath, dirent.name);
         if (dirent.isDirectory()) {
-          entries.push({ name: dirent.name, fullPath });
+          entries.push({ name: dirent.name, fullPath, kind: "directory" });
+        } else if (input.includeFiles === true && dirent.isFile()) {
+          entries.push({ name: dirent.name, fullPath, kind: "file" });
         } else if (dirent.isSymbolicLink()) {
           symlinkCandidates.push({ name: dirent.name, fullPath });
         }
@@ -293,7 +304,7 @@ export const make = Effect.gen(function* () {
         const resolvedSymlinks = yield* Effect.forEach(
           symlinkCandidates,
           (candidate) =>
-            Effect.promise(() => statSymlinkTarget(candidate)).pipe(
+            Effect.promise(() => statSymlinkTarget(candidate, input.includeFiles === true)).pipe(
               Effect.timeoutOption(SYMLINK_TARGET_STAT_TIMEOUT),
               Effect.map(Option.getOrNull),
             ),
