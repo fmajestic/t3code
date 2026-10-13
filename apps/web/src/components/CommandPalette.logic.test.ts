@@ -800,6 +800,7 @@ describe("filterPinnedBrowseEntries", () => {
     ).toEqual({
       visibleEntries: windowsEntries,
       exactEntry: windowsEntries[0],
+      filterQuery: "",
     });
     const decomposed = { name: "De\u0301veloppement", fullPath: "/Users/me/De\u0301veloppement" };
     expect(

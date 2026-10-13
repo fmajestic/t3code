@@ -16,6 +16,7 @@ None right now.
 - **Quit shortcut off**: Settings > General > Quit shortcut has an Off mode, so Ctrl+Q (Cmd+Q on macOS) reaches the terminal instead of quitting. The menu's Quit item still works.
 - **Quote user messages**: select text in a user message and choose Cite in composer, as with assistant responses.
 - **`@` completes paths outside the project**: an `@` path starting with `~/`, `/`, `./`, `../` or a drive letter lists one folder at a time on the server, instead of searching the project. Proposed in [discussion #17399](https://github.com/pingdotgg/t3code/discussions/17399).
+- **`..` hides while filtering when adding a project**: in the add-project folder browser, `..` only shows before you type a filter, so it never sits above the matching folders. Tab completion itself came upstream in [#28243](https://github.com/pingdotgg/t3code/pull/28243).
 
 ## Fork only
 

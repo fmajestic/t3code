@@ -788,7 +788,7 @@ export function filterPinnedBrowseEntries(input: {
   filterQuery: string;
   pinnedDirectoryName: string;
   caseSensitive: boolean;
-}): ReturnType<typeof filterFilesystemBrowseEntries> {
+}): ReturnType<typeof filterFilesystemBrowseEntries> & { filterQuery: string } {
   const namesMatch = (left: string, right: string) =>
     input.caseSensitive ? left === right : left.toLowerCase() === right.toLowerCase();
   const visibleFilterQuery = namesMatch(input.filterQuery, input.pinnedDirectoryName)
@@ -804,7 +804,7 @@ export function filterPinnedBrowseEntries(input: {
       ? (input.browseEntries.find((entry) => namesMatch(entry.name, input.filterQuery)) ??
         (normalizedMatches.length === 1 ? normalizedMatches[0] : null))
       : null;
-  return { visibleEntries, exactEntry };
+  return { visibleEntries, exactEntry, filterQuery: visibleFilterQuery };
 }
 
 export function getCommandPaletteMode(input: {
