@@ -9,6 +9,7 @@ import * as RcMap from "effect/RcMap";
 import * as Schema from "effect/Schema";
 
 import type {
+  FilesystemBrowseEntry,
   FilesystemBrowseInput,
   FilesystemBrowseResult,
   ProjectEntry,
@@ -226,16 +227,22 @@ export const make = Effect.gen(function* () {
 
       const showHidden = endsWithSeparator || prefix.startsWith(".");
       const lowerPrefix = prefix.toLowerCase();
-      const entries: Array<{ readonly name: string; readonly fullPath: string }> = [];
+      const entries: Array<FilesystemBrowseEntry> = [];
       for (const dirent of dirents) {
+        const kind = dirent.isDirectory()
+          ? "directory"
+          : input.includeFiles === true && dirent.isFile()
+            ? "file"
+            : null;
         if (
-          dirent.isDirectory() &&
+          kind !== null &&
           dirent.name.toLowerCase().startsWith(lowerPrefix) &&
           (showHidden || !dirent.name.startsWith("."))
         ) {
           entries.push({
             name: dirent.name,
             fullPath: path.join(parentPath, dirent.name),
+            kind,
           });
         }
       }

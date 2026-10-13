@@ -8,6 +8,7 @@ import type {
   ThreadPullRequestLink,
 } from "@t3tools/contracts";
 import { matchComposerThreadItems } from "@t3tools/client-runtime/composerThreadItems";
+import { describeComposerPathEntry } from "@t3tools/client-runtime/state/threads";
 import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/models";
 
 const EMPTY_THREAD_SHELLS: ReadonlyArray<EnvironmentThreadShell> = [];
@@ -152,7 +153,9 @@ export function resolveComposerCommandSelection(input: {
   }
 
   let replacement = "";
-  if (item.type === "path") {
+  if (item.type === "path" && item.browseQuery !== undefined) {
+    replacement = `@${item.browseQuery}`;
+  } else if (item.type === "path") {
     replacement = `${serializeComposerFileLink(item.path)} `;
   } else if (item.type === "skill") {
     replacement = `$${item.skill.name} `;
@@ -504,17 +507,14 @@ export function useComposerCommandMenu({
         : [];
       return [
         ...threadItems,
-        ...pathSearch.entries.map((entry) => {
-          const parts = entry.path.split("/");
-          return {
-            id: `path:${entry.path}`,
-            type: "path" as const,
-            path: entry.path,
-            kind: entry.kind,
-            label: parts[parts.length - 1] ?? entry.path,
-            description: parts.length > 1 ? parts.slice(0, -1).join("/") : "",
-          };
-        }),
+        ...pathSearch.entries.map((entry) => ({
+          id: `path:${entry.path}`,
+          type: "path" as const,
+          path: entry.path,
+          kind: entry.kind,
+          ...(entry.browseQuery === undefined ? {} : { browseQuery: entry.browseQuery }),
+          ...describeComposerPathEntry(entry.path),
+        })),
       ];
     }
 
