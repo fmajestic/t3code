@@ -86,6 +86,7 @@ export function isFilesystemBrowseQuery(value: string, platform = ""): boolean {
     value.startsWith("..\\") ||
     value.startsWith("/") ||
     value.startsWith("~/") ||
+    value.startsWith("~\\") ||
     (allowWindowsPaths && isWindowsAbsolutePath(value))
   );
 }
