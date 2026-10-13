@@ -722,7 +722,7 @@ export function filterPinnedBrowseEntries(input: {
   filterQuery: string;
   pinnedDirectoryName: string;
   caseSensitive: boolean;
-}): ReturnType<typeof filterFilesystemBrowseEntries> {
+}): ReturnType<typeof filterFilesystemBrowseEntries> & { filterQuery: string } {
   const namesMatch = (left: string, right: string) =>
     input.caseSensitive ? left === right : left.toLowerCase() === right.toLowerCase();
   const visibleFilterQuery = namesMatch(input.filterQuery, input.pinnedDirectoryName)
@@ -733,7 +733,32 @@ export function filterPinnedBrowseEntries(input: {
     input.filterQuery.length > 0
       ? (input.browseEntries.find((entry) => namesMatch(entry.name, input.filterQuery)) ?? null)
       : null;
-  return { visibleEntries, exactEntry };
+  return { visibleEntries, exactEntry, filterQuery: visibleFilterQuery };
+}
+
+/** Shell-style Tab: enter the single match, else extend the typed leaf to the matches' common prefix. */
+export function getBrowseTabCompletion(input: {
+  visibleEntries: ReadonlyArray<FilesystemBrowseEntry>;
+  filterQuery: string;
+}): { kind: "enter"; name: string } | { kind: "extend"; leaf: string } | null {
+  const [first, ...rest] = input.visibleEntries;
+  if (!first) return null;
+  if (rest.length === 0) return { kind: "enter", name: first.name };
+  let prefixLength = first.name.length;
+  for (const entry of rest) {
+    let index = 0;
+    while (
+      index < prefixLength &&
+      index < entry.name.length &&
+      entry.name.charAt(index).toLowerCase() === first.name.charAt(index).toLowerCase()
+    ) {
+      index += 1;
+    }
+    prefixLength = index;
+  }
+  return prefixLength > input.filterQuery.length
+    ? { kind: "extend", leaf: first.name.slice(0, prefixLength) }
+    : null;
 }
 
 export function getCommandPaletteMode(input: {

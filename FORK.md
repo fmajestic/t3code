@@ -13,6 +13,7 @@ Each of these is meant to be dropped once upstream has it, through its own PR or
 - **Quote user messages**: select text in a user message and choose Cite in composer, as with assistant responses. No upstream PR yet.
 - **Cmd+F searches the open file**: with focus in the file editor in the right panel, Cmd+F (Ctrl+F) opens the editor's search instead of the thread search. No upstream PR yet.
 - **`@` completes paths outside the project**: an `@` path starting with `~/`, `/`, `./`, `../` or a drive letter lists one folder at a time on the server, instead of searching the project. Proposed upstream in [discussion #17399](https://github.com/pingdotgg/t3code/discussions/17399), no PR yet.
+- **Tab completes folders when adding a project**: in the add-project folder browser, Tab enters the highlighted or only matching folder, or extends what you typed to the folders' common prefix. `..` only shows before you type a filter. No upstream PR yet.
 - **Desktop build tests inside Electron**: the Windows native probe tests pass when the suite runs from an agent inside the desktop app. No upstream PR yet.
 
 ## Fork only

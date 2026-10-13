@@ -8,6 +8,7 @@ import {
   buildLinkedThreadActionItems,
   filterPinnedBrowseEntries,
   filterCommandPaletteGroups,
+  getBrowseTabCompletion,
   reduceCommandPaletteUiState,
   resolveAddProjectEntry,
   createCommandPaletteSearchState,
@@ -776,6 +777,36 @@ describe("buildThreadActionItems", () => {
   });
 });
 
+describe("getBrowseTabCompletion", () => {
+  const entry = (name: string) => ({ name, fullPath: `/work/${name}` });
+
+  it("enters the only match", () => {
+    expect(getBrowseTabCompletion({ visibleEntries: [entry("nexi")], filterQuery: "ne" })).toEqual({
+      kind: "enter",
+      name: "nexi",
+    });
+  });
+
+  it("extends the typed leaf to the matches' common prefix", () => {
+    expect(
+      getBrowseTabCompletion({
+        visibleEntries: [entry("t3code"), entry("T3code-fork")],
+        filterQuery: "t",
+      }),
+    ).toEqual({ kind: "extend", leaf: "t3code" });
+  });
+
+  it("does nothing when the matches share no longer prefix", () => {
+    expect(
+      getBrowseTabCompletion({
+        visibleEntries: [entry("app-ui"), entry("app-backend")],
+        filterQuery: "app-",
+      }),
+    ).toBeNull();
+    expect(getBrowseTabCompletion({ visibleEntries: [], filterQuery: "x" })).toBeNull();
+  });
+});
+
 describe("filterPinnedBrowseEntries", () => {
   it("matches an existing pinned destination without Windows casing", () => {
     const windowsEntries = [
@@ -792,6 +823,7 @@ describe("filterPinnedBrowseEntries", () => {
     ).toEqual({
       visibleEntries: windowsEntries,
       exactEntry: windowsEntries[0],
+      filterQuery: "",
     });
   });
 });
