@@ -612,6 +612,8 @@ function TerminalSessionViewport({
     }),
   );
   const terminalFontRef = useRef({ family: terminalFontFamily, size: terminalFontSize });
+  const terminalOptionAsAlt = useClientSettings((settings) => settings.terminalOptionAsAlt);
+  const readTerminalOptionAsAlt = useEffectEvent(() => terminalOptionAsAlt);
   // Keyed by the launch (see TerminalViewport), so the atom is fixed for this surface.
   const terminalSessionAtom = attachedTerminalSessionAtom(environmentId, {
     threadId,
@@ -727,6 +729,7 @@ function TerminalSessionViewport({
         onResize: (cols, rows) => void resizeTerminal(cols, rows),
         onSelectionChange: () => handleSelectionChange(),
         beforeKey: (event) => handleBeforeKey(event),
+        readOptionAsAlt: () => readTerminalOptionAsAlt(),
         onLinkActivate: (text, event) => handleLinkActivate(text, event),
         canActivateLink: (text) => canActivateTerminalLink(text),
         validateLink: (text) => validateTerminalLink(text),
