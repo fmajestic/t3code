@@ -1,7 +1,7 @@
 import { useAtomValue } from "@effect/atom-react";
 import { NotificationSettings } from "./NotificationSettings";
 import { PRIVACY_POLICY_URL } from "../../legalLinks";
-import { CheckIcon } from "lucide-react";
+import { CheckIcon, InfoIcon } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import {
@@ -15,6 +15,7 @@ import {
 import {
   DEFAULT_UNIFIED_SETTINGS,
   type DiffLayout,
+  TerminalOptionAsAlt,
   MAX_SIDEBAR_AUTO_SETTLE_AFTER_DAYS,
   MIN_SIDEBAR_AUTO_SETTLE_AFTER_DAYS,
   type ResponseStreamingMode,
@@ -121,6 +122,7 @@ const SIDEBAR_PROJECT_SORT_ORDER_LABELS: Record<SidebarProjectSortOrder, string>
   manual: "Manual",
 };
 const isSidebarProjectSortOrder = Schema.is(SidebarProjectSortOrder);
+const isTerminalOptionAsAlt = Schema.is(TerminalOptionAsAlt);
 
 const TIMESTAMP_FORMAT_LABELS = {
   locale: "System default",
@@ -131,6 +133,13 @@ const TIMESTAMP_FORMAT_LABELS = {
 const DIFF_LAYOUT_LABELS: Record<DiffLayout, string> = {
   stacked: "Stacked",
   split: "Split",
+};
+
+const TERMINAL_OPTION_AS_ALT_LABELS: Record<TerminalOptionAsAlt, string> = {
+  off: "Off",
+  left: "Left Option",
+  right: "Right Option",
+  both: "Both",
 };
 
 const QUIT_CONFIRMATION_MODE_LABELS: Record<QuitConfirmationMode, string> = {
@@ -497,6 +506,9 @@ export function useSettingsRestore(onRestored?: () => void) {
       ? ["Diff whitespace changes"]
       : []),
     ...(settings.diffLayout !== DEFAULT_UNIFIED_SETTINGS.diffLayout ? ["Diff layout"] : []),
+    ...(settings.terminalOptionAsAlt !== DEFAULT_UNIFIED_SETTINGS.terminalOptionAsAlt
+      ? ["Option as Alt in terminal"]
+      : []),
     ...(settings.proactivePanelsEnabled !== DEFAULT_UNIFIED_SETTINGS.proactivePanelsEnabled
       ? ["Proactive panels"]
       : []),
@@ -619,6 +631,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       diffFilesCollapsed: DEFAULT_UNIFIED_SETTINGS.diffFilesCollapsed,
       diffIgnoreWhitespace: DEFAULT_UNIFIED_SETTINGS.diffIgnoreWhitespace,
       diffLayout: DEFAULT_UNIFIED_SETTINGS.diffLayout,
+      terminalOptionAsAlt: DEFAULT_UNIFIED_SETTINGS.terminalOptionAsAlt,
       proactivePanelsEnabled: DEFAULT_UNIFIED_SETTINGS.proactivePanelsEnabled,
       showSkillsInSlashMenu: DEFAULT_UNIFIED_SETTINGS.showSkillsInSlashMenu,
       composerRichTextEnabled: DEFAULT_UNIFIED_SETTINGS.composerRichTextEnabled,
@@ -757,6 +770,78 @@ export function LegacyFeaturesSection() {
         }
       />
     </SettingsSection>
+  );
+}
+
+function TerminalOptionAsAltRow() {
+  const settings = useScopedSettings();
+  const updateSettings = useUpdateScopedSettings();
+  if (!isMacPlatform(navigator.platform)) return null;
+  const { id, title } = searchableSetting("terminal-option-as-alt");
+  return (
+    <SettingsRow
+      id={id}
+      title={
+        <span className="inline-flex items-center gap-1.5">
+          {title}
+          <Tooltip>
+            <TooltipTrigger
+              delay={200}
+              render={
+                <Button size="icon-micro" variant="ghost-muted" aria-label="Option as Alt details">
+                  <InfoIcon className="size-3.5" />
+                </Button>
+              }
+            />
+            <TooltipPopup side="top">
+              When off, Option types the character your keyboard layout puts on that key. For
+              example, Option+L types @ on a German keyboard, and Option+B types ∫ on a US keyboard.
+            </TooltipPopup>
+          </Tooltip>
+        </span>
+      }
+      description="Use Option for shell shortcuts like Option+B instead of typing characters."
+      resetAction={
+        settings.terminalOptionAsAlt !== DEFAULT_UNIFIED_SETTINGS.terminalOptionAsAlt ? (
+          <SettingResetButton
+            label="Option as Alt"
+            onClick={() =>
+              updateSettings({
+                terminalOptionAsAlt: DEFAULT_UNIFIED_SETTINGS.terminalOptionAsAlt,
+              })
+            }
+          />
+        ) : null
+      }
+      control={
+        <Select
+          value={settings.terminalOptionAsAlt}
+          onValueChange={(value) => {
+            if (isTerminalOptionAsAlt(value)) {
+              updateSettings({ terminalOptionAsAlt: value });
+            }
+          }}
+        >
+          <SelectTrigger size="sm" className="w-full sm:w-40" aria-label="Option as Alt">
+            <SelectValue>{TERMINAL_OPTION_AS_ALT_LABELS[settings.terminalOptionAsAlt]}</SelectValue>
+          </SelectTrigger>
+          <SelectPopup align="end" alignItemWithTrigger={false}>
+            <SelectItem hideIndicator value="off">
+              {TERMINAL_OPTION_AS_ALT_LABELS.off}
+            </SelectItem>
+            <SelectItem hideIndicator value="left">
+              {TERMINAL_OPTION_AS_ALT_LABELS.left}
+            </SelectItem>
+            <SelectItem hideIndicator value="right">
+              {TERMINAL_OPTION_AS_ALT_LABELS.right}
+            </SelectItem>
+            <SelectItem hideIndicator value="both">
+              {TERMINAL_OPTION_AS_ALT_LABELS.both}
+            </SelectItem>
+          </SelectPopup>
+        </Select>
+      }
+    />
   );
 }
 
@@ -1049,6 +1134,7 @@ export function GeneralSettingsPanel() {
             </Select>
           }
         />
+        <TerminalOptionAsAltRow />
       </SettingsSection>
     </SettingsPageContainer>
   );

@@ -6,7 +6,7 @@ A personal fork of [pingdotgg/t3code](https://github.com/pingdotgg/t3code). The 
 
 Each of these is meant to be dropped once its upstream PR merges.
 
-- **Option characters in the terminal**: macOS layouts that type characters such as `@`, `~` or `^` with Option now send those characters to the terminal, not an Alt sequence. From [#14735](https://github.com/pingdotgg/t3code/pull/14735).
+- **Option characters in the terminal**: on macOS, Option types the character the keyboard layout puts on it, such as `@` with Option+L on a German keyboard, instead of sending an Alt sequence. Settings > General > Option as Alt in terminal makes the chosen Option keys act as Alt again, for shell shortcuts like Option+B. From [#19833](https://github.com/pingdotgg/t3code/pull/19833).
 - **Continue a rate-limited thread with a new model**: after a usage limit, pick another model in the composer and press Resume to continue on that model. From [#16889](https://github.com/pingdotgg/t3code/pull/16889).
 
 ## Fork only

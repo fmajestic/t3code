@@ -559,6 +559,8 @@ function TerminalSessionViewport({
     }),
   );
   const terminalFontRef = useRef({ family: terminalFontFamily, size: terminalFontSize });
+  const terminalOptionAsAlt = useClientSettings((settings) => settings.terminalOptionAsAlt);
+  const readTerminalOptionAsAlt = useEffectEvent(() => terminalOptionAsAlt);
   // Keyed by the launch (see TerminalViewport), so the atom is fixed for this surface.
   const terminalSessionAtom = attachedTerminalSessionAtom(environmentId, {
     threadId,
@@ -670,6 +672,9 @@ function TerminalSessionViewport({
         onResize: (cols, rows) => void resizeTerminal(cols, rows),
         onSelectionChange: () => handleSelectionChange(),
         beforeKey: (event) => handleBeforeKey(event),
+        get optionAsAlt() {
+          return readTerminalOptionAsAlt();
+        },
         onLinkActivate: (text, event) => handleLinkActivate(text, event),
         canActivateLink: (text) => canActivateTerminalLink(text),
         // Surface listeners start before WASM loading finishes and the terminal handler exists.

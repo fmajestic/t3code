@@ -58,6 +58,13 @@ export const DiffLayout = Schema.Literals(["stacked", "split"]);
 export type DiffLayout = typeof DiffLayout.Type;
 const DEFAULT_DIFF_LAYOUT: DiffLayout = "stacked";
 
+// Which macOS Option keys the terminal sends as Alt instead of typing
+// the character the keyboard layout composes. Mirrors Ghostty's
+// `macos-option-as-alt`.
+export const TerminalOptionAsAlt = Schema.Literals(["off", "left", "right", "both"]);
+export type TerminalOptionAsAlt = typeof TerminalOptionAsAlt.Type;
+const DEFAULT_TERMINAL_OPTION_AS_ALT: TerminalOptionAsAlt = "off";
+
 export const SidebarProjectSortOrder = Schema.Literals(["updated_at", "created_at", "manual"]);
 export type SidebarProjectSortOrder = typeof SidebarProjectSortOrder.Type;
 export const DEFAULT_SIDEBAR_PROJECT_SORT_ORDER: SidebarProjectSortOrder = "updated_at";
@@ -442,6 +449,9 @@ export const ClientSettingsSchema = Schema.Struct({
   fontFamilyComposer: FontFamilyPreference.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
   fontFamilySans: FontFamilyPreference.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
   fontFamilyTerminal: FontFamilyPreference.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
+  terminalOptionAsAlt: TerminalOptionAsAlt.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_TERMINAL_OPTION_AS_ALT)),
+  ),
 
   fontSmoothing: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
   // Older installs also decode to null; onboarding must additionally require an empty workspace.
@@ -1756,6 +1766,7 @@ export const ClientSettingsPatch = Schema.Struct({
   fontFamilyComposer: Schema.optionalKey(FontFamilyPreference),
   fontFamilySans: Schema.optionalKey(FontFamilyPreference),
   fontFamilyTerminal: Schema.optionalKey(FontFamilyPreference),
+  terminalOptionAsAlt: Schema.optionalKey(TerminalOptionAsAlt),
   fontSmoothing: Schema.optionalKey(Schema.Boolean),
   persistComposerContextStrip: Schema.optionalKey(Schema.Boolean),
   favorites: Schema.optionalKey(ModelFavorites),

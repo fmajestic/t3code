@@ -1,3 +1,4 @@
+import type { TerminalOptionAsAlt } from "@t3tools/contracts";
 import { isMacPlatform } from "../../lib/utils";
 import { SELECTION_MULTI_CLICK_INTERVAL_MS } from "../../lib/selectionActions";
 import { collectWrappedTerminalLinkLine, extractTerminalLinks } from "../../terminal-links";
@@ -389,6 +390,38 @@ function isTerminalAltGraphText(event: Pick<KeyboardEvent, "getModifierState" | 
   return event.getModifierState("AltGraph") && [...event.key].length === 1;
 }
 
+/** Which Option keys are down, tracked from their own keydown and keyup. */
+export interface TerminalHeldOptionKeys {
+  readonly left: boolean;
+  readonly right: boolean;
+}
+
+/**
+ * A macOS Option press that types its layout character (German Option+L is `@`) or composes a
+ * dead key through the textarea; browsers report Option as Alt, so encoding it loses the character.
+ * Option keys set to act as Alt, and Option+Space (a non-breaking space breaks commands), stay encoded.
+ */
+export function isTerminalOptionComposedText(
+  event: Pick<KeyboardEvent, "altKey" | "ctrlKey" | "key" | "metaKey">,
+  optionAsAlt: TerminalOptionAsAlt,
+  heldOption: TerminalHeldOptionKeys,
+  platform: string,
+): boolean {
+  if (!isMacPlatform(platform) || !event.altKey || event.ctrlKey || event.metaKey) return false;
+  if (event.key === "\u00a0") return false;
+  if (event.key !== "Dead" && [...event.key].length !== 1) return false;
+  switch (optionAsAlt) {
+    case "off":
+      return true;
+    case "both":
+      return false;
+    case "left":
+      return !heldOption.left;
+    case "right":
+      return !heldOption.right;
+  }
+}
+
 function shouldReportTerminalMouse(
   tracking: boolean,
   event: Pick<MouseEvent, "ctrlKey" | "metaKey" | "shiftKey">,
@@ -523,6 +556,8 @@ export interface GhosttyTerminalSurfaceOptions {
   readonly onResize: (cols: number, rows: number) => void;
   readonly onSelectionChange: () => void;
   readonly beforeKey: (event: KeyboardEvent) => boolean;
+  /** Read on every key press. Hosts can supply a getter for the latest value. */
+  readonly optionAsAlt?: TerminalOptionAsAlt;
   readonly onLinkActivate: (text: string, event: MouseEvent) => void;
   readonly canActivateLink?: (text: string) => boolean;
   /** The host must prevent the default menu; native Paste cannot reach a canvas terminal. */
@@ -597,6 +632,7 @@ export class GhosttyTerminalSurface {
   private selectionMoved = false;
   private composing = false;
   private focused = false;
+  private heldOption: TerminalHeldOptionKeys = { left: false, right: false };
   private resizeNotified = false;
   private canvasConfigured = false;
   private canvasDevicePixelRatio = 0;
@@ -1089,12 +1125,23 @@ export class GhosttyTerminalSurface {
   }
 
   private readonly onKeyDown = (event: KeyboardEvent) => {
+    this.trackHeldOption(event, true);
     // A consumed repeat still owes the original encoded press a release.
     if (!event.repeat) this.encodedKeyCodes.delete(event.code);
     if (isTerminalAltGraphText(event) || !this.options.beforeKey(event)) return;
     // IME candidates belong to the textarea, even if the key also resembles
     // a local shortcut. Safari signals the initial composition with code 229.
     if (isTerminalCompositionKey(event, this.composing)) {
+      return;
+    }
+    if (
+      isTerminalOptionComposedText(
+        event,
+        this.options.optionAsAlt ?? "off",
+        this.heldOption,
+        navigator.platform,
+      )
+    ) {
       return;
     }
     const mac = isMacPlatform(navigator.platform);
@@ -1202,6 +1249,7 @@ export class GhosttyTerminalSurface {
   };
 
   private readonly onKeyUp = (event: KeyboardEvent) => {
+    this.trackHeldOption(event, false);
     // macOS can omit V keyup while Command is held.
     if (
       event.code === this.pasteShortcutGesture?.code ||
@@ -1234,6 +1282,19 @@ export class GhosttyTerminalSurface {
     if (!event.repeat) this.encodedKeyCodes.delete(event.code);
   };
 
+  // Any event without Alt means no Option is down, which also clears a side
+  // whose release happened while focus was elsewhere.
+  private trackHeldOption(event: KeyboardEvent, down: boolean): void {
+    if (!event.altKey && event.code !== "AltLeft" && event.code !== "AltRight") {
+      if (this.heldOption.left || this.heldOption.right) {
+        this.heldOption = { left: false, right: false };
+      }
+      return;
+    }
+    if (event.code === "AltLeft") this.heldOption = { ...this.heldOption, left: down };
+    if (event.code === "AltRight") this.heldOption = { ...this.heldOption, right: down };
+  }
+
   private readonly onFocus = () => {
     this.focused = true;
     this.cursorOn = true;
@@ -1243,6 +1304,7 @@ export class GhosttyTerminalSurface {
   private readonly onBlur = () => {
     this.focused = false;
     this.pasteShortcutGesture = null;
+    this.heldOption = { left: false, right: false };
     this.refreshHoveredLink();
     this.cursorOn = true;
     this.requestRender();
