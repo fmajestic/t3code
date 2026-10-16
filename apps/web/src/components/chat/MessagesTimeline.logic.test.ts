@@ -4294,3 +4294,62 @@ describe("shouldCollapseUserMessage", () => {
     expect(shouldCollapseUserMessage(`${citation} ${"More text. ".repeat(60)}`)).toBe(true);
   });
 });
+
+describe("context growth placement", () => {
+  const message = (id: string, role: "user" | "assistant", runId: string | null, at: string) => ({
+    id,
+    kind: "message" as const,
+    createdAt: at,
+    message: {
+      id: id as never,
+      role,
+      text: id,
+      runId: runId as never,
+      createdAt: at,
+      updatedAt: at,
+      streaming: false,
+    },
+  });
+
+  it("puts a run's growth on its turn fold, or on its terminal message when it has none", () => {
+    const rows = deriveMessagesTimelineRows({
+      timelineEntries: [
+        message("user-1", "user", null, "2026-01-01T00:00:00Z"),
+        message("assistant-first", "assistant", "run-1", "2026-01-01T00:00:05Z"),
+        {
+          id: "work-entry-1",
+          kind: "work" as const,
+          createdAt: "2026-01-01T00:00:08Z",
+          entry: {
+            id: "work-1",
+            createdAt: "2026-01-01T00:00:08Z",
+            runId: "run-1" as never,
+            label: "Ran command",
+            tone: "tool" as const,
+          },
+        },
+        message("assistant-final", "assistant", "run-1", "2026-01-01T00:00:20Z"),
+        message("user-2", "user", null, "2026-01-01T00:01:00Z"),
+        message("assistant-plain", "assistant", "run-2", "2026-01-01T00:01:05Z"),
+      ],
+      isWorking: false,
+      activeTurnStartedAt: null,
+      turnDiffSummaries: [],
+      contextGrowthByRunId: new Map([
+        ["run-1" as never, { kind: "grew", tokens: 43_653 }],
+        ["run-2" as never, { kind: "grew", tokens: 1_200 }],
+      ]),
+      supportsConversationRollback: false,
+    });
+
+    const growthById = Object.fromEntries(
+      rows.flatMap((row) =>
+        "contextGrowth" in row && row.contextGrowth ? [[row.id, row.contextGrowth]] : [],
+      ),
+    );
+    expect(growthById).toEqual({
+      "turn-fold:run-1": { kind: "grew", tokens: 43_653 },
+      "assistant-plain": { kind: "grew", tokens: 1_200 },
+    });
+  });
+});

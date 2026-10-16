@@ -7,6 +7,10 @@ import { threadRuntimeIsActive } from "@t3tools/client-runtime/state/shell";
 import type { ThreadCheckpointSummary } from "@t3tools/client-runtime/state/thread-checkpoints";
 import { resolvePendingHandoff } from "@t3tools/client-runtime/handoff";
 import {
+  deriveRunContextGrowth,
+  sameRunContextGrowthMap,
+} from "@t3tools/client-runtime/run-context-growth";
+import {
   deriveProviderSubagentStatus,
   deriveRunlessWorkStartedAt,
   deriveThreadActivityRun,
@@ -182,6 +186,8 @@ export function updateThreadDraftModelSelection(
   });
 }
 
+const EMPTY_CONTEXT_GROWTH: ReturnType<typeof deriveRunContextGrowth> = new Map();
+
 export function useThreadComposerState() {
   const {
     selectedThread: selectedThreadShell,
@@ -238,6 +244,15 @@ export function useThreadComposerState() {
       ? EMPTY_CHECKPOINT_SUMMARIES_ATOM
       : environmentThreadDetails.checkpointSummariesAtom(selectedThreadDetailRef),
   );
+  const derivedContextGrowth = selectedThreadProjection
+    ? deriveRunContextGrowth(selectedThreadProjection.projection)
+    : EMPTY_CONTEXT_GROWTH;
+  // Live usage reports replace providerTurns without changing any settled run's growth.
+  const [selectedThreadContextGrowth, setSelectedThreadContextGrowth] =
+    useState(derivedContextGrowth);
+  if (!sameRunContextGrowthMap(selectedThreadContextGrowth, derivedContextGrowth)) {
+    setSelectedThreadContextGrowth(derivedContextGrowth);
+  }
   // A thread whose creation has not delivered its turn yet: the prompt only
   // exists in the outbox, so it is appended to whatever the server has. The
   // detail is usually present but empty during a worktree checkout, so this
@@ -740,6 +755,7 @@ export function useThreadComposerState() {
     feedbackSubmissions,
     dismissFeedback,
     selectedThreadFeed,
+    selectedThreadContextGrowth,
     selectedThreadActivityRun,
     selectedThreadQueueCount,
     selectedThreadQueuedMessages,

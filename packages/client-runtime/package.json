@@ -55,6 +55,10 @@
       "types": "./src/userMessage.ts",
       "default": "./src/userMessage.ts"
     },
+    "./run-context-growth": {
+      "types": "./src/runContextGrowth.ts",
+      "default": "./src/runContextGrowth.ts"
+    },
     "./prompt-links": {
       "types": "./src/promptLinks.ts",
       "default": "./src/promptLinks.ts"
