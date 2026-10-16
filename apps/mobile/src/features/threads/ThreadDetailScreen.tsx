@@ -193,6 +193,7 @@ export interface ThreadDetailScreenProps {
   readonly runlessWorkActive?: boolean;
   readonly providerSubagentStatus?: ProviderSubagentStatus | null;
   readonly isCompacting: boolean;
+  readonly compactingTokenCount: number | null;
   readonly creationState:
     | {
         readonly kind: "preparing";
@@ -693,7 +694,11 @@ export const ThreadDetailScreen = function ThreadDetailScreen(props: ThreadDetai
       };
     }
     if (props.isCompacting && contentPresentationKind === "ready") {
-      return { kind: "compacting" };
+      return {
+        kind: "compacting",
+        startedAt: props.activeWorkStartedAt,
+        tokenCount: props.compactingTokenCount,
+      };
     }
     if (props.activeWorkStartedAt !== null && contentPresentationKind === "ready") {
       return { kind: "working", startedAt: props.activeWorkStartedAt };

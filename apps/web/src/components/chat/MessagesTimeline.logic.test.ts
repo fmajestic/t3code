@@ -485,7 +485,7 @@ describe("deriveMessagesTimelineRows", () => {
     const runningRows = deriveMessagesTimelineRows({ ...input, timelineEntries: runningEntries });
     expect(runningRows.find((row) => row.kind === "context-compaction")).toMatchObject({
       active: true,
-      label: "Compacting context",
+      label: "Compacting 899K tokens",
     });
     expect(runningRows.some((row) => row.kind === "thinking")).toBe(false);
 

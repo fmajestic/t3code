@@ -20,6 +20,7 @@ import {
   summarizeToolGroup,
   toolGroupAction,
   toolGroupSummaryKind,
+  contextCompactionDuration,
   contextCompactionTokenCounts,
   type ToolGroupSummaryKind,
 } from "@t3tools/client-runtime/work-log/presentation";
@@ -585,7 +586,10 @@ type MessagesTimelineRowContent =
       createdAt: string;
       label: string;
       tokenCounts: ReturnType<typeof contextCompactionTokenCounts>;
+      duration: string | null;
       active: boolean;
+      runningSince: string | null;
+      runningTokenCount: number | null;
     }
   | {
       kind: "message";
@@ -1599,6 +1603,7 @@ export function deriveMessagesTimelineRows(input: {
       timelineEntry.entry.sourceActivityKind === "context-compaction"
     ) {
       const active = workEntryIsInActiveRun(timelineEntry.entry);
+      const running = active && timelineEntry.entry.toolLifecycleStatus === "inProgress";
       hasActiveCompaction ||= active;
       const compaction = timelineEntry.entry.structuredPayload;
       nextRows.push({
@@ -1608,7 +1613,13 @@ export function deriveMessagesTimelineRows(input: {
         label: timelineEntry.entry.label,
         tokenCounts:
           compaction?.type === "compaction" ? contextCompactionTokenCounts(compaction) : null,
+        duration: compaction?.type === "compaction" ? contextCompactionDuration(compaction) : null,
         active,
+        runningSince: running ? timelineEntry.createdAt : null,
+        runningTokenCount:
+          running && compaction?.type === "compaction"
+            ? (compaction.beforeTokenCount ?? null)
+            : null,
       });
       continue;
     }
