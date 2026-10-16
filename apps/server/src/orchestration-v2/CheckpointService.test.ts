@@ -95,6 +95,7 @@ it.effect(
               ordinalWithinScope: 0,
               nodeId: scope.nodeId,
               capturedAt: scope.createdAt,
+              appRunOrdinal: null,
             });
             assert.strictEqual(materialized.status, "missing");
           }
@@ -230,6 +231,7 @@ it.effect("records a repository probe failure as an error checkpoint, not a miss
         ordinalWithinScope: 0,
         nodeId: scope.nodeId,
         capturedAt: scope.createdAt,
+        appRunOrdinal: null,
       });
       const turn = yield* checkpoints.capture({
         scope,
