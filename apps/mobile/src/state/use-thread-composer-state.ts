@@ -6,6 +6,10 @@ import { useAtomValue } from "@effect/atom-react";
 import { threadRuntimeIsActive } from "@t3tools/client-runtime/state/shell";
 import { resolvePendingHandoff } from "@t3tools/client-runtime/handoff";
 import {
+  deriveRunContextGrowth,
+  sameRunContextGrowthMap,
+} from "@t3tools/client-runtime/run-context-growth";
+import {
   deriveProviderSubagentStatus,
   deriveRunlessWorkStartedAt,
   deriveThreadActivityRun,
@@ -175,6 +179,8 @@ export function useThreadDraftForThread(input: {
   };
 }
 
+const EMPTY_CONTEXT_GROWTH: ReturnType<typeof deriveRunContextGrowth> = new Map();
+
 export function useThreadComposerState() {
   const {
     selectedThread: selectedThreadShell,
@@ -251,6 +257,18 @@ export function useThreadComposerState() {
   const selectedThreadMessages = selectedThreadProjection?.projection.messages;
   const selectedThreadAttempts = selectedThreadProjection?.projection.attempts;
   const selectedThreadNodes = selectedThreadProjection?.projection.nodes;
+  const contextGrowthRef = useRef(EMPTY_CONTEXT_GROWTH);
+  // Live usage reports replace providerTurns without changing any settled run's growth.
+  const selectedThreadContextGrowth = useMemo(() => {
+    const projection = selectedThreadProjection?.projection;
+    const next = projection ? deriveRunContextGrowth(projection) : EMPTY_CONTEXT_GROWTH;
+    if (!sameRunContextGrowthMap(contextGrowthRef.current, next)) contextGrowthRef.current = next;
+    return contextGrowthRef.current;
+  }, [
+    selectedThreadProjection?.projection.runs,
+    selectedThreadAttempts,
+    selectedThreadProjection?.projection.providerTurns,
+  ]);
   // A thread whose creation has not delivered its turn yet: the prompt only
   // exists in the outbox, so it is appended to whatever the server has. The
   // detail is usually present but empty during a worktree checkout, so this
@@ -1053,6 +1071,7 @@ export function useThreadComposerState() {
     feedbackSubmissions,
     dismissFeedback,
     selectedThreadFeed,
+    selectedThreadContextGrowth,
     selectedThreadActivityRun,
     selectedThreadQueueCount,
     selectedThreadQueuedMessages,

@@ -18,6 +18,10 @@ import { useViewabilityAmount, type LegendListRef } from "@legendapp/list/react-
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { HandoffEndpoints } from "@t3tools/client-runtime/handoff";
 import { resolveUserMessagePresentation } from "@t3tools/client-runtime/user-message";
+import {
+  type RunContextGrowth,
+  runContextGrowthLabel,
+} from "@t3tools/client-runtime/run-context-growth";
 import { canForkProjectedAssistantItem } from "@t3tools/client-runtime/state/thread-workflows";
 import {
   type OrchestrationMessageContext,
@@ -293,6 +297,7 @@ export interface ThreadFeedProps {
   readonly contentPresentation: ThreadContentPresentation;
   readonly agentLabel: string;
   readonly latestRun: ThreadFeedLatestRun | null;
+  readonly contextGrowthByRunId?: ReadonlyMap<RunId, RunContextGrowth>;
   readonly activeWorkStartedAt: string | null;
   readonly runlessWorkActive?: boolean;
   readonly listRef: RefObject<LegendListRef | null>;
@@ -975,7 +980,10 @@ function renderFeedEntry(
     | "onEditPendingMessage"
     | "threadId"
     | "workspaceRoot"
+    | "contextGrowthByRunId"
   > & {
+    /** Runs whose growth shows on their run fold instead of the terminal message. */
+    readonly foldedRunIds: ReadonlySet<RunId>;
     readonly copiedRowId: string | null;
     readonly expandedWorkRows: Record<string, boolean>;
     readonly workRowSizing: ReturnType<typeof deriveThreadWorkLogSizing>;
@@ -1011,30 +1019,40 @@ function renderFeedEntry(
   const { markdownStyles, iconSubtleColor, userBubbleColor } = props;
 
   if (entry.type === "run-fold") {
+    const contextGrowth = props.contextGrowthByRunId?.get(entry.runId);
     return (
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ expanded: entry.expanded }}
-        onPress={() => props.onToggleTurnFold(entry.runId)}
-        hitSlop={4}
+      <View
         className="mb-1 min-h-11 flex-row items-center gap-2 border-b border-border-subtle px-2"
         style={{
           minHeight: Math.max(TURN_FOLD_HEIGHT - 3.5, props.workRowSizing.estimatedRowHeight),
         }}
       >
-        <Text
-          key={props.workRowSizing.textSizeKey}
-          className="font-t3-medium text-sm tabular-nums text-foreground-muted"
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: entry.expanded }}
+          onPress={() => props.onToggleTurnFold(entry.runId)}
+          hitSlop={4}
+          className="flex-row items-center gap-2 self-stretch"
         >
-          {entry.label}
-        </Text>
-        <ThreadDisclosureChevron
-          expanded={entry.expanded}
-          collapsedDirection="right"
-          size={15}
-          tintColor={iconSubtleColor}
-        />
-      </Pressable>
+          <Text
+            key={props.workRowSizing.textSizeKey}
+            className="font-t3-medium text-sm tabular-nums text-foreground-muted"
+          >
+            {entry.label}
+          </Text>
+          <ThreadDisclosureChevron
+            expanded={entry.expanded}
+            collapsedDirection="right"
+            size={15}
+            tintColor={iconSubtleColor}
+          />
+        </Pressable>
+        {contextGrowth ? (
+          <Text className="font-t3-medium text-sm tabular-nums text-foreground-muted">
+            {runContextGrowthLabel(contextGrowth)}
+          </Text>
+        ) : null}
+      </View>
     );
   }
 
@@ -1151,6 +1169,10 @@ function renderFeedEntry(
       props.terminalAssistantMessageIds.has(message.id) &&
       !assistantTurnStillInProgress &&
       !message.streaming;
+    const assistantContextGrowth =
+      showAssistantMeta && message.runId && !props.foldedRunIds.has(message.runId)
+        ? props.contextGrowthByRunId?.get(message.runId)
+        : undefined;
 
     if (isUser) {
       const enterAnimated = isFreshTimestamp(message.createdAt);
@@ -1405,6 +1427,11 @@ function renderFeedEntry(
         })}
         {showAssistantMeta ? (
           <View className="mt-1 flex-row items-center gap-1">
+            {assistantContextGrowth ? (
+              <Text className="font-t3-medium text-xs tabular-nums text-foreground-secondary">
+                {runContextGrowthLabel(assistantContextGrowth)}
+              </Text>
+            ) : null}
             <CopyTextButton
               accessibilityLabel="Copy message"
               text={renderedText}
@@ -2186,6 +2213,11 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
       ),
     [presentedFeed, props.anchorMessageId, anchorTopInset],
   );
+  const foldedRunIds = useMemo(
+    () =>
+      new Set(presentedFeed.flatMap((entry) => (entry.type === "run-fold" ? [entry.runId] : []))),
+    [presentedFeed],
+  );
   const failedRunIds = useMemo(
     () => failedFeedRunIds(props.feed, props.latestRun),
     [props.feed, props.latestRun],
@@ -2476,6 +2508,8 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
               threadTitle: props.threadTitle,
               skills: props.skills,
               workspaceRoot: props.workspaceRoot,
+              contextGrowthByRunId: props.contextGrowthByRunId,
+              foldedRunIds,
             })}
             {props.worktreeSetup && info.index === setupAnchorIndex ? (
               <WorktreeSetupCard key={props.threadId} {...props.worktreeSetup} />
@@ -2523,6 +2557,8 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
       props.onUseArtifactTemplate,
       props.threadId,
       props.threadTitle,
+      props.contextGrowthByRunId,
+      foldedRunIds,
       props.skills,
       props.workspaceRoot,
       renderMarkdownImage,
