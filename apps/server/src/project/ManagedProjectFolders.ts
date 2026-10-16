@@ -340,7 +340,7 @@ const make = Effect.gen(function* () {
       path.join(root.value, [date, words, idPart].filter(Boolean).join("-"));
     yield* makeScratchFolder(root.value);
     const fullFolder = folderFor(id);
-    return yield* claimFreeFolder(
+    const claimed = yield* claimFreeFolder(
       (attempt) =>
         attempt === 1
           ? Effect.succeed(Option.some(folderFor(id.slice(-8))))
@@ -352,6 +352,18 @@ const make = Effect.gen(function* () {
               ),
       (folder, cause) => new ScratchFolderError({ folder, cause }),
     );
+    // Checkpoints need a repository, and without them the thread cannot be rewound.
+    if (Option.isSome(claimed)) {
+      yield* git
+        .execute({
+          operation: "ManagedProjectFolders.initScratch",
+          cwd: claimed.value,
+          args: ["init", "--quiet"],
+          timeoutMs: 10_000,
+        })
+        .pipe(Effect.ignore({ log: true }));
+    }
+    return claimed;
   });
 
   const namedProjectsRoot = path.resolve(config.baseDir, "projects");

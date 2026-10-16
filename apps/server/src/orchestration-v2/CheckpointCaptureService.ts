@@ -65,8 +65,14 @@ export const layer: Layer.Layer<
       readonly runId: RunId;
       readonly scopeId: CheckpointScopeId;
     }) {
-      const { run, rootNode, scope, providerThread, readyCheckpointOrdinals } =
-        yield* projections.getCheckpointCaptureContext(input.threadId, input);
+      const {
+        run,
+        rootNode,
+        scope,
+        providerThread,
+        readyCheckpointOrdinals,
+        previousRunRolledBack,
+      } = yield* projections.getCheckpointCaptureContext(input.threadId, input);
       // A stopped run is already terminal. Its checkpoint is the rollback point
       // for the message after it, so capture leaves its status alone.
       const stopped = run?.status === "interrupted" || run?.status === "cancelled";
@@ -113,12 +119,18 @@ export const layer: Layer.Layer<
           : yield* checkpoints.materializeBaselineCheckpoint({
               scope,
               ordinalWithinScope: 0,
+              appRunOrdinal: null,
             });
       const baselineCheckpoint = hasReadyCheckpoint(baselineOrdinalWithinScope)
         ? null
         : yield* checkpoints.materializeBaselineCheckpoint({
             scope,
             ordinalWithinScope: baselineOrdinalWithinScope,
+            // Stands in for the previous run's checkpoint, unless rollback removed that run from the provider.
+            appRunOrdinal:
+              baselineOrdinalWithinScope === 0 || previousRunRolledBack
+                ? null
+                : baselineOrdinalWithinScope,
           });
       const checkpoint = yield* checkpoints.capture({
         scope,
