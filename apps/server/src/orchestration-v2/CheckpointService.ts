@@ -118,6 +118,7 @@ export interface CheckpointServiceV2Shape {
   readonly materializeBaselineCheckpoint: (input: {
     readonly scope: OrchestrationV2CheckpointScope;
     readonly ordinalWithinScope: number;
+    readonly appRunOrdinal: number | null;
   }) => Effect.Effect<OrchestrationV2Checkpoint, CheckpointServiceV2Error>;
   readonly capture: (input: {
     readonly scope: OrchestrationV2CheckpointScope;
@@ -323,7 +324,7 @@ export const layer: Layer.Layer<
               nodeId: input.scope.nodeId,
               parentCheckpointId: null,
               ordinalWithinScope: input.ordinalWithinScope,
-              appRunOrdinal: null,
+              appRunOrdinal: input.appRunOrdinal,
               ref: checkpointRef,
               status: available ? "ready" : "missing",
               files: [],

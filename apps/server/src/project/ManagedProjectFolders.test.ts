@@ -207,7 +207,7 @@ it.effect("recreates the Scratch folder after it is deleted", () =>
   ),
 );
 
-it.effect("gives each Scratch thread its own folder, named from its message", () =>
+it.effect("gives each Scratch thread its own repository, named from its message", () =>
   withScratch(() =>
     Effect.gen(function* () {
       const scratch = yield* ManagedProjectFolders.ManagedProjectFolders;
@@ -244,6 +244,7 @@ it.effect("gives each Scratch thread its own folder, named from its message", ()
         assert.equal(path.dirname(folder), root);
         assert.match(path.basename(folder), /^\d{4}-\d{2}-\d{2}-convert-these-pngs-to-webp-/);
         assert.isTrue(yield* fileSystem.exists(folder));
+        assert.isTrue(yield* fileSystem.exists(path.join(folder, ".git")));
       }
 
       const pasted = Option.getOrThrow(

@@ -15,6 +15,7 @@ Each of these is meant to be dropped once upstream has it, through its own PR or
 - **`@` completes paths outside the project**: an `@` path starting with `~/`, `/`, `./`, `../` or a drive letter lists one folder at a time on the server, instead of searching the project. Proposed upstream in [discussion #17399](https://github.com/pingdotgg/t3code/discussions/17399), no PR yet.
 - **Tab completes folders when adding a project**: in the add-project folder browser, Tab enters the highlighted or only matching folder, or extends what you typed to the folders' common prefix. `..` only shows before you type a filter. No upstream PR yet.
 - **Compaction shows tokens and time**: while compacting, the thread reads "Compacting 436K tokens for 12s", and the finished line adds how long it took, as in "Context compacted 436K → 19.3K tokens in 16s". Claude's auto-compaction gets only the final duration. No upstream PR yet.
+- **Rewind threads without a project**: each new thread without a project starts in a fresh Git repository, so its turns are checkpointed, show their diffs, and can be rewound, files included. When any thread's folder becomes a Git repository partway through, by `git init` or Initialize Git, every message you send after that can be rewound. Messages from before the init cannot. No upstream PR yet.
 - **Desktop build tests inside Electron**: the Windows native probe tests pass when the suite runs from an agent inside the desktop app. No upstream PR yet.
 
 ## Fork only

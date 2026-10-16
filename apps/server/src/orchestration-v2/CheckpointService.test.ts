@@ -87,6 +87,7 @@ it.effect(
             const materialized = yield* checkpoints.materializeBaselineCheckpoint({
               scope,
               ordinalWithinScope: 0,
+              appRunOrdinal: null,
             });
             assert.strictEqual(materialized.status, "missing");
           }
