@@ -46,6 +46,11 @@ import { useProjectScriptEditing } from "./chat/useProjectScriptEditing";
 import { RightPanelSurfaceContent } from "./chat/RightPanelSurfaceContent";
 import { usePendingThreadRequests } from "./chat/usePendingThreadRequests";
 import { isScratchProject } from "@t3tools/client-runtime/state/projects";
+import {
+  deriveRunContextGrowth,
+  type RunContextGrowth,
+  sameRunContextGrowthMap,
+} from "@t3tools/client-runtime/run-context-growth";
 import { visibleThreadPullRequests } from "@t3tools/shared/threadPullRequests";
 import type { UsageLimitSourceSnapshots } from "@t3tools/contracts";
 import { feedbackBannerItem } from "./chat/ComposerFeedback";
@@ -70,6 +75,7 @@ import {
   type ModelSelection,
   type PreviewAnnotationPayload,
   ProviderInstanceId,
+  type RunId,
   type ServerProvider,
   type ScopedThreadRef,
   type ThreadId,
@@ -424,6 +430,7 @@ type ChatViewProps =
 const DismissedFallbackWindowSchema = Schema.NullOr(Schema.String);
 
 const ignoreComposerFocus = () => {};
+const EMPTY_CONTEXT_GROWTH: ReadonlyMap<RunId, RunContextGrowth> = new Map();
 
 export default function ChatView(props: ChatViewProps) {
   const {
@@ -540,6 +547,18 @@ export default function ChatView(props: ChatViewProps) {
     serverProjection,
     activeProviderThread,
   );
+  const derivedContextGrowth = serverProjection
+    ? deriveRunContextGrowth({
+        runs: serverProjection.runs,
+        attempts: serverProjection.attempts,
+        providerTurns: serverProjection.providerTurns,
+      })
+    : EMPTY_CONTEXT_GROWTH;
+  // Live usage reports replace providerTurns without changing any settled run's growth.
+  const [contextGrowthByRunId, setContextGrowthByRunId] = useState(derivedContextGrowth);
+  if (!sameRunContextGrowthMap(contextGrowthByRunId, derivedContextGrowth)) {
+    setContextGrowthByRunId(derivedContextGrowth);
+  }
   const serverVisibleTurnItems = useQuietThreadVisibleTurnItems(routeThreadDetailRef);
   const serverThreadHistory = useThreadHistory(routeThreadDetailRef);
   const threadHistoryControls = (() => {
@@ -3487,6 +3506,7 @@ export default function ChatView(props: ChatViewProps) {
                   )}
                   runningRunId={activeRunningTurnId}
                   turnDiffSummaries={turnDiffSummaries}
+                  contextGrowthByRunId={contextGrowthByRunId}
                   activeThreadEnvironmentId={
                     displayedThreadRef?.environmentId ?? activeThread.environmentId
                   }

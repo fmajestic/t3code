@@ -13,6 +13,10 @@ import {
   isDetailBehindShell,
 } from "@t3tools/client-runtime/state/thread-activity-announcement";
 import {
+  deriveRunContextGrowth,
+  sameRunContextGrowthMap,
+} from "@t3tools/client-runtime/run-context-growth";
+import {
   canResumeThread,
   deriveProviderSubagentStatus,
   deriveProviderExtensionStatuses,
@@ -197,6 +201,8 @@ export function useThreadDraftForThread(input: {
   };
 }
 
+const EMPTY_CONTEXT_GROWTH: ReturnType<typeof deriveRunContextGrowth> = new Map();
+
 export function useThreadComposerState(input: {
   /** Forks the thread into a side chat that gets `prompt`; resolves false when it did not start. */
   readonly startSideChat: (
@@ -269,6 +275,15 @@ export function useThreadComposerState(input: {
       ? EMPTY_CHECKPOINT_SUMMARIES_ATOM
       : environmentThreadDetails.checkpointSummariesAtom(selectedThreadDetailRef),
   );
+  const derivedContextGrowth = selectedThreadProjection
+    ? deriveRunContextGrowth(selectedThreadProjection.projection)
+    : EMPTY_CONTEXT_GROWTH;
+  // Live usage reports replace providerTurns without changing any settled run's growth.
+  const [selectedThreadContextGrowth, setSelectedThreadContextGrowth] =
+    useState(derivedContextGrowth);
+  if (!sameRunContextGrowthMap(selectedThreadContextGrowth, derivedContextGrowth)) {
+    setSelectedThreadContextGrowth(derivedContextGrowth);
+  }
   // A thread whose creation has not delivered its turn yet: the prompt only
   // exists in the outbox, so it is appended to whatever the server has. The
   // detail is usually present but empty during a worktree checkout, so this
@@ -906,6 +921,7 @@ export function useThreadComposerState(input: {
     feedbackSubmissions,
     dismissFeedback,
     selectedThreadFeed,
+    selectedThreadContextGrowth,
     selectedThreadActivityRun,
     selectedThreadAnnouncedRun,
     selectedThreadDetailBehindShell,
