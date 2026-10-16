@@ -42,6 +42,7 @@ import { canForkProjectedAssistantItem } from "@t3tools/client-runtime/state/thr
 import { notificationChildThreadId } from "@t3tools/client-runtime/state/thread-execution";
 import { replaceComposerContextReferences } from "@t3tools/shared/composerContextReferences";
 import {
+  compactingLabel,
   liveThoughtLine,
   resolveWorkEntryToolPresentation,
   resolveViewedImageAsset,
@@ -352,6 +353,7 @@ interface TimelineRowSharedState {
 interface TimelineRowActivityState {
   isWorking: boolean;
   isCompacting: boolean;
+  compactingTokenCount: number | null;
   isRevertingCheckpoint: boolean;
   activeTurnInProgress: boolean;
   awaitingUser: boolean;
@@ -451,6 +453,8 @@ interface MessagesTimelineProps {
   onOpenWorktreeSetupTerminal?: (terminalId: string) => void;
   isPreparingWorktree?: boolean;
   isCompacting?: boolean;
+  /** Context usage while any compaction runs; null otherwise so token updates don't rerender rows. */
+  compactingTokenCount?: number | null;
   awaitingUser?: boolean;
   footer?: ReactNode;
 
@@ -552,6 +556,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
   onOpenWorktreeSetupTerminal,
   isPreparingWorktree = false,
   isCompacting = false,
+  compactingTokenCount = null,
   awaitingUser = false,
   listRef,
   timelineEntries,
@@ -1254,6 +1259,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
   const activityState: TimelineRowActivityState = {
     isWorking,
     isCompacting: compactionAwaitingRow,
+    compactingTokenCount,
     isRevertingCheckpoint,
     backgroundWorktreeSetup,
     activeTurnInProgress,
@@ -1982,6 +1988,20 @@ function ContextCompactionTimelineRow({
 }: {
   row: Extract<TimelineRow, { kind: "context-compaction" }>;
 }) {
+  const { compactingTokenCount } = use(TimelineRowActivityCtx);
+  const label = (
+    <span className="flex items-center gap-1.5">
+      <Minimize2Icon aria-hidden="true" className="size-3" />
+      {row.runningSince ? (
+        <span>
+          {compactingLabel(row.runningTokenCount ?? compactingTokenCount)} for{" "}
+          <WorkingTimer createdAt={row.runningSince} />
+        </span>
+      ) : (
+        row.label
+      )}
+    </span>
+  );
   return (
     <div
       role="separator"
@@ -1993,18 +2013,8 @@ function ContextCompactionTimelineRow({
         ref={row.active ? observeVisibleAnimation : undefined}
         className="relative shrink-0 overflow-hidden"
       >
-        <span className="flex items-center gap-1.5">
-          <Minimize2Icon aria-hidden="true" className="size-3" />
-          {row.label}
-        </span>
-        {row.active ? (
-          <ActivityShimmerOverlay>
-            <span className="flex items-center gap-1.5">
-              <Minimize2Icon aria-hidden="true" className="size-3" />
-              {row.label}
-            </span>
-          </ActivityShimmerOverlay>
-        ) : null}
+        {label}
+        {row.active ? <ActivityShimmerOverlay>{label}</ActivityShimmerOverlay> : null}
       </span>
       <span className="h-px flex-1 bg-border/70" />
     </div>
@@ -3513,13 +3523,13 @@ function toolIconAcceptsTint(toolIcon: ToolActivityIcon | undefined): boolean {
 }
 
 function WorkingTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "working" }> }) {
-  const { isCompacting, isPreparingWorktree, backgroundWorktreeSetup } =
+  const { isCompacting, compactingTokenCount, isPreparingWorktree, backgroundWorktreeSetup } =
     use(TimelineRowActivityCtx);
   const shimmer = isPreparingWorktree || isCompacting;
   const label = isPreparingWorktree ? (
     "Setting up worktree…"
   ) : isCompacting ? (
-    <CompactingLabel />
+    <CompactingLabel startedAt={row.createdAt} tokenCount={compactingTokenCount} />
   ) : row.createdAt ? (
     <>
       Working for <WorkingTimer createdAt={row.createdAt} />
@@ -3579,11 +3589,23 @@ function BackgroundWorktreeSetupChip({ snapshot }: { snapshot: WorktreeSetupSnap
   );
 }
 
-function CompactingLabel() {
+function CompactingLabel({
+  startedAt,
+  tokenCount,
+}: {
+  startedAt: string | null;
+  tokenCount: number | null;
+}) {
   return (
     <span className="inline-flex items-center gap-1.5">
       <Minimize2Icon aria-hidden="true" className="size-3" />
-      Compacting…
+      {startedAt ? (
+        <span>
+          {compactingLabel(tokenCount)} for <WorkingTimer createdAt={startedAt} />
+        </span>
+      ) : (
+        `${compactingLabel(tokenCount)}…`
+      )}
     </span>
   );
 }

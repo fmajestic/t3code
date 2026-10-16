@@ -8,6 +8,7 @@ import {
   type OrchestrationV2TurnItem,
   type ThreadId,
 } from "@t3tools/contracts";
+import * as DateTime from "effect/DateTime";
 import {
   resolveT3McpToolDefinition,
   type T3McpToolDefinition,
@@ -18,6 +19,7 @@ import { resolveMediaSource } from "@t3tools/client-runtime/media-source";
 import { parseChangeRequestUrl } from "@t3tools/shared/changeRequestUrl";
 import { isWorkspaceImagePreviewPath } from "@t3tools/shared/filePreview";
 import { formatTokens } from "@t3tools/shared/usageFormat";
+import { formatDuration } from "@t3tools/shared/orchestrationTiming";
 import { classifyToolActivity } from "@t3tools/shared/toolActivity";
 import { toolOutputIndicatesFailure } from "@t3tools/shared/toolOutput";
 
@@ -48,17 +50,28 @@ export function toolItemForDisplay(item: OrchestrationV2TurnItem): Orchestration
   }
 }
 
+export function compactingLabel(tokenCount: number | null | undefined): string {
+  return tokenCount ? `Compacting ${formatTokens(tokenCount)} tokens` : "Compacting context";
+}
+
 export function contextCompactionLabel(
   item: Pick<
     Extract<OrchestrationV2TurnItem, { type: "compaction" }>,
-    "status" | "beforeTokenCount" | "afterTokenCount"
+    "status" | "beforeTokenCount" | "afterTokenCount" | "startedAt" | "completedAt"
   >,
 ): string {
-  if (item.status === "running") return "Compacting context";
-  if (item.beforeTokenCount !== undefined && item.afterTokenCount !== undefined) {
-    return `Context compacted ${formatTokens(item.beforeTokenCount)} → ${formatTokens(item.afterTokenCount)} tokens`;
-  }
-  return "Context compacted";
+  if (item.status === "running") return compactingLabel(item.beforeTokenCount);
+  const tokens =
+    item.beforeTokenCount !== undefined && item.afterTokenCount !== undefined
+      ? ` ${formatTokens(item.beforeTokenCount)} → ${formatTokens(item.afterTokenCount)} tokens`
+      : "";
+  const durationMs =
+    item.startedAt !== null && item.completedAt !== null
+      ? DateTime.toEpochMillis(item.completedAt) - DateTime.toEpochMillis(item.startedAt)
+      : 0;
+  // Adapters that never observe the start stamp startedAt = completedAt.
+  const duration = durationMs >= 1_000 ? ` in ${formatDuration(durationMs)}` : "";
+  return `Context compacted${tokens}${duration}`;
 }
 
 export interface WorkLogPresentationEntry {

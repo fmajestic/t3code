@@ -2617,6 +2617,11 @@ export default function ChatView(props: ChatViewProps) {
       (thread) => thread.id === serverProjection.thread.activeProviderThreadId,
     ),
   );
+  const hasRunningCompaction = serverVisibleTurnItems.some(
+    ({ item }) => item.type === "compaction" && item.status === "running",
+  );
+  const compactingTokenCount =
+    isCompacting || hasRunningCompaction ? (activeContextWindow?.usedTokens ?? null) : null;
   const pendingBackgroundTasks = (() => {
     if (serverProjection === null || serverProjection === undefined) {
       return [];
@@ -8071,6 +8076,7 @@ export default function ChatView(props: ChatViewProps) {
                   !paintOnlyDisplayedTimeline && (isWorking || !latestRunSettled)
                 }
                 isCompacting={!paintOnlyDisplayedTimeline && isCompacting}
+                compactingTokenCount={compactingTokenCount}
                 awaitingUser={
                   !paintOnlyDisplayedTimeline &&
                   (activePendingApproval !== null ||

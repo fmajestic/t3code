@@ -555,6 +555,8 @@ type MessagesTimelineRowContent =
       createdAt: string;
       label: string;
       active: boolean;
+      runningSince: string | null;
+      runningTokenCount: number | null;
     }
   | {
       kind: "message";
@@ -1561,6 +1563,7 @@ export function deriveMessagesTimelineRows(input: {
       timelineEntry.entry.sourceActivityKind === "context-compaction"
     ) {
       const active = workEntryIsInActiveRun(timelineEntry.entry);
+      const running = active && timelineEntry.entry.toolLifecycleStatus === "inProgress";
       hasActiveCompaction ||= active;
       nextRows.push({
         kind: "context-compaction",
@@ -1568,6 +1571,11 @@ export function deriveMessagesTimelineRows(input: {
         createdAt: timelineEntry.createdAt,
         label: timelineEntry.entry.label,
         active,
+        runningSince: running ? timelineEntry.createdAt : null,
+        runningTokenCount:
+          running && timelineEntry.entry.structuredPayload?.type === "compaction"
+            ? (timelineEntry.entry.structuredPayload.beforeTokenCount ?? null)
+            : null,
       });
       continue;
     }

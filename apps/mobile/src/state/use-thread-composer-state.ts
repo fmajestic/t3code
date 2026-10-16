@@ -395,6 +395,15 @@ export function useThreadComposerState() {
   ]);
   // A compacting turn cannot take steering input, so follow-ups queue meanwhile.
   const canSteerActiveTurn = queueWorkflow?.canPromoteToSteer === true && !isCompacting;
+  const compactingTokenCount = useMemo(() => {
+    const projection = selectedThreadProjection?.projection;
+    if (!isCompacting || !projection) return null;
+    return (
+      projection.providerThreads.find(
+        (thread) => thread.id === projection.thread.activeProviderThreadId,
+      )?.contextUsage?.usedTokens ?? null
+    );
+  }, [isCompacting, selectedThreadProjection]);
 
   const runlessWorkStartedAt = useMemo(
     () =>
@@ -1052,6 +1061,7 @@ export function useThreadComposerState() {
     runlessWorkActive,
     providerSubagentStatus,
     isCompacting,
+    compactingTokenCount,
     draftMessage,
     draftAttachments,
     composerDraftKey,

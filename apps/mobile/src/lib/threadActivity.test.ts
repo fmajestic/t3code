@@ -1657,7 +1657,7 @@ describe("retained v2 feed presentation", () => {
           {
             summary:
               status === "running"
-                ? "Compacting context"
+                ? "Compacting 899K tokens"
                 : status === "completed"
                   ? "Context compacted 899K → 19K tokens"
                   : "Context compacted",

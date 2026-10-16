@@ -6,6 +6,8 @@ import { T3_MCP_TOOL_NAMES } from "@t3tools/shared/t3McpToolPresentation";
 
 import {
   commandDetailRepeatsCommand,
+  compactingLabel,
+  contextCompactionLabel,
   extractCommandOutputText,
   liveThoughtLine,
   resolveViewedImageAsset,
@@ -1079,5 +1081,44 @@ describe("liveThoughtLine", () => {
       "This is really not fine in snake_case_names.",
     );
     expect(liveThoughtLine("   ")).toBe("");
+  });
+});
+
+describe("contextCompactionLabel", () => {
+  const completedAt = DateTime.makeUnsafe("2026-01-01T00:00:15.550Z");
+  const tokens = { beforeTokenCount: 436_000, afterTokenCount: 19_300 };
+
+  it("appends how long a completed compaction took", () => {
+    expect(
+      contextCompactionLabel({
+        status: "completed",
+        ...tokens,
+        startedAt: DateTime.makeUnsafe("2026-01-01T00:00:00.000Z"),
+        completedAt,
+      }),
+    ).toBe("Context compacted 436K → 19.3K tokens in 16s");
+  });
+
+  it("shows the starting token count while running", () => {
+    expect(
+      contextCompactionLabel({
+        status: "running",
+        beforeTokenCount: 436_000,
+        startedAt: completedAt,
+        completedAt: null,
+      }),
+    ).toBe("Compacting 436K tokens");
+    expect(compactingLabel(null)).toBe("Compacting context");
+  });
+
+  it("omits the duration when the start was not observed", () => {
+    expect(
+      contextCompactionLabel({
+        status: "completed",
+        ...tokens,
+        startedAt: completedAt,
+        completedAt,
+      }),
+    ).toBe("Context compacted 436K → 19.3K tokens");
   });
 });

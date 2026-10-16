@@ -6707,6 +6707,13 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
               typeof postTokens === "number" && Number.isFinite(postTokens) && postTokens > 0
                 ? Math.round(postTokens)
                 : undefined;
+            const rawDurationMs = message.compact_metadata.duration_ms;
+            const durationMs =
+              typeof rawDurationMs === "number" &&
+              Number.isFinite(rawDurationMs) &&
+              rawDurationMs > 0
+                ? Math.round(rawDurationMs)
+                : undefined;
             if (afterTokenCount !== undefined) {
               yield* emitProviderEvent({
                 type: "provider_turn.updated",
@@ -6758,7 +6765,10 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
                 driver: CLAUDE_PROVIDER,
                 status: "completed",
                 title: "Context compacted",
-                startedAt: now,
+                startedAt:
+                  durationMs !== undefined
+                    ? DateTime.subtract(now, { milliseconds: durationMs })
+                    : now,
                 completedAt: now,
                 updatedAt: now,
                 ...(message.compact_metadata.pre_tokens === undefined

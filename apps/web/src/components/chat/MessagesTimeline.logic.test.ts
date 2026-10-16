@@ -1088,6 +1088,8 @@ describe("deriveMessagesTimelineRows", () => {
         createdAt: "2026-01-01T00:00:00Z",
         label: "Compacted context 899K → 19K tokens",
         active: false,
+        runningSince: null,
+        runningTokenCount: null,
       },
     ]);
   });
@@ -1118,10 +1120,15 @@ describe("deriveMessagesTimelineRows", () => {
       optimisticMessages: [],
     });
     const runningRows = deriveMessagesTimelineRows({ ...input, timelineEntries: runningEntries });
-    expect(runningRows.find((row) => row.kind === "context-compaction")).toMatchObject({
+    const runningRow = runningRows.find((row) => row.kind === "context-compaction");
+    expect(runningRow).toMatchObject({
       active: true,
-      label: "Compacting context",
+      label: "Compacting 899K tokens",
+      runningTokenCount: 899_000,
     });
+    expect(runningRow?.kind === "context-compaction" && runningRow.runningSince).toBe(
+      runningRow?.createdAt,
+    );
     expect(runningRows.some((row) => row.kind === "thinking")).toBe(false);
 
     const completedRows = deriveMessagesTimelineRows({
@@ -1140,6 +1147,8 @@ describe("deriveMessagesTimelineRows", () => {
     expect(completedRows.find((row) => row.kind === "context-compaction")).toMatchObject({
       active: false,
       label: "Context compacted 899K → 19K tokens",
+      runningSince: null,
+      runningTokenCount: null,
     });
     expect(completedRows.at(-1)?.kind).toBe("thinking");
 
