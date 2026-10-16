@@ -1006,6 +1006,7 @@ function ThreadRouteContent(
           }
           isCompacting={composer.isCompacting}
           compactBeforeSend={composer.compactBeforeSend}
+          compactingTokenCount={composer.compactingTokenCount}
           runlessWorkActive={composer.runlessWorkActive}
           extensionStatuses={composer.extensionStatuses}
           providerSubagentStatus={composer.providerSubagentStatus}

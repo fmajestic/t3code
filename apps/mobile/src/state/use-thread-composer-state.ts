@@ -405,6 +405,15 @@ export function useThreadComposerState(input: {
   const canResume = selectedThreadProjection
     ? canResumeThread(selectedThreadProjection.projection, resumableRunId, queueHeld)
     : queueHeld;
+  const compactingTokenCount = (() => {
+    const projection = selectedThreadProjection?.projection;
+    if (!isCompacting || !projection) return null;
+    return (
+      projection.providerThreads.find(
+        (thread) => thread.id === projection.thread.activeProviderThreadId,
+      )?.contextUsage?.usedTokens ?? null
+    );
+  })();
 
   const runlessWorkStartedAt = selectedThreadProjection
     ? deriveRunlessWorkStartedAt(selectedThreadProjection.projection)
@@ -918,6 +927,7 @@ export function useThreadComposerState(input: {
             keepFullHistory,
             toggleKeepFullHistory: () => setKeepFullHistory(selectedThreadKey, !keepFullHistory),
           },
+    compactingTokenCount,
     composerDraftKey,
     followUpBehavior,
     canSteerActiveTurn,

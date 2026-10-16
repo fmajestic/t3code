@@ -252,6 +252,7 @@ export interface ThreadDetailScreenProps {
     readonly keepFullHistory: boolean;
     readonly toggleKeepFullHistory: () => void;
   } | null;
+  readonly compactingTokenCount?: number | null;
   readonly creationState:
     | {
         readonly kind: "preparing";
@@ -826,7 +827,11 @@ function ThreadDetailBody(
       };
     }
     if (props.isCompacting && contentPresentationKind === "ready") {
-      return { kind: "compacting" };
+      return {
+        kind: "compacting",
+        startedAt: props.activeWorkStartedAt,
+        tokenCount: props.compactingTokenCount ?? null,
+      };
     }
     if (props.activeWorkStartedAt !== null && contentPresentationKind === "ready") {
       return { kind: "working", startedAt: props.activeWorkStartedAt };

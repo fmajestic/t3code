@@ -10386,6 +10386,13 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
                 : undefined;
             context.compactionTokens = afterTokenCount;
             if (afterTokenCount !== undefined) yield* emitContextUsage(context, afterTokenCount);
+            const rawDurationMs = message.compact_metadata.duration_ms;
+            const durationMs =
+              typeof rawDurationMs === "number" &&
+              Number.isFinite(rawDurationMs) &&
+              rawDurationMs > 0
+                ? Math.round(rawDurationMs)
+                : undefined;
             yield* emitProviderEvent({
               type: "turn_item.updated",
               driver: CLAUDE_PROVIDER,
@@ -10393,6 +10400,11 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
                 ...compaction,
                 status: "completed",
                 title: "Context compacted",
+                // A compaction whose status event was missed only learns its length here.
+                startedAt:
+                  context.compaction === null && durationMs !== undefined
+                    ? DateTime.subtract(now, { milliseconds: durationMs })
+                    : compaction.startedAt,
                 completedAt: compaction.completedAt ?? now,
                 updatedAt: now,
                 ...(message.compact_metadata.pre_tokens === undefined

@@ -22,6 +22,7 @@ import {
   summarizeToolGroup,
   toolGroupAction,
   toolGroupSummaryKind,
+  contextCompactionDuration,
   contextCompactionTokenCounts,
   workEntriesViewedImagePaths,
   type ToolGroupSummaryKind,
@@ -579,12 +580,15 @@ type MessagesTimelineRowContent =
       createdAt: string;
       label: string;
       tokenCounts: ReturnType<typeof contextCompactionTokenCounts>;
+      duration: string | null;
       active: boolean;
       /** Replaces "Context compacted" when T3 Code compacted without being asked. */
       title?: string;
       failed?: true;
       /** The provider's reason, when a failed compaction gave one. */
       failure?: string;
+      runningSince: string | null;
+      runningTokenCount: number | null;
     }
   | {
       kind: "message";
@@ -1928,6 +1932,9 @@ export function deriveMessagesTimelineRows(input: {
       const reason = compactionRunId == null ? undefined : compactionRuns.get(compactionRunId);
       const failed = compaction?.type === "compaction" && compaction.status === "failed";
       const failure = failed ? compaction.summary?.trim() || undefined : undefined;
+      // An idle compaction keeps its reason as the label instead of the running count.
+      const running =
+        active && reason === undefined && timelineEntry.entry.toolLifecycleStatus === "inProgress";
       nextRows.push({
         kind: "context-compaction",
         id: timelineEntry.id,
@@ -1938,7 +1945,13 @@ export function deriveMessagesTimelineRows(input: {
         label: active && reason ? IDLE_COMPACTING_LABELS[reason] : timelineEntry.entry.label,
         tokenCounts:
           compaction?.type === "compaction" ? contextCompactionTokenCounts(compaction) : null,
+        duration: compaction?.type === "compaction" ? contextCompactionDuration(compaction) : null,
         active,
+        runningSince: running ? timelineEntry.createdAt : null,
+        runningTokenCount:
+          running && compaction?.type === "compaction"
+            ? (compaction.beforeTokenCount ?? null)
+            : null,
       });
       continue;
     }
@@ -2184,7 +2197,10 @@ export function deriveMessagesTimelineRows(input: {
               : "Compacting context"
             : "Context compaction",
           tokenCounts: null,
+          duration: null,
           active: pending,
+          runningSince: pending && !reason ? timelineEntry.createdAt : null,
+          runningTokenCount: null,
         });
       }
       continue;
