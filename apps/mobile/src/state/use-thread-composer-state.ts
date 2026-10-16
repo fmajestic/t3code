@@ -366,6 +366,15 @@ export function useThreadComposerState() {
   const resumableRunId = selectedThreadProjection
     ? deriveResumableRunId(selectedThreadProjection.projection, selectedThreadRuntime)
     : null;
+  const compactingTokenCount = (() => {
+    const projection = selectedThreadProjection?.projection;
+    if (!isCompacting || !projection) return null;
+    return (
+      projection.providerThreads.find(
+        (thread) => thread.id === projection.thread.activeProviderThreadId,
+      )?.contextUsage?.usedTokens ?? null
+    );
+  })();
 
   const runlessWorkStartedAt = selectedThreadProjection
     ? deriveRunlessWorkStartedAt(selectedThreadProjection.projection)
@@ -775,6 +784,7 @@ export function useThreadComposerState() {
     runlessWorkActive,
     providerSubagentStatus,
     isCompacting,
+    compactingTokenCount,
     composerDraftKey,
     followUpBehavior,
     canSteerActiveTurn,
