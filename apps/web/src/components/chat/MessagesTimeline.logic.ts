@@ -6,6 +6,11 @@ import {
   isLiveSubagentTurnItem,
   waitingOnSubagentsLabel,
 } from "@t3tools/client-runtime/state/subagentRuntime";
+import {
+  type RunContextGrowth,
+  sameRunContextGrowth,
+  sameRunContextGrowthMap,
+} from "@t3tools/client-runtime/run-context-growth";
 import * as Equal from "effect/Equal";
 import { shallow } from "zustand/vanilla/shallow";
 import { claudeResumeCompactionAge } from "@t3tools/shared/claudeCompaction";
@@ -616,6 +621,7 @@ type MessagesTimelineRowContent =
       runId: RunId;
       label: string;
       expanded: boolean;
+      contextGrowth?: RunContextGrowth;
     }
   | {
       kind: "attempt-fold";
@@ -662,6 +668,8 @@ type MessagesTimelineRowContent =
       groupedWithPrevious?: boolean;
       /** Set when the message above is a steer too, so the label shows once. */
       continuesSteer?: boolean;
+      /** Set only on a run's terminal message when the run has no turn fold to carry it. */
+      contextGrowth?: RunContextGrowth;
     }
   | {
       kind: "assistant-meta";
@@ -671,6 +679,7 @@ type MessagesTimelineRowContent =
       message: ChatMessage;
       showAssistantCopyButton: boolean;
       assistantCopyStreaming: boolean;
+      contextGrowth?: RunContextGrowth;
     }
   | {
       kind: "event";
@@ -1403,6 +1412,7 @@ function attachTrailingToolGroupsToAssistant(
       message: row.message,
       showAssistantCopyButton: row.showAssistantCopyButton,
       assistantCopyStreaming: row.assistantCopyStreaming,
+      ...(row.contextGrowth === undefined ? {} : { contextGrowth: row.contextGrowth }),
     });
   }
 
@@ -1648,6 +1658,7 @@ export function deriveMessagesTimelineRows(
     runlessWorkActive?: boolean;
     activeTurnStartedAt?: string | null;
     turnDiffSummaries: ReadonlyArray<TurnDiffSummary>;
+    contextGrowthByRunId?: ReadonlyMap<RunId, RunContextGrowth>;
     supportsConversationRollback: boolean;
     threadStartCheckpointAvailable?: boolean;
     availableRevertTurnCounts?: ReadonlySet<number> | undefined;
@@ -1720,6 +1731,7 @@ export function deriveMessagesTimelineRows(
           resolve,
         });
   const timelineEntryById = new Map(timelineEntries.map((entry) => [entry.id, entry]));
+  const foldedRunIds = new Set([...foldsByAnchorEntryId.values()].map((fold) => fold.runId));
   const collapsedEntryIds = new Set<string>();
   const collapsedFoldMemberIds = new Set<string>();
   for (const fold of foldsByAnchorEntryId.values()) {
@@ -1988,6 +2000,7 @@ export function deriveMessagesTimelineRows(
           ? [String(entry.entry.projectedItem.sourceItemId)]
           : [];
       });
+      const contextGrowth = input.contextGrowthByRunId?.get(turnFold.runId);
       nextRows.push({
         kind: "turn-fold",
         id: `turn-fold:${turnFold.runId}`,
@@ -1996,6 +2009,7 @@ export function deriveMessagesTimelineRows(
         runId: turnFold.runId,
         label: turnFold.label,
         expanded: input.expandedRunIds?.has(turnFold.runId) ?? false,
+        ...(contextGrowth === undefined ? {} : { contextGrowth }),
       });
     }
 
@@ -2343,6 +2357,12 @@ export function deriveMessagesTimelineRows(
       timelineEntry.message.role === "assistant" &&
       terminalAssistantMessageIds.has(timelineEntry.message.id) &&
       !assistantResponseStillInProgress;
+    const contextGrowth =
+      showAssistantMeta &&
+      timelineEntry.message.runId &&
+      !foldedRunIds.has(timelineEntry.message.runId)
+        ? input.contextGrowthByRunId?.get(timelineEntry.message.runId)
+        : undefined;
 
     nextRows.push({
       kind: "message",
@@ -2363,6 +2383,7 @@ export function deriveMessagesTimelineRows(
         timelineEntry.message.role === "user"
           ? revertTurnCountByUserMessageId.get(timelineEntry.message.id)
           : undefined,
+      ...(contextGrowth === undefined ? {} : { contextGrowth }),
     });
   }
 
@@ -2593,6 +2614,8 @@ function sameCheckpointSummaries(
   return true;
 }
 
+const EMPTY_CONTEXT_GROWTH: ReadonlyMap<RunId, RunContextGrowth> = new Map();
+
 function replaceStreamingMessageRows(
   input: MessagesTimelineRowsInput,
   previous: MessagesTimelineRowsProjection,
@@ -2601,6 +2624,7 @@ function replaceStreamingMessageRows(
     timelineEntries: previousEntries,
     latestRun: previousRun,
     turnDiffSummaries: previousCheckpoints,
+    contextGrowthByRunId: previousContextGrowth,
     expandedRunIds: previousExpandedRuns,
     expandedAttemptIds: previousExpandedAttempts,
     expandedWorkGroupIds: previousExpandedGroups,
@@ -2612,6 +2636,7 @@ function replaceStreamingMessageRows(
     timelineEntries,
     latestRun,
     turnDiffSummaries,
+    contextGrowthByRunId,
     expandedRunIds,
     expandedAttemptIds,
     expandedWorkGroupIds,
@@ -2629,7 +2654,11 @@ function replaceStreamingMessageRows(
     !shallow(previousExpandedGroups, expandedWorkGroupIds) ||
     !shallow(previousPendingApprovalRequestIds, pendingApprovalRequestIds) ||
     !shallow(previousAvailableRevertTurnCounts, availableRevertTurnCounts) ||
-    !sameCheckpointSummaries(previousCheckpoints, turnDiffSummaries)
+    !sameCheckpointSummaries(previousCheckpoints, turnDiffSummaries) ||
+    !sameRunContextGrowthMap(
+      previousContextGrowth ?? EMPTY_CONTEXT_GROWTH,
+      contextGrowthByRunId ?? EMPTY_CONTEXT_GROWTH,
+    )
   ) {
     return null;
   }
@@ -2830,7 +2859,8 @@ function isRowUnchanged(a: MessagesTimelineRow, b: MessagesTimelineRow): boolean
         a.projectedItem === bm.projectedItem &&
         a.message === bm.message &&
         a.showAssistantCopyButton === bm.showAssistantCopyButton &&
-        a.assistantCopyStreaming === bm.assistantCopyStreaming
+        a.assistantCopyStreaming === bm.assistantCopyStreaming &&
+        sameRunContextGrowth(a.contextGrowth, bm.contextGrowth)
       );
     }
 
@@ -2844,7 +2874,10 @@ function isRowUnchanged(a: MessagesTimelineRow, b: MessagesTimelineRow): boolean
         a.label === bf.label &&
         a.expanded === bf.expanded &&
         anchors.length === nextAnchors.length &&
-        anchors.every((id, index) => id === nextAnchors[index])
+        anchors.every((id, index) => id === nextAnchors[index]) &&
+        (a.kind !== "turn-fold" ||
+          bf.kind !== "turn-fold" ||
+          sameRunContextGrowth(a.contextGrowth, bf.contextGrowth))
       );
     }
 
@@ -2951,7 +2984,8 @@ function isRowUnchanged(a: MessagesTimelineRow, b: MessagesTimelineRow): boolean
         a.revertTurnCount === bm.revertTurnCount &&
         a.groupedWithNext === bm.groupedWithNext &&
         a.groupedWithPrevious === bm.groupedWithPrevious &&
-        a.continuesSteer === bm.continuesSteer
+        a.continuesSteer === bm.continuesSteer &&
+        sameRunContextGrowth(a.contextGrowth, bm.contextGrowth)
       );
     }
   }
