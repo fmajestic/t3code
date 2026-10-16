@@ -65,8 +65,15 @@ export const layer: Layer.Layer<
       readonly runId: RunId;
       readonly scopeId: CheckpointScopeId;
     }) {
-      const { run, rootNode, scope, providerThread, preservedCheckpointOrdinals, sideChat } =
-        yield* projections.getCheckpointCaptureContext(input.threadId, input);
+      const {
+        run,
+        rootNode,
+        scope,
+        providerThread,
+        preservedCheckpointOrdinals,
+        previousRunRolledBack,
+        sideChat,
+      } = yield* projections.getCheckpointCaptureContext(input.threadId, input);
       // Stopped runs remain terminal; their checkpoint is the next message's rollback point.
       const stopped = run?.status === "interrupted" || run?.status === "cancelled";
 
@@ -105,19 +112,28 @@ export const layer: Layer.Layer<
         preservedCheckpointOrdinals.includes(ordinalWithinScope);
       // The baselines this capture materializes are attributed to the run materializing them. The
       // thread's scope may already be a later run's: one queued meanwhile, or sent after Stop.
-      const materializeBaseline = (ordinalWithinScope: number) =>
+      const materializeBaseline = (ordinalWithinScope: number, appRunOrdinal: number | null) =>
         checkpoints.materializeBaselineCheckpoint({
           scope,
           ordinalWithinScope,
+          appRunOrdinal,
           nodeId: rootNode.id,
           capturedAt: run.requestedAt,
           forceMissing: sideChat,
         });
       const threadStartCheckpoint =
-        baselineOrdinalWithinScope === 0 || isPreserved(0) ? null : yield* materializeBaseline(0);
+        baselineOrdinalWithinScope === 0 || isPreserved(0)
+          ? null
+          : yield* materializeBaseline(0, null);
       const baselineCheckpoint = isPreserved(baselineOrdinalWithinScope)
         ? null
-        : yield* materializeBaseline(baselineOrdinalWithinScope);
+        : yield* materializeBaseline(
+            baselineOrdinalWithinScope,
+            // Stands in for the previous run's checkpoint, unless rollback removed that run from the provider.
+            baselineOrdinalWithinScope === 0 || previousRunRolledBack
+              ? null
+              : baselineOrdinalWithinScope,
+          );
       const checkpoint = yield* checkpoints.capture({
         scope,
         runId: run.id,
