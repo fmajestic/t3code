@@ -13,7 +13,7 @@ Use a separate thread for each task. Choose **New worktree** when a task needs i
 Threads don't require a project. Pick **No project** (or press `mod+alt+n` on web/desktop) to start a scratch thread in `~/.t3/scratch/<date>-<slug>-<id>`.
 
 - Deleting a scratch thread leaves its folder on disk.
-- Git branch, worktree, and diff controls are hidden (and scratch threads are unavailable if your T3 data directory itself is inside a Git repo).
+- Each folder is a fresh Git repository, so you can see each turn's diff and rewind the thread, files included. Branch and worktree controls are hidden (and scratch threads are unavailable if your T3 data directory itself is inside a Git repo).
 - Choose **Turn into project** from the thread menu to promote the folder into a real project in place, then **Initialize Git** if needed.
 
 ### Start in the background and multi-model runs

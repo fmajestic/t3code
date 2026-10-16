@@ -110,6 +110,7 @@ it.effect(
               ordinalWithinScope: 0,
               nodeId: scope.nodeId,
               capturedAt: scope.createdAt,
+              appRunOrdinal: null,
             });
             assert.strictEqual(materialized.status, "missing");
           }
@@ -477,6 +478,7 @@ it.effect("records a repository probe failure as an error checkpoint, not a miss
         ordinalWithinScope: 0,
         nodeId: scope.nodeId,
         capturedAt: scope.createdAt,
+        appRunOrdinal: null,
       });
       const turn = yield* checkpoints.capture({
         scope,
@@ -706,6 +708,7 @@ it.effect("skips post-turn captures that waited out another capture's timeout in
         yield* checkpoints.materializeBaselineCheckpoint({
           scope: root,
           ordinalWithinScope: 0,
+          appRunOrdinal: null,
           nodeId: root.nodeId!,
           capturedAt: root.createdAt,
         });

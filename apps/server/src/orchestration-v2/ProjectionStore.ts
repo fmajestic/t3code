@@ -300,6 +300,7 @@ export interface ProjectionCheckpointCaptureContext {
   readonly repositoryScopes: ReadonlyArray<OrchestrationV2CheckpointScope>;
   /** Repository scopes whose baseline for this run a runless baseline must not overwrite. */
   readonly repositoryScopesWithBaseline: ReadonlyArray<CheckpointScopeId>;
+  readonly previousRunRolledBack: boolean;
 }
 
 const RollbackTargetAttempts = Schema.Array(
@@ -6477,6 +6478,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
               preservedRows,
               repositoryScopeRows,
               repositoryBaselineRows,
+              previousRunRows,
             ] = yield* Effect.all([
               sql<PayloadRow>`SELECT payload_json FROM orchestration_v2_projection_nodes
             WHERE thread_id = ${threadId} AND node_id = ${run?.rootNodeId ?? null}`,
@@ -6500,6 +6502,8 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
               AND scope_id IN (SELECT scope_id FROM orchestration_v2_projection_checkpoint_scopes
                 WHERE thread_id = ${threadId} AND kind = 'manual')
               AND ${preservedCheckpoint}`,
+              sql<{ readonly status: string }>`SELECT status FROM orchestration_v2_projection_runs
+            WHERE thread_id = ${threadId} AND ordinal = ${run === undefined ? null : run.ordinal - 1}`,
             ]);
             return {
               run,
@@ -6526,6 +6530,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
                 threadId,
               )(repositoryScopeRows),
               repositoryScopesWithBaseline: repositoryBaselineRows.map((row) => row.scope_id),
+              previousRunRolledBack: previousRunRows[0]?.status === "rolled_back",
             };
           }),
         )

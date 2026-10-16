@@ -214,6 +214,7 @@ export interface CheckpointServiceV2Shape {
     readonly capturedAt: DateTime.Utc;
     /** Records a missing checkpoint without touching git, for side chats sharing a parent's worktree. */
     readonly forceMissing?: boolean;
+    readonly appRunOrdinal: number | null;
   }) => Effect.Effect<OrchestrationV2Checkpoint, CheckpointServiceV2Error>;
   readonly capture: (input: {
     readonly scope: OrchestrationV2CheckpointScope;
@@ -620,7 +621,7 @@ export const layer: Layer.Layer<
               nodeId: input.nodeId,
               parentCheckpointId: null,
               ordinalWithinScope: input.ordinalWithinScope,
-              appRunOrdinal: null,
+              appRunOrdinal: input.appRunOrdinal,
               ref: checkpointRef,
               status,
               files: [],
@@ -1095,6 +1096,7 @@ export const layer: Layer.Layer<
         : yield* materializeBaselineCheckpoint({
             scope: input.scope,
             ordinalWithinScope: baselineOrdinal,
+            appRunOrdinal: null,
             nodeId: input.nodeId,
             capturedAt: input.baselineCapturedAt,
           });
