@@ -50,6 +50,10 @@ import {
   resolveViewedImageAsset,
   workEntryViewedImagePath,
 } from "@t3tools/client-runtime/work-log/presentation";
+import {
+  type RunContextGrowth,
+  runContextGrowthLabel,
+} from "@t3tools/client-runtime/run-context-growth";
 import { resolveWorkGroupScrollAnchor } from "@t3tools/client-runtime/work-log/scroll-anchor";
 import {
   turnItemHasDetail,
@@ -470,6 +474,7 @@ interface MessagesTimelineProps {
   latestRun: TimelineLatestRun | null;
   runningRunId?: RunId | null;
   turnDiffSummaries: ReadonlyArray<TurnDiffSummary>;
+  contextGrowthByRunId?: ReadonlyMap<RunId, RunContextGrowth>;
   routeThreadKey: string;
   displayThreadKey?: string;
   paintOnly?: boolean;
@@ -581,6 +586,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
   latestRun,
   runningRunId = null,
   turnDiffSummaries,
+  contextGrowthByRunId,
   routeThreadKey,
   displayThreadKey,
   paintOnly = false,
@@ -865,6 +871,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
     runlessWorkActive,
     activeTurnStartedAt,
     turnDiffSummaries,
+    ...(contextGrowthByRunId === undefined ? {} : { contextGrowthByRunId }),
     supportsConversationRollback,
     threadStartCheckpointReady,
     availableRevertTurnCounts,
@@ -2652,6 +2659,11 @@ function TurnFoldTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "turn-
         <span>{row.label}</span>
         <MorphIcon className="size-3.5" icon={row.expanded ? ChevronDown : ChevronRight} />
       </button>
+      {row.contextGrowth ? (
+        <span className="text-sm leading-relaxed text-muted-foreground tabular-nums">
+          {runContextGrowthLabel(row.contextGrowth)}
+        </span>
+      ) : null}
       <TimelineRowTimestamp
         createdAt={row.createdAt}
         timestampFormat={ctx.timestampFormat}
@@ -2726,6 +2738,7 @@ function AssistantTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "mess
             message={row.message}
             showCopyButton={row.showAssistantCopyButton}
             copyStreaming={row.assistantCopyStreaming}
+            contextGrowth={row.contextGrowth}
           />
         ) : null}
       </div>
@@ -2792,6 +2805,7 @@ function AssistantMetaTimelineRow({
         message={row.message}
         showCopyButton={row.showAssistantCopyButton}
         copyStreaming={row.assistantCopyStreaming}
+        contextGrowth={row.contextGrowth}
         alwaysVisible
       />
     </div>
@@ -2804,6 +2818,7 @@ function AssistantMessageMeta({
   message,
   showCopyButton,
   copyStreaming,
+  contextGrowth,
   alwaysVisible = false,
 }: {
   className?: string;
@@ -2811,43 +2826,48 @@ function AssistantMessageMeta({
   message: ChatMessage;
   showCopyButton: boolean;
   copyStreaming: boolean;
+  contextGrowth?: RunContextGrowth | undefined;
   alwaysVisible?: boolean;
 }) {
   const ctx = use(TimelineRowCtx);
 
   return (
-    <div
-      className={cn(
-        "flex items-center gap-2 text-xs tabular-nums transition-opacity duration-200",
-        alwaysVisible
-          ? "opacity-100"
-          : "opacity-0 pointer-coarse:opacity-100 focus-within:opacity-100 group-hover/assistant:opacity-100",
-        className,
-      )}
-    >
-      {projectedItem && projectedItem.item.status !== "completed" ? (
-        <span className="rounded-full border border-border/70 px-1.5 py-0.5 font-mono text-3xs text-muted-foreground">
-          {projectedItem.item.status}
-        </span>
+    <div className={cn("flex items-center gap-2 text-xs tabular-nums", className)}>
+      {contextGrowth ? (
+        <span className="text-muted-foreground">{runContextGrowthLabel(contextGrowth)}</span>
       ) : null}
-      <AssistantCopyButton
-        message={message}
-        showCopyButton={showCopyButton}
-        streaming={copyStreaming}
-      />
-      {projectedItem?.item.type === "assistant_message" ? (
-        <AssistantForkButton projectedItem={projectedItem} />
-      ) : null}
-      {!message.streaming && (
-        <Tooltip>
-          <TooltipTrigger render={<p className="text-muted-foreground text-xs tabular-nums" />}>
-            {formatDayAwareTimestamp(message.updatedAt, ctx.timestampFormat)}
-          </TooltipTrigger>
-          <TooltipPopup>
-            {formatChatTimestampTooltip(message.updatedAt, ctx.timestampFormat)}
-          </TooltipPopup>
-        </Tooltip>
-      )}
+      <div
+        className={cn(
+          "flex items-center gap-2 transition-opacity duration-200",
+          alwaysVisible
+            ? "opacity-100"
+            : "opacity-0 pointer-coarse:opacity-100 focus-within:opacity-100 group-hover/assistant:opacity-100",
+        )}
+      >
+        {projectedItem && projectedItem.item.status !== "completed" ? (
+          <span className="rounded-full border border-border/70 px-1.5 py-0.5 font-mono text-3xs text-muted-foreground">
+            {projectedItem.item.status}
+          </span>
+        ) : null}
+        <AssistantCopyButton
+          message={message}
+          showCopyButton={showCopyButton}
+          streaming={copyStreaming}
+        />
+        {projectedItem?.item.type === "assistant_message" ? (
+          <AssistantForkButton projectedItem={projectedItem} />
+        ) : null}
+        {!message.streaming && (
+          <Tooltip>
+            <TooltipTrigger render={<p className="text-muted-foreground text-xs tabular-nums" />}>
+              {formatDayAwareTimestamp(message.updatedAt, ctx.timestampFormat)}
+            </TooltipTrigger>
+            <TooltipPopup>
+              {formatChatTimestampTooltip(message.updatedAt, ctx.timestampFormat)}
+            </TooltipPopup>
+          </Tooltip>
+        )}
+      </div>
     </div>
   );
 }

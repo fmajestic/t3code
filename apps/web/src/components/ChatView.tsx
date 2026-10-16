@@ -32,6 +32,11 @@ import { RightPanelSurfaceContent } from "./chat/RightPanelSurfaceContent";
 import { useThreadTerminalActions } from "./terminal/useThreadTerminalActions";
 import { usePendingThreadRequests } from "./chat/usePendingThreadRequests";
 import { isScratchProject } from "@t3tools/client-runtime/state/projects";
+import {
+  deriveRunContextGrowth,
+  type RunContextGrowth,
+  sameRunContextGrowthMap,
+} from "@t3tools/client-runtime/run-context-growth";
 import { visibleThreadPullRequests } from "@t3tools/shared/threadPullRequests";
 import {
   latestExecutedRun,
@@ -979,6 +984,7 @@ function chatActionErrorMessage(error: unknown): string {
 
 const ENVIRONMENT_UNAVAILABLE_SEND_TOAST_TRAIL_SIZE = 3;
 const EMPTY_HELD_TURN_DIFF_SUMMARIES: readonly never[] = [];
+const EMPTY_CONTEXT_GROWTH: ReadonlyMap<RunId, RunContextGrowth> = new Map();
 const noopHeldTurnDiff = (_turnId: RunId, _filePath?: string) => {};
 const noopHeldRevert = (_targetTurnCount: number) => {};
 const noopHeldAttachment = (_attachment: ChatFileAttachment) => {};
@@ -1218,6 +1224,18 @@ export default function ChatView(props: ChatViewProps) {
     serverProjection,
     activeProviderThread,
   );
+  const derivedContextGrowth = serverProjection
+    ? deriveRunContextGrowth({
+        runs: serverProjection.runs,
+        attempts: serverProjection.attempts,
+        providerTurns: serverProjection.providerTurns,
+      })
+    : EMPTY_CONTEXT_GROWTH;
+  // Live usage reports replace providerTurns without changing any settled run's growth.
+  const [contextGrowthByRunId, setContextGrowthByRunId] = useState(derivedContextGrowth);
+  if (!sameRunContextGrowthMap(contextGrowthByRunId, derivedContextGrowth)) {
+    setContextGrowthByRunId(derivedContextGrowth);
+  }
   const serverVisibleTurnItems = useThreadVisibleTurnItems(routeThreadDetailRef);
   const serverThreadHistory = useThreadHistory(routeThreadDetailRef);
   const threadHistoryControls = (() => {
@@ -8379,6 +8397,9 @@ export default function ChatView(props: ChatViewProps) {
                 runningRunId={paintOnlyDisplayedTimeline ? null : activeRunningTurnId}
                 turnDiffSummaries={
                   paintOnlyDisplayedTimeline ? EMPTY_HELD_TURN_DIFF_SUMMARIES : turnDiffSummaries
+                }
+                contextGrowthByRunId={
+                  paintOnlyDisplayedTimeline ? EMPTY_CONTEXT_GROWTH : contextGrowthByRunId
                 }
                 activeThreadEnvironmentId={
                   displayedThreadRef?.environmentId ?? activeThread.environmentId

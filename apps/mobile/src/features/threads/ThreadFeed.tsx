@@ -25,6 +25,10 @@ import { useViewabilityAmount, type LegendListRef } from "@legendapp/list/react-
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { HandoffEndpoints } from "@t3tools/client-runtime/handoff";
 import { resolveUserMessagePresentation } from "@t3tools/client-runtime/user-message";
+import {
+  type RunContextGrowth,
+  runContextGrowthLabel,
+} from "@t3tools/client-runtime/run-context-growth";
 import { canForkProjectedAssistantItem } from "@t3tools/client-runtime/state/thread-workflows";
 import type { ThreadCheckpointSummary } from "@t3tools/client-runtime/state/thread-checkpoints";
 import { formatDiffCount } from "@t3tools/client-runtime/diff-count";
@@ -318,6 +322,7 @@ export interface ThreadFeedProps {
   readonly contentPresentation: ThreadContentPresentation;
   readonly agentLabel: string;
   readonly latestRun: ThreadFeedLatestRun | null;
+  readonly contextGrowthByRunId?: ReadonlyMap<RunId, RunContextGrowth>;
   readonly activeWorkStartedAt: string | null;
   readonly runlessWorkActive?: boolean;
   readonly listRef: RefObject<LegendListRef | null>;
@@ -994,7 +999,10 @@ function renderFeedEntry(
     | "onEditPendingMessage"
     | "threadId"
     | "workspaceRoot"
+    | "contextGrowthByRunId"
   > & {
+    /** Runs whose growth shows on their run fold instead of the terminal message. */
+    readonly foldedRunIds: ReadonlySet<RunId>;
     readonly copiedRowId: string | null;
     readonly expandedWorkRows: Record<string, boolean>;
     readonly workRowSizing: ReturnType<typeof deriveThreadWorkLogSizing>;
@@ -1032,6 +1040,7 @@ function renderFeedEntry(
   const { markdownStyles, iconSubtleColor, userBubbleColor } = props;
 
   if (entry.type === "run-fold") {
+    const contextGrowth = props.contextGrowthByRunId?.get(entry.runId);
     return (
       <View className="mb-1 flex-row items-center border-b border-border-subtle px-2">
         <Pressable
@@ -1058,6 +1067,11 @@ function renderFeedEntry(
             tintColor={iconSubtleColor}
           />
         </Pressable>
+        {contextGrowth ? (
+          <Text className="font-t3-medium text-sm tabular-nums text-foreground-muted">
+            {runContextGrowthLabel(contextGrowth)}
+          </Text>
+        ) : null}
         {entry.checkpointSummary ? (
           <TurnDiffStat
             checkpoint={entry.checkpointSummary}
@@ -1190,6 +1204,10 @@ function renderFeedEntry(
       props.terminalAssistantMessageIds.has(message.id) &&
       !assistantTurnStillInProgress &&
       !message.streaming;
+    const assistantContextGrowth =
+      showAssistantMeta && message.runId && !props.foldedRunIds.has(message.runId)
+        ? props.contextGrowthByRunId?.get(message.runId)
+        : undefined;
 
     if (isUser && props.workflowOpening?.messageId === message.id) {
       return (
@@ -1455,6 +1473,11 @@ function renderFeedEntry(
         ) : null}
         {showAssistantMeta ? (
           <View className="mt-1 flex-row items-center gap-1">
+            {assistantContextGrowth ? (
+              <Text className="font-t3-medium text-xs tabular-nums text-foreground-secondary">
+                {runContextGrowthLabel(assistantContextGrowth)}
+              </Text>
+            ) : null}
             <CopyTextButton
               accessibilityLabel="Copy message"
               text={renderedText}
@@ -2353,6 +2376,9 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
     (entry) => (entry.type === "message" ? entry.id : null),
     { anchorOffset: anchorTopInset + CHAT_LIST_ANCHOR_OFFSET },
   );
+  const foldedRunIds = new Set(
+    presentedFeed.flatMap((entry) => (entry.type === "run-fold" ? [entry.runId] : [])),
+  );
   const failedRunIds = failedFeedRunIds(props.feed, props.latestRun);
   const terminalAssistantMessageIds = (() => {
     const terminalIdsByTurn = new Map<RunId, string>();
@@ -2635,6 +2661,8 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
             skills: props.skills,
             workspaceRoot: props.workspaceRoot,
             workflowOpening,
+            contextGrowthByRunId: props.contextGrowthByRunId,
+            foldedRunIds,
           })}
           {props.worktreeSetup && info.index === setupAnchorIndex ? (
             <WorktreeSetupCard key={props.threadId} {...props.worktreeSetup} />
