@@ -33,6 +33,10 @@ import { readThreadTurnItems } from "../../state/entities";
 import { useV2ItemSupport } from "../../state/v2ItemSupport";
 import { TimelineRowCtx, TimelineRowActivityCtx, type TimelineRow } from "./timelineRowContext";
 import { MESSAGE_HEADING_LEVEL, MessageAuthorHeading } from "./TimelineRowParts";
+import {
+  type RunContextGrowth,
+  runContextGrowthLabel,
+} from "@t3tools/client-runtime/run-context-growth";
 import { useAtomValue } from "@effect/atom-react";
 import { AsyncResult, Atom } from "effect/reactivity";
 import { vcsEnvironment } from "../../state/vcs";
@@ -103,6 +107,7 @@ export function AssistantTimelineRow({ row }: { row: Extract<TimelineRow, { kind
             message={row.message}
             showCopyButton={row.showAssistantCopyButton}
             copyStreaming={row.assistantCopyStreaming}
+            contextGrowth={row.contextGrowth}
           />
         ) : null}
       </div>
@@ -208,6 +213,7 @@ export function AssistantMetaTimelineRow({
         message={row.message}
         showCopyButton={row.showAssistantCopyButton}
         copyStreaming={row.assistantCopyStreaming}
+        contextGrowth={row.contextGrowth}
         alwaysVisible
       />
     </div>
@@ -220,6 +226,7 @@ function AssistantMessageMeta({
   message,
   showCopyButton,
   copyStreaming,
+  contextGrowth,
   alwaysVisible = false,
 }: {
   className?: string;
@@ -227,51 +234,56 @@ function AssistantMessageMeta({
   message: ChatMessage;
   showCopyButton: boolean;
   copyStreaming: boolean;
+  contextGrowth?: RunContextGrowth | undefined;
   alwaysVisible?: boolean;
 }) {
   const ctx = use(TimelineRowCtx);
   const m = useMessages();
 
   return (
-    <div
-      className={cn(
-        "flex items-center gap-2 text-xs tabular-nums transition-opacity duration-200",
-        alwaysVisible
-          ? "opacity-100"
-          : "opacity-0 pointer-coarse:opacity-100 focus-within:opacity-100 group-hover/assistant:opacity-100",
-        className,
-      )}
-    >
-      {projectedItem && projectedItem.item.status !== "completed" ? (
-        <AssistantStatusBadge status={projectedItem.item.status} />
+    <div className={cn("flex items-center gap-2 text-xs tabular-nums", className)}>
+      {contextGrowth ? (
+        <span className="text-muted-foreground">{runContextGrowthLabel(contextGrowth, m)}</span>
       ) : null}
-      <AssistantCopyButton
-        message={message}
-        showCopyButton={showCopyButton}
-        streaming={copyStreaming}
-      />
-      {projectedItem?.item.type === "assistant_message" ? (
-        <AssistantForkButton projectedItem={projectedItem} />
-      ) : null}
-      {!message.streaming && projectedItem ? (
-        <AssistantReplyButton message={message} itemId={projectedItem.sourceItemId} />
-      ) : null}
-      {!message.streaming && (
-        <Tooltip>
-          <TooltipTrigger render={<p className="text-muted-foreground text-xs tabular-nums" />}>
-            {formatDayAwareTimestamp(
-              message.updatedAt,
-              ctx.timestampFormat,
-              undefined,
-              undefined,
-              m,
-            )}
-          </TooltipTrigger>
-          <TooltipPopup>
-            {formatChatTimestampTooltip(message.updatedAt, ctx.timestampFormat, m)}
-          </TooltipPopup>
-        </Tooltip>
-      )}
+      <div
+        className={cn(
+          "flex items-center gap-2 transition-opacity duration-200",
+          alwaysVisible
+            ? "opacity-100"
+            : "opacity-0 pointer-coarse:opacity-100 focus-within:opacity-100 group-hover/assistant:opacity-100",
+        )}
+      >
+        {projectedItem && projectedItem.item.status !== "completed" ? (
+          <AssistantStatusBadge status={projectedItem.item.status} />
+        ) : null}
+        <AssistantCopyButton
+          message={message}
+          showCopyButton={showCopyButton}
+          streaming={copyStreaming}
+        />
+        {projectedItem?.item.type === "assistant_message" ? (
+          <AssistantForkButton projectedItem={projectedItem} />
+        ) : null}
+        {!message.streaming && projectedItem ? (
+          <AssistantReplyButton message={message} itemId={projectedItem.sourceItemId} />
+        ) : null}
+        {!message.streaming && (
+          <Tooltip>
+            <TooltipTrigger render={<p className="text-muted-foreground text-xs tabular-nums" />}>
+              {formatDayAwareTimestamp(
+                message.updatedAt,
+                ctx.timestampFormat,
+                undefined,
+                undefined,
+                m,
+              )}
+            </TooltipTrigger>
+            <TooltipPopup>
+              {formatChatTimestampTooltip(message.updatedAt, ctx.timestampFormat, m)}
+            </TooltipPopup>
+          </Tooltip>
+        )}
+      </div>
     </div>
   );
 }
