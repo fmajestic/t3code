@@ -106,6 +106,7 @@ import { type TimestampFormat } from "@t3tools/contracts/settings";
 import { type HandoffTimelineRun } from "./V2LifecycleRow";
 import { TimelineSystemDivider } from "./TimelineSystemDivider";
 
+import { compactingLabel } from "@t3tools/client-runtime/work-log/presentation";
 import { forwardWheelToTimeline } from "./timelineMinimapWheel";
 import { TimelineMinimap } from "./TimelineMinimap";
 import {
@@ -120,6 +121,7 @@ import { TimelineRowTimestamp, ActivityShimmerOverlay } from "./TimelineRowParts
 import {
   WorkGroupSection,
   WorkingTimelineRow,
+  WorkingTimer,
   ThinkingTimelineRow,
   LiveWorkEntryTimelineRow,
   WorkGroupToggleTimelineRow,
@@ -264,6 +266,8 @@ interface MessagesTimelineProps {
   awaitingUser?: "approval" | "input" | null;
   /** Which request is waiting, so a second one of the same kind is announced too. */
   awaitingRequestId?: string | null;
+  /** Context usage while any compaction runs; null otherwise so token updates don't rerender rows. */
+  compactingTokenCount?: number | null;
   footer?: ReactNode;
 
   listRef: React.RefObject<LegendListRef | null>;
@@ -388,6 +392,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
   isCompacting = false,
   awaitingUser = null,
   awaitingRequestId = null,
+  compactingTokenCount = null,
   listRef,
   timelineEntries,
   findOpen = false,
@@ -1209,6 +1214,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
   const activityState: TimelineRowActivityState = {
     isWorking,
     isCompacting: compactionAwaitingRow,
+    compactingTokenCount,
     isRevertingCheckpoint,
     backgroundWorktreeSetup,
     awaitingUser: awaitingUser !== null,
@@ -1786,6 +1792,8 @@ function ContextCompactionTimelineRow({
   row: Extract<TimelineRow, { kind: "context-compaction" }>;
 }) {
   const gt = useGT();
+  const m = useMessages();
+  const { compactingTokenCount } = use(TimelineRowActivityCtx);
   const label =
     row.title && row.compacted
       ? row.tokenCounts
@@ -1799,7 +1807,14 @@ function ContextCompactionTimelineRow({
       ) : (
         <Minimize2Icon aria-hidden="true" className="size-3" />
       )}
-      {row.tokenCounts ? (
+      {row.runningSince ? (
+        <span>
+          <T>
+            <Var>{compactingLabel(row.runningTokenCount ?? compactingTokenCount, m)}</Var> for{" "}
+            <WorkingTimer createdAt={row.runningSince} />
+          </T>
+        </span>
+      ) : row.tokenCounts ? (
         <>
           {row.title ? (
             <T>
@@ -1814,6 +1829,7 @@ function ContextCompactionTimelineRow({
               <Var>{row.tokenCounts.after}</Var> tokens
             </T>
           )}
+          {row.duration ? ` ${gt("in {duration}", { duration: row.duration })}` : null}
         </>
       ) : (
         label

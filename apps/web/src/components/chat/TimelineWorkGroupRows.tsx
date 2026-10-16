@@ -3,6 +3,7 @@ import { WorkLogButton, WorkLogList, WorkLogRow } from "./WorkLog";
 import type { WorktreeSetupSnapshot } from "@t3tools/contracts";
 import { type ToolActivityIcon } from "@t3tools/contracts";
 import {
+  compactingLabel,
   liveThoughtLine,
   resolveViewedImageAsset,
   workEntriesViewedImagePaths,
@@ -12,7 +13,7 @@ import { useAssetUrls } from "~/assets/assetUrls";
 import { observeResize } from "~/lib/observeResize";
 import { tickTextContent } from "~/lib/tickTextContent";
 import { observeVisibleAnimation } from "../../lib/visibleAnimation";
-import { T, useGT, useMessages } from "gt-react";
+import { T, useGT, useMessages, Var } from "gt-react";
 import { memo, use, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { LegendList, type LegendListRef } from "@legendapp/list/react";
 import { workEntryDisplayIndicatesToolFailure } from "../../session-logic";
@@ -128,7 +129,7 @@ export const WorkGroupSection = memo(function WorkGroupSection({
   );
 });
 
-function WorkingTimer({ createdAt }: { createdAt: string }) {
+export function WorkingTimer({ createdAt }: { createdAt: string }) {
   const { activeThreadEnvironmentId } = use(TimelineRowCtx);
   return (
     <span
@@ -350,14 +351,14 @@ function ExpandedWorkGroupEntries({
 const workEntryKey = (entry: TimelineWorkEntry) => entry.id;
 
 export function WorkingTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "working" }> }) {
-  const { isCompacting, isPreparingWorktree, backgroundWorktreeSetup } =
+  const { isCompacting, compactingTokenCount, isPreparingWorktree, backgroundWorktreeSetup } =
     use(TimelineRowActivityCtx);
   const compacting = row.compacting === true || isCompacting;
   const shimmer = isPreparingWorktree || compacting;
   const label = isPreparingWorktree ? (
     <T>Setting up worktree…</T>
   ) : compacting ? (
-    <CompactingLabel createdAt={row.createdAt} />
+    <CompactingLabel createdAt={row.createdAt} tokenCount={compactingTokenCount} />
   ) : row.createdAt ? (
     <T>
       Working for <WorkingTimer createdAt={row.createdAt} />
@@ -423,18 +424,25 @@ function BackgroundWorktreeSetupChip({ snapshot }: { snapshot: WorktreeSetupSnap
   );
 }
 
-function CompactingLabel({ createdAt }: { createdAt: string | null }) {
+function CompactingLabel({
+  createdAt,
+  tokenCount,
+}: {
+  createdAt: string | null;
+  tokenCount: number | null;
+}) {
+  const m = useMessages();
   return (
     <span className="inline-flex items-center gap-1.5">
       <Minimize2Icon aria-hidden="true" className="size-3" />
       {createdAt ? (
         <span>
           <T>
-            Compacting for <WorkingTimer createdAt={createdAt} />
+            <Var>{compactingLabel(tokenCount, m)}</Var> for <WorkingTimer createdAt={createdAt} />
           </T>
         </span>
       ) : (
-        <T>Compacting…</T>
+        `${compactingLabel(tokenCount, m)}…`
       )}
     </span>
   );
