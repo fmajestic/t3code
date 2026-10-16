@@ -719,4 +719,243 @@ it.layer(layerProjectionStoreTest)("CheckpointCaptureServiceV2", (it) => {
       assert.deepEqual([...projected.readyCheckpointOrdinals].toSorted(), [0, 1]);
     }),
   );
+
+  const captureLateBaseline = (key: string, previousRunStatus?: "rolled_back") =>
+    Effect.gen(function* () {
+      const projectionStore = yield* ProjectionStore.ProjectionStoreV2;
+      const now = yield* DateTime.now;
+      const lateThreadId = ThreadId.make(`thread:checkpoint-capture-${key}`);
+      const lateRunId = RunId.make(`run:checkpoint-capture-${key}:2`);
+      const lateScopeId = CheckpointScopeId.make(`scope:checkpoint-capture-${key}`);
+      const lateRootNodeId = NodeId.make(`node:checkpoint-capture-${key}-root`);
+      const lateProviderThreadId = ProviderThreadId.make(
+        `provider-thread:checkpoint-capture-${key}`,
+      );
+      yield* projectionStore.apply({
+        id: EventId.make(`event:checkpoint-capture-${key}:thread`),
+        type: "thread.created",
+        threadId: lateThreadId,
+        occurredAt: now,
+        payload: {
+          createdBy: "user",
+          creationSource: "web",
+          id: lateThreadId,
+          projectId,
+          title: "Checkpoint capture after git init",
+          providerInstanceId,
+          modelSelection,
+          runtimeMode: "full-access",
+          interactionMode: "default",
+          branch: null,
+          worktreePath: null,
+          activeProviderThreadId: null,
+          lineage: {
+            parentThreadId: null,
+            relationshipToParent: null,
+            rootThreadId: lateThreadId,
+          },
+          forkedFrom: null,
+          createdAt: now,
+          updatedAt: now,
+          archivedAt: null,
+          settledOverride: null,
+          settledAt: null,
+          lastVisitedAt: null,
+          deletedAt: null,
+        },
+      });
+      // Run 1 ran before the folder was a repository, so only run 2 has refs.
+      yield* projectionStore.apply({
+        id: EventId.make(`event:checkpoint-capture-${key}:run`),
+        type: "run.updated",
+        threadId: lateThreadId,
+        runId: lateRunId,
+        nodeId: lateRootNodeId,
+        providerInstanceId,
+        occurredAt: now,
+        payload: {
+          id: lateRunId,
+          threadId: lateThreadId,
+          ordinal: 2,
+          providerInstanceId,
+          modelSelection,
+          providerThreadId: lateProviderThreadId,
+          userMessageId: MessageId.make(`message:checkpoint-capture-${key}`),
+          rootNodeId: lateRootNodeId,
+          activeAttemptId: null,
+          status: "waiting",
+          requestedAt: now,
+          startedAt: now,
+          completedAt: null,
+          checkpointId: null,
+          contextHandoffId: null,
+        },
+      });
+      yield* projectionStore.apply({
+        id: EventId.make(`event:checkpoint-capture-${key}:node`),
+        type: "node.updated",
+        threadId: lateThreadId,
+        runId: lateRunId,
+        nodeId: lateRootNodeId,
+        providerInstanceId,
+        occurredAt: now,
+        payload: {
+          id: lateRootNodeId,
+          threadId: lateThreadId,
+          runId: lateRunId,
+          parentNodeId: null,
+          rootNodeId: lateRootNodeId,
+          kind: "root_turn",
+          status: "waiting",
+          countsForRun: true,
+          providerThreadId: lateProviderThreadId,
+          providerTurnId: null,
+          nativeItemRef: null,
+          runtimeRequestId: null,
+          checkpointScopeId: lateScopeId,
+          startedAt: now,
+          completedAt: null,
+        },
+      });
+      yield* projectionStore.apply({
+        id: EventId.make(`event:checkpoint-capture-${key}:provider-thread`),
+        type: "provider-thread.updated",
+        threadId: lateThreadId,
+        nodeId: lateRootNodeId,
+        driver,
+        providerInstanceId,
+        occurredAt: now,
+        payload: {
+          id: lateProviderThreadId,
+          driver,
+          providerInstanceId,
+          providerSessionId: null,
+          appThreadId: lateThreadId,
+          ownerNodeId: lateRootNodeId,
+          nativeThreadRef: null,
+          nativeConversationHeadRef: null,
+          status: "idle",
+          firstRunOrdinal: 1,
+          lastRunOrdinal: 2,
+          handoffIds: [],
+          forkedFrom: null,
+          createdAt: now,
+          updatedAt: now,
+        },
+      });
+      yield* projectionStore.apply({
+        id: EventId.make(`event:checkpoint-capture-${key}:scope`),
+        type: "checkpoint-scope.created",
+        threadId: lateThreadId,
+        runId: lateRunId,
+        nodeId: lateRootNodeId,
+        occurredAt: now,
+        payload: {
+          id: lateScopeId,
+          threadId: lateThreadId,
+          runId: lateRunId,
+          nodeId: lateRootNodeId,
+          parentScopeId: null,
+          providerThreadId: lateProviderThreadId,
+          kind: "root_run",
+          ordinalWithinParent: 0,
+          advancesAppRunCount: true,
+          cwd: "/repo",
+          createdAt: now,
+        },
+      });
+
+      if (previousRunStatus !== undefined) {
+        const previousRunId = RunId.make(`run:checkpoint-capture-${key}:1`);
+        yield* projectionStore.apply({
+          id: EventId.make(`event:checkpoint-capture-${key}:previous-run`),
+          type: "run.updated",
+          threadId: lateThreadId,
+          runId: previousRunId,
+          providerInstanceId,
+          occurredAt: now,
+          payload: {
+            id: previousRunId,
+            threadId: lateThreadId,
+            ordinal: 1,
+            providerInstanceId,
+            modelSelection,
+            providerThreadId: lateProviderThreadId,
+            userMessageId: MessageId.make(`message:checkpoint-capture-${key}:1`),
+            rootNodeId: NodeId.make(`node:checkpoint-capture-${key}-previous-root`),
+            activeAttemptId: null,
+            status: previousRunStatus,
+            requestedAt: now,
+            startedAt: now,
+            completedAt: now,
+            checkpointId: null,
+            contextHandoffId: null,
+          },
+        });
+      }
+      const layerCapture = CheckpointCaptureService.layer.pipe(
+        Layer.provide(
+          Layer.mergeAll(
+            IdAllocator.layer,
+            CheckpointService.layer.pipe(
+              Layer.provide(
+                Layer.mergeAll(
+                  IdAllocator.layer,
+                  NodeCrypto.layer,
+                  Layer.mock(CheckpointStore.CheckpointStore)({
+                    isGitRepository: () => Effect.succeed(true),
+                    captureCheckpoint: () => Effect.void,
+                    hasCheckpointRef: (input) =>
+                      Effect.succeed(!input.checkpointRef.endsWith("/ordinal/0")),
+                    diffCheckpoints: () => Effect.succeed(""),
+                    listAuthoredPaths: () => Effect.succeed(null),
+                  }),
+                ),
+              ),
+            ),
+            Layer.mock(EventSink.EventSinkV2)({
+              commitCommand: (input) =>
+                Effect.forEach(input.events, (event) => projectionStore.apply(event)).pipe(
+                  Effect.as({ committed: true } as never),
+                  Effect.orDie,
+                ),
+            }),
+          ),
+        ),
+      );
+      yield* CheckpointCaptureService.CheckpointCaptureServiceV2.pipe(
+        Effect.flatMap((service) =>
+          service.execute({ threadId: lateThreadId, runId: lateRunId, scopeId: lateScopeId }),
+        ),
+        Effect.provide(layerCapture),
+      );
+
+      const { checkpoints } = yield* projectionStore.getThreadRecords(lateThreadId, [
+        "checkpoints",
+      ]);
+      return checkpoints;
+    });
+
+  it.effect("gives a late baseline its run ordinal so rewinding the next run finds it", () =>
+    Effect.gen(function* () {
+      const checkpoints = yield* captureLateBaseline("late-baseline");
+      // Rewinding run 2's message targets the checkpoint whose appRunOrdinal is 1.
+      const rewindTarget = checkpoints.findLast((checkpoint) => checkpoint.appRunOrdinal === 1);
+      assert.equal(rewindTarget?.status, "ready");
+      assert.equal(rewindTarget?.ordinalWithinScope, 1);
+      const threadStart = checkpoints.find((checkpoint) => checkpoint.ordinalWithinScope === 0);
+      assert.equal(threadStart?.status, "missing");
+      assert.isNull(threadStart?.appRunOrdinal ?? null);
+    }),
+  );
+
+  it.effect("leaves a late baseline unnumbered when the previous run was rolled back", () =>
+    Effect.gen(function* () {
+      const checkpoints = yield* captureLateBaseline("late-baseline-after-rollback", "rolled_back");
+      const baseline = checkpoints.find((checkpoint) => checkpoint.ordinalWithinScope === 1);
+      assert.equal(baseline?.status, "ready");
+      assert.isNull(baseline?.appRunOrdinal ?? null);
+      assert.isFalse(checkpoints.some((checkpoint) => checkpoint.appRunOrdinal === 1));
+    }),
+  );
 });
