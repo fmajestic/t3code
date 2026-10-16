@@ -99,6 +99,10 @@ import { type HandoffTimelineRun } from "./V2LifecycleRow";
 import { TimelineSystemDivider } from "./TimelineSystemDivider";
 
 import { compactingLabel } from "@t3tools/client-runtime/work-log/presentation";
+import {
+  type RunContextGrowth,
+  runContextGrowthLabel,
+} from "@t3tools/client-runtime/run-context-growth";
 import { forwardWheelToTimeline } from "./timelineMinimapWheel";
 import { TimelineMinimap } from "./TimelineMinimap";
 import {
@@ -252,6 +256,7 @@ interface MessagesTimelineProps {
   detailBehindShell?: boolean;
   runningRunId?: RunId | null;
   turnDiffSummaries: ReadonlyArray<TurnDiffSummary>;
+  contextGrowthByRunId?: ReadonlyMap<RunId, RunContextGrowth>;
   routeThreadKey: string;
   displayThreadKey?: string;
   /** Off where another region already speaks the thread's status, like a subagent's bar. */
@@ -367,6 +372,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
   detailBehindShell = false,
   runningRunId = null,
   turnDiffSummaries,
+  contextGrowthByRunId,
   routeThreadKey,
   displayThreadKey,
   announceTurnStatus = true,
@@ -680,6 +686,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
     runlessWorkActive,
     activeTurnStartedAt,
     turnDiffSummaries,
+    ...(contextGrowthByRunId === undefined ? {} : { contextGrowthByRunId }),
     supportsConversationRollback,
     threadStartCheckpointReady,
     availableRevertTurnCounts,
@@ -1669,6 +1676,11 @@ function TurnFoldTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "turn-
           </span>
           <MorphIcon className="size-3.5" icon={row.expanded ? ChevronDown : ChevronRight} />
         </button>
+        {row.contextGrowth ? (
+          <span className="text-sm leading-relaxed text-muted-foreground tabular-nums">
+            {runContextGrowthLabel(row.contextGrowth)}
+          </span>
+        ) : null}
         <TimelineRowTimestamp
           createdAt={row.createdAt}
           timestampFormat={ctx.timestampFormat}
