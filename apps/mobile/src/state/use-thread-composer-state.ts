@@ -359,6 +359,15 @@ export function useThreadComposerState() {
   // A stop or a restart holds the queue, completion wakes included, until it
   // is resumed; the queue sheet lists only the user's own messages.
   const queueHeld = queueWorkflow?.isHeld === true;
+  const compactingTokenCount = (() => {
+    const projection = selectedThreadProjection?.projection;
+    if (!isCompacting || !projection) return null;
+    return (
+      projection.providerThreads.find(
+        (thread) => thread.id === projection.thread.activeProviderThreadId,
+      )?.contextUsage?.usedTokens ?? null
+    );
+  })();
 
   const runlessWorkStartedAt = selectedThreadProjection
     ? deriveRunlessWorkStartedAt(selectedThreadProjection.projection)
@@ -739,6 +748,7 @@ export function useThreadComposerState() {
     runlessWorkActive,
     providerSubagentStatus,
     isCompacting,
+    compactingTokenCount,
     composerDraftKey,
     followUpBehavior,
     canSteerActiveTurn,

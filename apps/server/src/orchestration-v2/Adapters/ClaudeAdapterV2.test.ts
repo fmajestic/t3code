@@ -6244,7 +6244,12 @@ describe("ClaudeAdapterV2 background wake turns", () => {
           claudeSdkFrame({
             type: "system",
             subtype: "compact_boundary",
-            compact_metadata: { trigger: "manual", pre_tokens: 1500, post_tokens: 400 },
+            compact_metadata: {
+              trigger: "manual",
+              pre_tokens: 1500,
+              post_tokens: 400,
+              duration_ms: 15_550,
+            },
             uuid: "00000000-0000-4000-8000-000000000201",
             session_id: WAKE_NATIVE_SESSION,
           }),
@@ -6267,6 +6272,13 @@ describe("ClaudeAdapterV2 background wake turns", () => {
           assert.equal(compaction.turnItem.beforeTokenCount, 1500);
           assert.equal(compaction.turnItem.afterTokenCount, 400);
           assert.equal(compaction.turnItem.status, "completed");
+          const { startedAt, completedAt } = compaction.turnItem;
+          assert.equal(
+            completedAt && startedAt
+              ? DateTime.toEpochMillis(completedAt) - DateTime.toEpochMillis(startedAt)
+              : null,
+            15_550,
+          );
         }
         const watermark = harness.events.find(
           (event) =>

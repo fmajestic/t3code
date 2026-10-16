@@ -1440,6 +1440,11 @@ export default function ChatView(props: ChatViewProps) {
     activeThreadLiveTokenUsage,
     activeProviderThread,
   );
+  const hasRunningCompaction = serverVisibleTurnItems.some(
+    ({ item }) => item.type === "compaction" && item.status === "running",
+  );
+  const compactingTokenCount =
+    isCompacting || hasRunningCompaction ? (activeContextWindow?.usedTokens ?? null) : null;
   const pendingBackgroundTasks = deriveThreadPendingBackgroundTasks(serverProjection);
   const activeWorkStartedAt =
     deriveActiveWorkStartedAt(activeActivityRun, activeRuntime, localDispatchStartedAt) ??
@@ -3321,6 +3326,7 @@ export default function ChatView(props: ChatViewProps) {
                 isWorking={isWorking}
                 runlessWorkActive={runlessWorkStartedAt !== null}
                 isCompacting={isCompacting}
+                compactingTokenCount={compactingTokenCount}
                 awaitingUser={
                   activePendingApproval !== null
                     ? "approval"

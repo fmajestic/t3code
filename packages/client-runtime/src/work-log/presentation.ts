@@ -9,6 +9,7 @@ import {
   type OrchestrationV2TurnItem,
   type ThreadId,
 } from "@t3tools/contracts";
+import * as DateTime from "effect/DateTime";
 import {
   resolveT3McpSummaryAction,
   resolveT3McpToolDefinition,
@@ -20,6 +21,7 @@ import { resolveMediaSource } from "@t3tools/client-runtime/media-source";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { isWorkspaceImagePreviewPath } from "@t3tools/shared/mediaPreview";
 import { formatTokens } from "@t3tools/shared/usageFormat";
+import { formatDuration } from "@t3tools/shared/orchestrationTiming";
 import { classifyToolActivity } from "@t3tools/shared/toolActivity";
 import { toolOutputIndicatesFailure } from "@t3tools/shared/toolOutput";
 
@@ -50,13 +52,17 @@ export function toolItemForDisplay(item: OrchestrationV2TurnItem): Orchestration
   }
 }
 
+export function compactingLabel(tokenCount: number | null | undefined): string {
+  return tokenCount ? `Compacting ${formatTokens(tokenCount)} tokens` : "Compacting context";
+}
+
 type CompactionLabelItem = Pick<
   Extract<OrchestrationV2TurnItem, { type: "compaction" }>,
-  "status" | "beforeTokenCount" | "afterTokenCount"
+  "status" | "beforeTokenCount" | "afterTokenCount" | "startedAt" | "completedAt"
 >;
 
 export function contextCompactionTokenCounts(
-  item: CompactionLabelItem,
+  item: Pick<CompactionLabelItem, "status" | "beforeTokenCount" | "afterTokenCount">,
 ): { readonly before: string; readonly after: string } | null {
   if (
     item.status === "running" ||
@@ -68,15 +74,27 @@ export function contextCompactionTokenCounts(
   return { before: formatTokens(item.beforeTokenCount), after: formatTokens(item.afterTokenCount) };
 }
 
+export function contextCompactionDuration(
+  item: Pick<CompactionLabelItem, "startedAt" | "completedAt">,
+): string | null {
+  const durationMs =
+    item.startedAt !== null && item.completedAt !== null
+      ? DateTime.toEpochMillis(item.completedAt) - DateTime.toEpochMillis(item.startedAt)
+      : 0;
+  // Adapters that never observe the start stamp startedAt = completedAt.
+  return durationMs >= 1_000 ? formatDuration(durationMs) : null;
+}
+
 export function contextCompactionLabel(item: CompactionLabelItem): string {
   if (item.status === "failed") return "Context compaction failed";
   if (item.status === "cancelled" || item.status === "interrupted")
     return "Context compaction stopped";
-  if (isOrchestrationV2WorkActive(item.status)) return "Compacting context";
+  if (isOrchestrationV2WorkActive(item.status)) return compactingLabel(item.beforeTokenCount);
   const tokens = contextCompactionTokenCounts(item);
-  return tokens
-    ? `Context compacted ${tokens.before} → ${tokens.after} tokens`
-    : "Context compacted";
+  const duration = contextCompactionDuration(item);
+  return `Context compacted${tokens ? ` ${tokens.before} → ${tokens.after} tokens` : ""}${
+    duration ? ` in ${duration}` : ""
+  }`;
 }
 
 export interface WorkLogPresentationEntry {

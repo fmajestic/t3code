@@ -8471,6 +8471,13 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
               typeof postTokens === "number" && Number.isFinite(postTokens) && postTokens > 0
                 ? Math.round(postTokens)
                 : undefined;
+            const rawDurationMs = message.compact_metadata.duration_ms;
+            const durationMs =
+              typeof rawDurationMs === "number" &&
+              Number.isFinite(rawDurationMs) &&
+              rawDurationMs > 0
+                ? Math.round(rawDurationMs)
+                : undefined;
             if (afterTokenCount !== undefined) {
               const maxTokens = claudeContextWindow(context.input.modelSelection);
               yield* emitProviderEvent({
@@ -8510,6 +8517,11 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
                 ...compaction,
                 status: "completed",
                 title: "Context compacted",
+                // A compaction whose status event was missed only learns its length here.
+                startedAt:
+                  context.compaction === null && durationMs !== undefined
+                    ? DateTime.subtract(now, { milliseconds: durationMs })
+                    : compaction.startedAt,
                 completedAt: compaction.completedAt ?? now,
                 updatedAt: now,
                 ...(message.compact_metadata.pre_tokens === undefined

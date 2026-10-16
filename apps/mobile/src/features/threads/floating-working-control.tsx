@@ -1,4 +1,5 @@
 import type { SubagentPillSegment } from "@t3tools/client-runtime/state/thread-subagents";
+import { compactingLabel } from "@t3tools/client-runtime/work-log/presentation";
 import { formatDuration } from "@t3tools/shared/orchestrationTiming";
 import { GlassContainer, GlassView } from "expo-glass-effect";
 import { type ReactNode, useEffect, useRef, useState } from "react";
@@ -354,7 +355,11 @@ export function FloatingWorkingControl(props: {
   );
 }
 
-function CompactingLabel(props: { readonly onLayout: (event: LayoutChangeEvent) => void }) {
+function CompactingLabel(props: {
+  readonly startedAt: string | null;
+  readonly tokenCount: number | null;
+  readonly onLayout: (event: LayoutChangeEvent) => void;
+}) {
   return (
     <StatusLabelRow accessibilityLabel="Compacting" className="gap-1.5" onLayout={props.onLayout}>
       <SymbolView
@@ -363,7 +368,13 @@ function CompactingLabel(props: { readonly onLayout: (event: LayoutChangeEvent) 
         tintColorClassName="foreground"
         type="monochrome"
       />
-      <Text className="font-t3-medium text-xs text-foreground">Compacting…</Text>
+      {props.startedAt ? (
+        <CompactingTimer startedAt={props.startedAt} tokenCount={props.tokenCount} />
+      ) : (
+        <Text className="font-t3-medium text-xs text-foreground">
+          {compactingLabel(props.tokenCount)}…
+        </Text>
+      )}
     </StatusLabelRow>
   );
 }
@@ -388,7 +399,14 @@ function FloatingStatusLabel(props: {
     );
   }
   if (props.status.kind === "compacting") {
-    return <CompactingLabel key="compacting" onLayout={props.onLayout} />;
+    return (
+      <CompactingLabel
+        key="compacting"
+        startedAt={props.status.startedAt}
+        tokenCount={props.status.tokenCount}
+        onLayout={props.onLayout}
+      />
+    );
   }
   if (props.status.kind === "child-input") {
     return (
@@ -597,6 +615,22 @@ function WorkingTimer(props: { readonly startedAt: string }) {
       style={{ fontVariant: ["tabular-nums"], fontWeight: "500" }}
     >
       Working {formatWorkingDuration(props.startedAt, nowMs)}
+    </SystemText>
+  );
+}
+
+function CompactingTimer(props: {
+  readonly startedAt: string;
+  readonly tokenCount: number | null;
+}) {
+  const nowMs = useVisibleSecondClock(true);
+  return (
+    <SystemText
+      className="shrink text-xs text-foreground"
+      numberOfLines={1}
+      style={{ fontVariant: ["tabular-nums"], fontWeight: "500" }}
+    >
+      {compactingLabel(props.tokenCount)} for {formatWorkingDuration(props.startedAt, nowMs)}
     </SystemText>
   );
 }

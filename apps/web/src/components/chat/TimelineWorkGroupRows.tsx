@@ -2,7 +2,7 @@ import { TimelinePendingApprovalRow } from "./TimelinePendingApprovalRow";
 import { WorkLogButton, WorkLogList, WorkLogRow } from "./WorkLog";
 import type { WorktreeSetupSnapshot } from "@t3tools/contracts";
 import { type ToolActivityIcon } from "@t3tools/contracts";
-import { liveThoughtLine } from "@t3tools/client-runtime/work-log/presentation";
+import { compactingLabel, liveThoughtLine } from "@t3tools/client-runtime/work-log/presentation";
 import { resolveWorkGroupScrollAnchor } from "@t3tools/client-runtime/work-log/scroll-anchor";
 import { observeResize } from "~/lib/observeResize";
 import { tickTextContent } from "~/lib/tickTextContent";
@@ -110,7 +110,7 @@ export const WorkGroupSection = memo(function WorkGroupSection({
   );
 });
 
-function WorkingTimer({ createdAt }: { createdAt: string }) {
+export function WorkingTimer({ createdAt }: { createdAt: string }) {
   return (
     <span
       ref={tickTextContent(() => formatWorkingTimerNow(createdAt), true)}
@@ -275,14 +275,14 @@ function ExpandedWorkGroupEntries({
 const workEntryKey = (entry: TimelineWorkEntry) => entry.id;
 
 export function WorkingTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "working" }> }) {
-  const { isCompacting, isPreparingWorktree, backgroundWorktreeSetup } =
+  const { isCompacting, compactingTokenCount, isPreparingWorktree, backgroundWorktreeSetup } =
     use(TimelineRowActivityCtx);
   const compacting = row.compacting === true || isCompacting;
   const shimmer = isPreparingWorktree || compacting;
   const label = isPreparingWorktree ? (
     "Setting up worktree…"
   ) : compacting ? (
-    <CompactingLabel createdAt={row.createdAt} />
+    <CompactingLabel createdAt={row.createdAt} tokenCount={compactingTokenCount} />
   ) : row.createdAt ? (
     <>
       Working for <WorkingTimer createdAt={row.createdAt} />
@@ -342,16 +342,22 @@ function BackgroundWorktreeSetupChip({ snapshot }: { snapshot: WorktreeSetupSnap
   );
 }
 
-function CompactingLabel({ createdAt }: { createdAt: string | null }) {
+function CompactingLabel({
+  createdAt,
+  tokenCount,
+}: {
+  createdAt: string | null;
+  tokenCount: number | null;
+}) {
   return (
     <span className="inline-flex items-center gap-1.5">
       <Minimize2Icon aria-hidden="true" className="size-3" />
       {createdAt ? (
         <span>
-          Compacting for <WorkingTimer createdAt={createdAt} />
+          {compactingLabel(tokenCount)} for <WorkingTimer createdAt={createdAt} />
         </span>
       ) : (
-        "Compacting…"
+        `${compactingLabel(tokenCount)}…`
       )}
     </span>
   );
