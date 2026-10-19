@@ -273,11 +273,19 @@ describe("threadWokeAt", () => {
 });
 
 describe("resolveSnoozePresets", () => {
+  it("puts one day out at the same local time on the next calendar day", () => {
+    const presets = resolveSnoozePresets(localDate(2026, 3, 7, 23, 30));
+    expect(presets.find((preset) => preset.id === "day")?.snoozedUntil).toBe(
+      localDate(2026, 3, 8, 23, 30).toISOString(),
+    );
+  });
+
   it("drops the evening choice once evening is near or past", () => {
     expect(resolveSnoozePresets(localDate(2026, 4, 8, 17, 30)).map((preset) => preset.id)).toEqual([
       "hour",
       "three-hours",
       "tomorrow",
+      "day",
       "next-week",
     ]);
   });
@@ -289,6 +297,7 @@ describe("resolveSnoozePresets", () => {
       "three-hours",
       "evening",
       "tomorrow",
+      "day",
     ]);
     const tomorrow = new Date(presets.find((preset) => preset.id === "tomorrow")!.snoozedUntil);
     expect(tomorrow.getDay()).toBe(1);

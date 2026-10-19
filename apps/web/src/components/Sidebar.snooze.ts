@@ -24,7 +24,7 @@ export function resolveSnoozePresets(
     return {
       ...preset,
       whenLabel:
-        preset.id === "next-week"
+        preset.id === "day" || preset.id === "next-week"
           ? `${getDateTimeFormatter({ weekday: "short" }).format(wake)} ${time}`
           : time,
     };
