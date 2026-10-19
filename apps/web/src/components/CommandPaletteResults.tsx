@@ -25,6 +25,7 @@ import { ThreadSearchMatchExcerpt } from "./ThreadSearchMatch";
 
 interface CommandPaletteResultsProps {
   emptyStateMessage?: string;
+  showSearchEverythingHint?: boolean;
   groups: ReadonlyArray<CommandPaletteGroup>;
   highlightedItemValue?: string | null;
   isActionsOnly: boolean;
@@ -32,13 +33,24 @@ interface CommandPaletteResultsProps {
   onExecuteItem: (item: CommandPaletteActionItem | CommandPaletteSubmenuItem) => void;
 }
 
-function CommandPaletteEmptyState(props: { emptyStateMessage?: string; isActionsOnly: boolean }) {
+function CommandPaletteEmptyState(props: {
+  emptyStateMessage?: string;
+  showSearchEverythingHint?: boolean;
+  isActionsOnly: boolean;
+  keybindings: ResolvedKeybindingsConfig;
+}) {
+  const searchEverythingShortcut = props.showSearchEverythingHint
+    ? shortcutLabelForCommand(props.keybindings, "commandPalette.toggle")
+    : null;
   return (
     <div className="py-10 text-center text-sm text-muted-foreground">
       {props.emptyStateMessage ??
         (props.isActionsOnly
           ? "No matching actions."
           : "No matching commands, projects, or threads.")}
+      {searchEverythingShortcut ? (
+        <div className="mt-1 text-xs">Search everything with {searchEverythingShortcut}</div>
+      ) : null}
     </div>
   );
 }

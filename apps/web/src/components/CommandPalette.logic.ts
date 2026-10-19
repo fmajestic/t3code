@@ -167,6 +167,7 @@ export interface CommandPaletteSubmenuItem extends CommandPaletteItem {
   readonly addonIcon: ReactNode;
   readonly groups: ReadonlyArray<CommandPaletteGroup>;
   readonly initialQuery?: string;
+  readonly searchNoun?: string;
 }
 
 export interface CommandPaletteGroup {
@@ -179,6 +180,8 @@ export interface CommandPaletteView {
   readonly addonIcon: ReactNode;
   readonly groups: ReadonlyArray<CommandPaletteGroup>;
   readonly initialQuery?: string;
+  /** Plural name of what the view lists, e.g. "projects", for its placeholder and empty state. */
+  readonly searchNoun?: string;
 }
 
 // Child search unmounts the palette; retain search data without its view closures.
@@ -670,14 +673,17 @@ export function buildRootGroups(input: {
   return groups;
 }
 
-export function getCommandPaletteInputPlaceholder(mode: CommandPaletteMode): string {
+export function getCommandPaletteInputPlaceholder(
+  mode: CommandPaletteMode,
+  searchNoun?: string,
+): string {
   switch (mode) {
     case "root":
       return "Search commands, projects, and threads...";
     case "root-browse":
       return "Enter project path (e.g. ~/projects/my-app)";
     case "submenu":
-      return "Search...";
+      return searchNoun ? `Search ${searchNoun}...` : "Search...";
     case "submenu-browse":
       return "Enter path (e.g. ~/projects/my-app)";
   }
