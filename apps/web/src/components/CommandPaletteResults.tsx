@@ -4,7 +4,7 @@ import { type ResolvedKeybindingsConfig } from "@t3tools/contracts";
 import { LegendList, type LegendListRef } from "@legendapp/list/react";
 import { ChevronRightIcon } from "lucide-react";
 import { type ReactNode, type RefObject, useState } from "react";
-import { T } from "gt-react";
+import { T, Var } from "gt-react";
 import { cn } from "~/lib/utils";
 import { textDirection } from "~/textDirection";
 import { shortcutLabelForCommand } from "../keybindings";
@@ -30,6 +30,7 @@ import { SearchMatchHintLine, ThreadSearchMatchExcerpt } from "./ThreadSearchMat
 
 interface CommandPaletteResultsProps {
   emptyStateMessage?: string;
+  showSearchEverythingHint?: boolean;
   groups: ReadonlyArray<CommandPaletteGroup>;
   highlightedItemValue?: string | null;
   isActionsOnly: boolean;
@@ -37,7 +38,15 @@ interface CommandPaletteResultsProps {
   onExecuteItem: (item: CommandPaletteActionItem | CommandPaletteSubmenuItem) => void;
 }
 
-function CommandPaletteEmptyState(props: { emptyStateMessage?: string; isActionsOnly: boolean }) {
+function CommandPaletteEmptyState(props: {
+  emptyStateMessage?: string;
+  showSearchEverythingHint?: boolean;
+  isActionsOnly: boolean;
+  keybindings: ResolvedKeybindingsConfig;
+}) {
+  const searchEverythingShortcut = props.showSearchEverythingHint
+    ? shortcutLabelForCommand(props.keybindings, "commandPalette.toggle")
+    : null;
   return (
     <div className="py-10 text-center text-sm text-muted-foreground">
       {props.emptyStateMessage ??
@@ -46,6 +55,13 @@ function CommandPaletteEmptyState(props: { emptyStateMessage?: string; isActions
         ) : (
           <T>No matching commands, projects, or threads.</T>
         ))}
+      {searchEverythingShortcut ? (
+        <div className="mt-1 text-xs">
+          <T>
+            Search everything with <Var>{searchEverythingShortcut}</Var>
+          </T>
+        </div>
+      ) : null}
     </div>
   );
 }
