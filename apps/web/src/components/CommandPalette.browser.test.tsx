@@ -17,7 +17,7 @@ describe("CommandPalette open intents", () => {
 
     openCommandPalette({ open: "new-thread-in" });
 
-    await expect.element(page.getByPlaceholder("Search...")).toHaveFocus();
+    await expect.element(page.getByPlaceholder("Search projects...")).toHaveFocus();
   });
 
   it("opens a search intent with its query in the focused input", async () => {
