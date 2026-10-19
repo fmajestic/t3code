@@ -136,7 +136,7 @@ describe("CommandPalette open intents", () => {
 
     openCommandPalette({ open: "new-thread-in" });
 
-    await expect.element(page.getByPlaceholder("Search...")).toHaveFocus();
+    await expect.element(page.getByPlaceholder("Search projects...")).toHaveFocus();
   });
 
   it("highlights the first project when New thread in... opens from the root list", async () => {
@@ -167,7 +167,7 @@ describe("CommandPalette open intents", () => {
       .toHaveAttribute("data-highlighted");
     await userEvent.keyboard("{Enter}");
 
-    await expect.element(page.getByPlaceholder("Search...")).toHaveFocus();
+    await expect.element(page.getByPlaceholder("Search projects...")).toHaveFocus();
     await expect.element(page.getByRole("option").first()).toHaveAttribute("data-highlighted");
     await expect.element(page.getByRole("option").nth(1)).not.toHaveAttribute("data-highlighted");
   });
@@ -296,7 +296,7 @@ describe("CommandPalette open intents", () => {
     await using _screen = await render(<CommandPalette>{null}</CommandPalette>);
 
     openCommandPalette({ open: "new-thread-in" });
-    await userEvent.fill(page.getByPlaceholder("Search..."), "li");
+    await userEvent.fill(page.getByPlaceholder("Search projects..."), "li");
     await expect.element(page.getByRole("option", { name: /server/ })).not.toBeInTheDocument();
     await expect.element(page.getByRole("option", { name: /lima/ })).toMatchTextContent("Ctrl+1");
     await userEvent.keyboard("{Control>}1{/Control}");
@@ -322,7 +322,7 @@ describe("CommandPalette open intents", () => {
       .toHaveAttribute("data-highlighted");
     await userEvent.keyboard("{Enter}");
 
-    const submenuInput = page.getByPlaceholder("Search...");
+    const submenuInput = page.getByPlaceholder("Search projects...");
     await expect.element(submenuInput).toHaveFocus();
 
     for (const init of [

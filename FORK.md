@@ -20,6 +20,7 @@ None right now.
 - **Compaction shows tokens and time**: while compacting, the thread reads "Compacting 436K tokens for 12s", and the finished line adds how long it took, as in "Context compacted 436K → 19.3K tokens in 16s". Claude's auto-compaction shows no token count until it finishes. The running count and timer are web only.
 - **Context growth per turn**: each finished turn shows how much it grew the context window, after "Worked for" or beside the response's copy button, as in "+43.7K context", or "context reset to 48K" when it shrank. A turn shows nothing when the turn before it reported no usage, or when the provider doesn't report usage at all, as with Cursor, Grok and Antigravity.
 - **Rewind threads without a project**: each new thread without a project starts in a fresh Git repository, so its turns are checkpointed, show their diffs, and can be rewound, files included. When any thread's folder becomes a Git repository partway through, by `git init` or Initialize Git, every message you send after that can be rewound. Messages from before the init rewind only the conversation, as upstream does in any folder without Git since [#18379](https://github.com/pingdotgg/t3code/pull/18379).
+- **Project picker says what it searches**: the project picker from Cmd+Shift+O (Ctrl+Shift+O) reads "Search projects...", says "No matching projects." when nothing matches, and Cmd+K (Ctrl+K) there searches everything for what you typed.
 
 ## Fork only
 

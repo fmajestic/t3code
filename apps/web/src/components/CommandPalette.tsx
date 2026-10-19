@@ -320,6 +320,7 @@ function openIntentView(
       return {
         addonIcon: <SquarePenIcon className={ADDON_ICON_CLASS} />,
         groups: [{ value: NEW_THREAD_IN_GROUP, label: resolve(msg("Projects")), items: [] }],
+        searchNoun: resolve(msg("projects")),
       };
     case "change-theme":
       return {
@@ -1421,6 +1422,7 @@ function OpenCommandPaletteDialog(props: {
       icon: <SquarePenIcon className={ITEM_ICON_CLASS} />,
       addonIcon: <SquarePenIcon className={ADDON_ICON_CLASS} />,
       groups: [{ value: NEW_THREAD_IN_GROUP, label: gt("Projects"), items: projectThreadItems }],
+      searchNoun: gt("projects"),
     });
   }
 
@@ -2619,7 +2621,7 @@ function OpenCommandPaletteDialog(props: {
     newProjectFlow !== null
       ? gt("Project name")
       : (remoteProjectInputPlaceholder(addProjectCloneFlow, messages) ??
-        getCommandPaletteInputPlaceholder(paletteMode, messages));
+        getCommandPaletteInputPlaceholder(paletteMode, messages, currentView?.searchNoun));
   const isSubmenu = paletteMode === "submenu" || paletteMode === "submenu-browse";
   const hasHighlightedBrowseItem = highlightedItemValue?.startsWith("browse:") ?? false;
   const canWriteSourceControl = useEnvironmentScope(
@@ -2803,6 +2805,16 @@ function OpenCommandPaletteDialog(props: {
       } else {
         void handleAddProject(resolvedAddProjectPath);
       }
+      return;
+    }
+
+    if (command === "commandPalette.toggle" && paletteMode === "submenu") {
+      event.preventDefault();
+      event.stopPropagation();
+      browseNavigation.invalidate();
+      dispatchSearch({ type: "reset", query });
+      highlightClearedRef.current = true;
+      setHighlightedItemValue(null);
       return;
     }
 
@@ -3229,7 +3241,14 @@ function OpenCommandPaletteDialog(props: {
                     ? { emptyStateMessage: gt("Searching thread messages…") }
                     : isThreadSearchFailed
                       ? { emptyStateMessage: gt("Couldn't search thread messages.") }
-                      : {})}
+                      : paletteMode === "submenu"
+                        ? {
+                            emptyStateMessage: currentView?.searchNoun
+                              ? gt("No matching {noun}.", { noun: currentView.searchNoun })
+                              : gt("No matches."),
+                            showSearchEverythingHint: true,
+                          }
+                        : {})}
         />
       </CommandPaletteThreadQueryContext>
     </CommandPaletteContent>
