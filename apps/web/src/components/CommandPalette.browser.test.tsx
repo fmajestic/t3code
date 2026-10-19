@@ -87,7 +87,7 @@ describe("CommandPalette open intents", () => {
 
     openCommandPalette({ open: "new-thread-in" });
 
-    await expect.element(page.getByPlaceholder("Search...")).toHaveFocus();
+    await expect.element(page.getByPlaceholder("Search projects...")).toHaveFocus();
   });
 
   it("highlights the first project when New thread in... opens from the root list", async () => {

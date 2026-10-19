@@ -292,6 +292,7 @@ function openIntentView(intent: CommandPaletteOpenIntent | null): CommandPalette
       return {
         addonIcon: <SquarePenIcon className={ADDON_ICON_CLASS} />,
         groups: [{ value: NEW_THREAD_IN_GROUP, label: "Projects", items: [] }],
+        searchNoun: "projects",
       };
     case "change-theme":
       return {
@@ -1327,6 +1328,7 @@ function OpenCommandPaletteDialog(props: {
       icon: <SquarePenIcon className={ITEM_ICON_CLASS} />,
       addonIcon: <SquarePenIcon className={ADDON_ICON_CLASS} />,
       groups: [{ value: NEW_THREAD_IN_GROUP, label: "Projects", items: projectThreadItems }],
+      searchNoun: "projects",
     });
   }
 
@@ -2466,7 +2468,7 @@ function OpenCommandPaletteDialog(props: {
     newProjectFlow !== null
       ? "Project name"
       : (remoteProjectInputPlaceholder(addProjectCloneFlow) ??
-        getCommandPaletteInputPlaceholder(paletteMode));
+        getCommandPaletteInputPlaceholder(paletteMode, currentView?.searchNoun));
   const isSubmenu = paletteMode === "submenu" || paletteMode === "submenu-browse";
   const hasHighlightedBrowseItem = highlightedItemValue?.startsWith("browse:") ?? false;
   const canWriteSourceControl = useEnvironmentScope(
@@ -2650,6 +2652,16 @@ function OpenCommandPaletteDialog(props: {
       } else {
         void handleAddProject(resolvedAddProjectPath);
       }
+      return;
+    }
+
+    if (command === "commandPalette.toggle" && paletteMode === "submenu") {
+      event.preventDefault();
+      event.stopPropagation();
+      browseNavigation.invalidate();
+      dispatchSearch({ type: "reset", query });
+      highlightClearedRef.current = true;
+      setHighlightedItemValue(null);
       return;
     }
 
@@ -3062,7 +3074,14 @@ function OpenCommandPaletteDialog(props: {
                   }
                 : isThreadSearchPending
                   ? { emptyStateMessage: "Searching thread messages…" }
-                  : {})}
+                  : paletteMode === "submenu"
+                    ? {
+                        emptyStateMessage: currentView?.searchNoun
+                          ? `No matching ${currentView.searchNoun}.`
+                          : "No matches.",
+                        showSearchEverythingHint: true,
+                      }
+                    : {})}
       />
     </CommandPaletteContent>
   );
