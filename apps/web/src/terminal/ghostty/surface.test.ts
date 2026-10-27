@@ -396,6 +396,23 @@ describe("GhosttyTerminalSurface visibility", () => {
     );
   }
 
+  it.each(["typing", "pasting"])("returns to the prompt from scrollback when %s", async (via) => {
+    vi.stubGlobal("navigator", { platform: "Linux x86_64" });
+    const harness = createHarness();
+    const surface = await harness.create({ beforeKey: () => true });
+    surface.write(Array.from({ length: 200 }, (_, index) => `line ${index}`).join("\r\n"));
+    harness.canvas.dispatchEvent(
+      Object.assign(new Event("wheel", { cancelable: true }), { deltaY: -10, deltaMode: 1 }),
+    );
+    expect(surface.isAtBottom()).toBe(false);
+
+    if (via === "typing") key(surface, "a", "KeyA");
+    else paste(surface, "echo hi");
+
+    expect(harness.onData).toHaveBeenCalledTimes(1);
+    expect(surface.isAtBottom()).toBe(true);
+  });
+
   it.each(["native", "clipboard"])("pastes once when %s arrives first", async (first) => {
     const harness = createHarness();
     const read = Promise.resolve("echo hi");

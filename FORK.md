@@ -24,6 +24,7 @@ Each of these is meant to be dropped once upstream has it, through its own PR or
 - **Context growth per turn**: each finished turn shows how much it grew the context window, after "Worked for" or beside the response's copy button, as in "+43.7K context", or "context reset to 48K" when it shrank. A turn shows nothing when the turn before it reported no usage, or when the provider doesn't report usage at all, as with Cursor, Grok and Antigravity.
 - **Rewind threads without a project**: each new thread without a project starts in a fresh Git repository, so its turns are checkpointed, show their diffs, and can be rewound, files included. When any thread's folder becomes a Git repository partway through, by `git init` or Initialize Git, every message you send after that can be rewound. Messages from before the init cannot.
 - **Project picker says what it searches**: the project picker from Cmd+Shift+O (Ctrl+Shift+O) reads "Search projects...", says "No matching projects." when nothing matches, and Cmd+K (Ctrl+K) there searches everything for what you typed.
+- **Typing returns the terminal to the prompt**: typing or pasting in the integrated terminal while scrolled up in its history scrolls back down to the prompt, as Ghostty does. Upstream closed the same fix, [#8762](https://github.com/pingdotgg/t3code/pull/8762), in triage for lacking a recording of the behavior.
 - **Desktop build tests inside Electron**: the Windows native probe tests pass when the suite runs from an agent inside the desktop app.
 
 ## Fork only
