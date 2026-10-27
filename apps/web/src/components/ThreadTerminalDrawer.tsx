@@ -1008,6 +1008,7 @@ function TerminalSessionViewport({
         const generation = writableSessionGeneration(session, hasTerminalWriteAccess());
         const lifecycleVersion = session.lifecycleVersion;
         if (generation === null) return;
+        if (kind !== "reply" && !terminal.isAtBottom()) terminal.scrollToBottom();
         const writeInput = terminalInputWriter(
           JSON.stringify([environmentId, threadId, terminalId]),
         );
