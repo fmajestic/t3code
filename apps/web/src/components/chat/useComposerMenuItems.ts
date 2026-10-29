@@ -296,7 +296,7 @@ export function useComposerMenuItems({
       );
       const providerSlashCommandItems = getProviderSlashCommandsForSlashMenu(
         selectedProviderSlashCommands,
-        slashMenuSkills,
+        selectedProviderSkills,
       ).map((command) => ({
         id: `provider-slash-command:${selectedProvider}:${command.name}`,
         type: "provider-slash-command" as const,
