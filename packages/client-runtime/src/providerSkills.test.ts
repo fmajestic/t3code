@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import {
   createProviderWorkspaceSnapshotRefreshAtomFamily,
   getProviderSkillsForSlashMenu,
+  getProviderSlashCommandsForSlashMenu,
   hasCompleteProviderWorkspaceSnapshot,
   resolveProviderSkillsForCwd,
   resolveProviderSlashCommandsForCwd,
@@ -91,6 +92,26 @@ describe("getProviderSkillsForSlashMenu", () => {
     ];
 
     expect(getProviderSkillsForSlashMenu(skills, true)).toEqual([enabledSkill]);
+  });
+});
+
+describe("getProviderSlashCommandsForSlashMenu", () => {
+  it("drops every skill's command form, whether or not the skill is shown", () => {
+    const skills = [
+      { name: "grill-me", path: "/u/.claude/skills/grill-me/SKILL.md", enabled: true },
+      { name: "diagram-design:profile", path: "/p/profile/SKILL.md", enabled: true },
+      { name: "triage", path: "/u/.claude/skills/triage/SKILL.md", enabled: false },
+    ];
+    const slashCommands = [
+      { name: "compact" },
+      { name: "grill-me" },
+      { name: "diagram-design:profile" },
+      { name: "triage" },
+    ];
+
+    expect(getProviderSlashCommandsForSlashMenu(slashCommands, skills)).toEqual([
+      { name: "compact" },
+    ]);
   });
 });
 
