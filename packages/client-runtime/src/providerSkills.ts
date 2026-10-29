@@ -51,11 +51,12 @@ export function getProviderSkillsForSlashMenu(
     : [];
 }
 
+/** Drops the slash-command form of every skill, so hiding skills hides that form too. */
 export function getProviderSlashCommandsForSlashMenu(
   slashCommands: ReadonlyArray<ServerProviderSlashCommand>,
-  visibleSkills: ReadonlyArray<ServerProviderSkill>,
+  skills: ReadonlyArray<ServerProviderSkill>,
 ): ServerProviderSlashCommand[] {
-  const skillNames = new Set(visibleSkills.map((skill) => skill.name.trim().toLowerCase()));
+  const skillNames = new Set(skills.map((skill) => skill.name.trim().toLowerCase()));
   return slashCommands.filter((command) => !skillNames.has(command.name.trim().toLowerCase()));
 }
 
