@@ -21,6 +21,8 @@ On macOS, Option types the characters your keyboard layout puts on it, such as
 @ with Option+L on a German keyboard. To use Option as Alt for shell shortcuts
 like Option+B, choose which Option keys act as Alt in Settings > General >
 Option as Alt in terminal.
+Cmd+. sends Esc followed by a period, which inserts the previous command's last
+argument in bash, zsh and fish, even with Option typing characters.
 
 ## fish
 

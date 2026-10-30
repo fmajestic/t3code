@@ -13,6 +13,7 @@ Each of these is meant to be dropped once upstream has it, through its own PR or
 ### Not in an upstream PR
 
 - **Option characters in the terminal**: on macOS, Option types the character the keyboard layout puts on it, such as `@` with Option+L on a German keyboard, instead of sending an Alt sequence. Settings > General > Option as Alt in terminal makes the chosen Option keys act as Alt again, for shell shortcuts like Option+B. From [#19833](https://github.com/pingdotgg/t3code/pull/19833), closed in triage while [#13046](https://github.com/pingdotgg/t3code/issues/13046) stays open.
+- **Cmd+. in the terminal**: on macOS, Cmd+. sends Esc followed by a period, the shell's insert-last-argument, so it works while Option types characters. It mirrors Ghostty's `keybind = cmd+period=esc:.`.
 - **"Continue with \<model\>" after a usage limit**: picking another model in the composer while a thread is stopped on a usage limit labels the resume button "Continue with \<model\>". Upstream merged resuming on the picked model in [#17867](https://github.com/pingdotgg/t3code/pull/17867) and closed [#16889](https://github.com/pingdotgg/t3code/pull/16889), which also had this label.
 - **Quit shortcut off**: Settings > General > Quit shortcut has an Off mode, so Ctrl+Q (Cmd+Q on macOS) reaches the terminal instead of quitting. The menu's Quit item still works.
 - **Quote user messages**: select text in a user message and choose Cite in composer, as with assistant responses.

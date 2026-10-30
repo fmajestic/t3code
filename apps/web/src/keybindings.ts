@@ -54,6 +54,7 @@ const TERMINAL_WORD_FORWARD = "\u001bf";
 const TERMINAL_LINE_START = "\u0001";
 const TERMINAL_LINE_END = "\u0005";
 const TERMINAL_DELETE_TO_LINE_START = "\u0015";
+const TERMINAL_INSERT_LAST_ARGUMENT = "\u001b.";
 function resolvePlatform(options: ShortcutMatchOptions | undefined): string {
   return options?.platform ?? navigator.platform;
 }
@@ -422,7 +423,7 @@ export function isTerminalClearShortcut(
   );
 }
 
-export function terminalDeleteShortcutData(
+export function terminalCommandKeyData(
   event: ShortcutEventLike,
   platform = navigator.platform,
 ): string | null {
@@ -434,14 +435,18 @@ export function terminalDeleteShortcutData(
     return null;
   }
 
-  const key = normalizeEventKey(event.key);
-  if (key !== "backspace") {
+  if (!event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
     return null;
   }
 
-  return event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey
-    ? TERMINAL_DELETE_TO_LINE_START
-    : null;
+  switch (normalizeEventKey(event.key)) {
+    case "backspace":
+      return TERMINAL_DELETE_TO_LINE_START;
+    case ".":
+      return TERMINAL_INSERT_LAST_ARGUMENT;
+    default:
+      return null;
+  }
 }
 
 export function terminalNavigationShortcutData(
