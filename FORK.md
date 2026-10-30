@@ -9,6 +9,7 @@ Each of these is meant to be dropped once upstream has it, through its own PR or
 ### From upstream PRs
 
 - **Cited quotes reach the agent readable**: quotes in a message are sent as quoted text with their comments, not as raw `t3-citation` links. From [#16389](https://github.com/pingdotgg/t3code/pull/16389).
+- **New threads show their conversation**: after the first message, a new thread shows the agent's work as it happens, instead of staying empty until the app restarts. From [#27452](https://github.com/pingdotgg/t3code/pull/27452), which fixes [#27443](https://github.com/pingdotgg/t3code/issues/27443), a regression from [#27252](https://github.com/pingdotgg/t3code/pull/27252).
 
 ### Not in an upstream PR
 
