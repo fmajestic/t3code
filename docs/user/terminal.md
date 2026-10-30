@@ -20,6 +20,10 @@ Jump to latest in the context menu returns to the current output.
 On iPhone and iPad, long-press the terminal to paste or to choose Select Text.
 Select Text shows the visible output, where you can copy text or tap a link.
 
+On macOS, Option types the characters your keyboard layout puts on it, such as
+@ with Option+L on a German keyboard. Cmd+. sends Esc followed by a period, which
+inserts the previous command's last argument in bash, zsh and fish.
+
 ## fish
 
 T3 Code starts fish with `no-query-term`, avoiding startup waits for terminal

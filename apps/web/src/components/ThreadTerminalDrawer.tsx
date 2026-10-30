@@ -66,7 +66,7 @@ import {
   isTerminalSplitVerticalShortcut,
   isTerminalToggleShortcut,
   isThreadNavigationShortcut,
-  terminalDeleteShortcutData,
+  terminalCommandKeyData,
   terminalNavigationShortcutData,
 } from "../keybindings";
 import {
@@ -958,11 +958,11 @@ function TerminalSessionViewport({
           return false;
         }
 
-        const deleteData = terminalDeleteShortcutData(event);
-        if (deleteData !== null) {
+        const commandKeyData = terminalCommandKeyData(event);
+        if (commandKeyData !== null) {
           event.preventDefault();
           event.stopPropagation();
-          void sendTerminalInput(deleteData, "Failed to delete terminal input");
+          void sendTerminalInput(commandKeyData, "Failed to send terminal input");
           return false;
         }
 
