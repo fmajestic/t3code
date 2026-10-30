@@ -26,6 +26,7 @@ Each of these is meant to be dropped once upstream has it, through its own PR or
 - **Typing returns the terminal to the prompt**: typing or pasting in the integrated terminal while scrolled up in its history scrolls back down to the prompt, as Ghostty does. Upstream closed the same fix, [#8762](https://github.com/pingdotgg/t3code/pull/8762), in triage for lacking a recording of the behavior.
 - **Hiding skills hides them from the slash menu**: with Settings > Chat > Show skills in slash menu off, skills no longer show up anyway as the slash commands the provider also reports them as, such as `/grill-me` from Claude.
 - **Desktop build tests inside Electron**: the Windows native probe tests pass when the suite runs from an agent inside the desktop app.
+- **Composer context row hides the timeline**: with Settings > Appearance > Composer context on, the conversation fades out above the branch and worktree row instead of scrolling through it.
 
 ## Fork only
 

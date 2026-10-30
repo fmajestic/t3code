@@ -3781,6 +3781,16 @@ export default function ChatView(props: ChatViewProps) {
                           data-terminal-open={terminalUiState.terminalOpen ? "true" : undefined}
                           className="relative z-0"
                         >
+                          {showComposerContextStrip && !isDraftHeroState ? (
+                            // The strip has no surface, so fade the timeline scrolling under it, down through the bottom spacer.
+                            <div
+                              aria-hidden
+                              className="pointer-events-none absolute inset-x-0 -top-6 -z-1 -bottom-[calc(env(safe-area-inset-bottom)+1rem)] flex flex-col sm:-bottom-[calc(env(safe-area-inset-bottom)+1.25rem)]"
+                            >
+                              <div className="h-6 shrink-0 bg-linear-to-b from-transparent to-background" />
+                              <div className="flex-1 bg-background" />
+                            </div>
+                          ) : null}
                           {showComposerContextStrip && (
                             <div className="pointer-events-auto">
                               <BranchToolbar
