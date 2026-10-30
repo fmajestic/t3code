@@ -27,6 +27,8 @@ Each terminal retains up to **5,000 lines** and **8 MiB** of scrollback on the s
 
 On iOS/iPadOS, long-press the terminal to paste or choose **Select Text**.
 
+On macOS, `Cmd+.` sends Esc followed by a period, which inserts the previous command's last argument in bash, zsh and fish.
+
 ## fish shell
 
 T3 Code launches `fish` with `no-query-term` to avoid startup delays, which overrides universal `fish_features`. To keep custom flags or re-enable `query-term`, export `fish_features` in the environment that launches T3 Code.
