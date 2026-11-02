@@ -1,4 +1,10 @@
 import { type TimestampFormat } from "@t3tools/contracts/settings";
+import {
+  createDateTimeFormatter,
+  resolveDateTimeLocale,
+  type DateTimeFormatter,
+  type DateTimeLocale,
+} from "@t3tools/shared/dateTimeLocale";
 import { msg } from "gt-react";
 
 import { DEFAULT_LOCALE } from "./i18n/locales";
@@ -24,25 +30,12 @@ function getTimestampFormatOptions(
   };
 }
 
-function resolveTimestampLocale(systemLocale: string | null | undefined): string | undefined {
-  const tag = systemLocale?.trim();
-  if (!tag) return undefined;
-
-  try {
-    // Reject structurally invalid tags; let ICU fall back for valid tags it lacks data for.
-    Intl.DateTimeFormat.supportedLocalesOf([tag]);
-    return tag;
-  } catch {
-    return undefined;
-  }
-}
-
 function readHostSystemLocale(): string | null {
   if (typeof window === "undefined") return null;
   return window.desktopBridge?.getSystemLocale() ?? null;
 }
 
-const timestampLocale = resolveTimestampLocale(readHostSystemLocale());
+const timestampLocale = resolveDateTimeLocale(readHostSystemLocale());
 
 const WEEKDAY_INDEXES = [0, 1, 2, 3, 4, 5, 6] as const;
 type WeekdayIndex = (typeof WEEKDAY_INDEXES)[number];
@@ -70,7 +63,7 @@ function resolveWeekStartsOn(locale: string | undefined): WeekdayIndex | undefin
   }
 }
 
-export const weekStartsOn = resolveWeekStartsOn(timestampLocale);
+export const weekStartsOn = resolveWeekStartsOn(timestampLocale.shape);
 
 // A formatter keeps the default zone it was built in, so default-zone formatters run in UTC
 // on the wall-clock time, which Date reads from the current zone.
@@ -78,25 +71,50 @@ function wallClockAsUtc(date: Date): Date {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
 }
 
-const timestampFormatterCache = new Map<string, Intl.DateTimeFormat>();
+/** An explicit app-language locale formats wholly in that language instead of the host region. */
+function withLocaleOverride(localeOverride: string | undefined): DateTimeLocale {
+  return localeOverride === undefined
+    ? timestampLocale
+    : { words: localeOverride, shape: localeOverride };
+}
+
+const dateTimeFormatterCache = new Map<string, DateTimeFormatter>();
+
+/** A formatter in the host locale, for dates and times that do not follow the timestamp setting. */
+export function getDateTimeFormatter(
+  options: Intl.DateTimeFormatOptions,
+  localeOverride?: string,
+): DateTimeFormatter {
+  const cacheKey = `${localeOverride ?? ""}:${JSON.stringify(options)}`;
+  const cachedFormatter = dateTimeFormatterCache.get(cacheKey);
+  if (cachedFormatter) {
+    return cachedFormatter;
+  }
+
+  const formatter = createDateTimeFormatter(withLocaleOverride(localeOverride), options);
+  dateTimeFormatterCache.set(cacheKey, formatter);
+  return formatter;
+}
+
+const timestampFormatterCache = new Map<string, DateTimeFormatter>();
 
 function getTimestampFormatter(
   timestampFormat: TimestampFormat,
   includeSeconds: boolean,
   timeZone = "UTC",
-  locale = timestampLocale,
-): Intl.DateTimeFormat {
-  const cacheKey = `${timestampFormat}:${includeSeconds ? "seconds" : "minutes"}:${timeZone}:${locale ?? ""}`;
+  localeOverride?: string,
+): DateTimeFormatter {
+  const cacheKey = `${timestampFormat}:${includeSeconds ? "seconds" : "minutes"}:${timeZone}:${localeOverride ?? ""}`;
   const cachedFormatter = timestampFormatterCache.get(cacheKey);
   if (cachedFormatter) {
     return cachedFormatter;
   }
 
   const hourCycle =
-    timestampFormat === "locale" && locale !== timestampLocale
+    timestampFormat === "locale" && localeOverride !== undefined
       ? getTimestampFormatter(timestampFormat, includeSeconds).resolvedOptions().hourCycle
       : undefined;
-  const formatter = new Intl.DateTimeFormat(locale, {
+  const formatter = createDateTimeFormatter(withLocaleOverride(localeOverride), {
     ...getTimestampFormatOptions(timestampFormat, includeSeconds),
     ...(hourCycle === undefined ? {} : { hourCycle }),
     timeZone,
@@ -175,10 +193,12 @@ export function formatChatTimestampTooltip(
 }
 
 export function formatFullTimestamp(isoDate: string, timestampFormat: TimestampFormat): string {
-  return new Date(isoDate).toLocaleString(
-    undefined,
-    timestampFormat === "locale" ? undefined : { hour12: timestampFormat === "12-hour" },
-  );
+  return getDateTimeFormatter({
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    ...getTimestampFormatOptions(timestampFormat, true),
+  }).format(new Date(isoDate));
 }
 
 export function formatShortTimestamp(
@@ -191,19 +211,19 @@ export function formatShortTimestamp(
   return getTimestampFormatter(timestampFormat, false, "UTC", locale).format(wallClockAsUtc(date));
 }
 
-const dateTimeFormatterCache = new Map<TimestampFormat, Intl.DateTimeFormat>();
+const dateTimeTimestampFormatterCache = new Map<TimestampFormat, DateTimeFormatter>();
 
 export function formatDateTimeTimestamp(isoDate: string, timestampFormat: TimestampFormat): string {
   const date = parseTimestampDate(isoDate);
   if (!date) return "";
-  let formatter = dateTimeFormatterCache.get(timestampFormat);
+  let formatter = dateTimeTimestampFormatterCache.get(timestampFormat);
   if (!formatter) {
-    formatter = new Intl.DateTimeFormat(timestampLocale, {
+    formatter = createDateTimeFormatter(timestampLocale, {
       dateStyle: "medium",
       timeStyle: "short",
       ...(timestampFormat === "locale" ? {} : { hour12: timestampFormat === "12-hour" }),
     });
-    dateTimeFormatterCache.set(timestampFormat, formatter);
+    dateTimeTimestampFormatterCache.set(timestampFormat, formatter);
   }
   return formatter.format(date);
 }
@@ -223,11 +243,11 @@ const numericDateWithYearOptions: Intl.DateTimeFormatOptions = {
   ...numericDateOptions,
   year: "numeric",
 };
-const numericDateFormatter = new Intl.DateTimeFormat(timestampLocale, {
+const numericDateFormatter = createDateTimeFormatter(timestampLocale, {
   ...numericDateOptions,
   timeZone: "UTC",
 });
-const numericDateWithYearFormatter = new Intl.DateTimeFormat(timestampLocale, {
+const numericDateWithYearFormatter = createDateTimeFormatter(timestampLocale, {
   ...numericDateWithYearOptions,
   timeZone: "UTC",
 });
@@ -261,7 +281,7 @@ function formatNumericDate(date: Date, sameYear: boolean, timeZone: string | und
       wallClockAsUtc(date),
     );
   }
-  return new Intl.DateTimeFormat(timestampLocale, {
+  return createDateTimeFormatter(timestampLocale, {
     ...(sameYear ? numericDateOptions : numericDateWithYearOptions),
     timeZone,
   }).format(date);

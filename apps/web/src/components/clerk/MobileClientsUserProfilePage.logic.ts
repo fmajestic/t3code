@@ -3,7 +3,8 @@ import { msg } from "gt-react";
 
 import { m, type MessageResolver } from "~/i18n/messages";
 
-const mobileClientUpdatedAtFormatter = new Intl.DateTimeFormat(undefined, {
+import { getDateTimeFormatter } from "../../timestampFormat";
+const mobileClientUpdatedAtFormatter = getDateTimeFormatter({
   dateStyle: "medium",
   timeStyle: "short",
 });
