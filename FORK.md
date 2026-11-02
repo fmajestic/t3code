@@ -33,6 +33,7 @@ Each of these is meant to be dropped once upstream has it, through its own PR or
 - **Header artwork**: choose the Beta build's header artwork under Settings > Appearance. The Dock icon follows your choice. Windows has no such setting, so its desktop, Start menu, and taskbar icons bake in the same Ridge badge.
 - **Local updates**: a local macOS build updates from the checkout it was built from. Check for updates installs a newer app bundle from its release folder, or offers to build the checkout when it has moved to another commit; the build log is `release/fork-build.log`. `vp run fork:dist:desktop:app` builds from the terminal: only the `.app`, no DMG or zip, stamped with a version the update check can tell apart, replacing the bundles of earlier builds.
 - **Regional date formats**: on macOS, dates and times use the order, separators and clock of the system region, while month and weekday names stay in the UI language.
+- **`check:changed` compares against `fork`**: `vp run check:changed` also tries the local `fork` branch as a base, so a branch off `fork` checks only its own changes instead of every fork commit since `upstream/main`.
 
 ## Syncing
 
