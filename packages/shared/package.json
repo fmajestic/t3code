@@ -443,6 +443,10 @@
       "types": "./src/hostClassification.ts",
       "import": "./src/hostClassification.ts"
     },
+    "./dateTimeLocale": {
+      "types": "./src/dateTimeLocale.ts",
+      "import": "./src/dateTimeLocale.ts"
+    },
     "./cliRelease": {
       "types": "./src/cliRelease.ts",
       "import": "./src/cliRelease.ts"
