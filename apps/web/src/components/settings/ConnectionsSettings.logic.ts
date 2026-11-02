@@ -25,6 +25,7 @@ import {
   getDesktopUpdateDownloadedVersion,
   resolveDesktopUpdateButtonAction,
 } from "../desktopUpdate.logic";
+import { getDateTimeFormatter } from "../../timestampFormat";
 
 /** Keep terminal:read with terminal:operate to avoid creating unseen shells on every script run. */
 export function togglePairingScopeSelection(
@@ -159,7 +160,7 @@ export async function applyWslEnableSelection(input: {
   return await bridge.setWslBackendEnabled(true);
 }
 
-const accessTimestampFormatter = new Intl.DateTimeFormat(undefined, {
+const accessTimestampFormatter = getDateTimeFormatter({
   dateStyle: "medium",
   timeStyle: "short",
 });
