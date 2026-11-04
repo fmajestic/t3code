@@ -669,6 +669,7 @@ const PREFLIGHT_PRIMARY_STATES = [
   "disabled",
   "disabled, thread default model cannot generate text",
   "disabled, fallback disabled for project",
+  "retired",
 ] as const;
 
 it.effect.each(PREFLIGHT_PRIMARY_STATES)("text generation preflight: %s", (primaryState) =>
@@ -698,7 +699,17 @@ it.effect.each(PREFLIGHT_PRIMARY_STATES)("text generation preflight: %s", (prima
         auth: { status: "authenticated" },
         version: null,
         checkedAt: "1970-01-01T00:00:00Z",
-        models: [],
+        models:
+          primaryState === "retired" && instanceId === primary
+            ? [
+                {
+                  slug: DEFAULT_TEXT_GENERATION_MODEL_BY_PROVIDER[driver]!,
+                  name: "Default",
+                  isCustom: false,
+                  capabilities: null,
+                },
+              ]
+            : [],
         slashCommands: [],
         skills: [],
         ...(primaryState === "pending" && instanceId === primary
@@ -841,7 +852,12 @@ it.effect.each(PREFLIGHT_PRIMARY_STATES)("text generation preflight: %s", (prima
               model:
                 DEFAULT_TEXT_GENERATION_MODEL_BY_PROVIDER[ProviderDriverKind.make("claudeAgent")],
             }
-          : threadDefault,
+          : primaryState === "retired"
+            ? {
+                instanceId: primary,
+                model: DEFAULT_TEXT_GENERATION_MODEL_BY_PROVIDER[ProviderDriverKind.make("codex")],
+              }
+            : threadDefault,
     ]);
   }),
 );

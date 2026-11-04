@@ -9,7 +9,11 @@ import {
 } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
 import { exhaustedUsageWindow } from "@t3tools/shared/usageLimits";
-import { fallbackTextGenerationModelSelection } from "@t3tools/shared/serverSettings";
+import { resolveSelectableModel } from "@t3tools/shared/model";
+import {
+  defaultTextGenerationModel,
+  fallbackTextGenerationModelSelection,
+} from "@t3tools/shared/serverSettings";
 import * as ServerSettings from "../serverSettings.ts";
 import type { ProviderTextGeneration } from "@t3tools/provider-core/server/textGeneration";
 import { TextGenerationError } from "@t3tools/contracts";
@@ -165,6 +169,23 @@ export const make = Effect.gen(function* () {
         detail:
           "No text generation provider is available. Enable a provider that can generate text in Settings → Providers.",
       });
+    }
+    // A saved model the provider stopped offering would fail every call; settings already show this fallback.
+    const target = snapshots.find((provider) => provider.instanceId === selection.instanceId);
+    const models = (target?.models ?? []).filter((model) => model.supportsTextGeneration !== false);
+    const driver = target?.driver;
+    if (driver !== undefined && models.length > 0) {
+      const offered = resolveSelectableModel(driver, selection.model, models);
+      if (offered === null) {
+        selection = {
+          instanceId: selection.instanceId,
+          model:
+            resolveSelectableModel(driver, defaultTextGenerationModel(driver), models) ??
+            models[0]!.slug,
+        };
+      } else if (offered !== selection.model) {
+        selection = { ...selection, model: offered };
+      }
     }
     return yield* installationGate.execute(
       selection.instanceId,
