@@ -285,6 +285,36 @@ function WordWrapRow() {
   );
 }
 
+function CodeLineNumbersRow() {
+  const searchableSetting = useSearchableSetting();
+  const settings = useScopedSettings();
+  const updateSettings = useUpdateScopedSettings();
+  const gt = useGT();
+  return (
+    <SettingsRow
+      {...searchableSetting("code-line-numbers")}
+      description={gt("Show line numbers in chat code blocks by default.")}
+      resetAction={
+        settings.codeLineNumbers !== DEFAULT_UNIFIED_SETTINGS.codeLineNumbers ? (
+          <SettingResetButton
+            ariaLabel={gt("Reset code line numbers to default")}
+            onClick={() =>
+              updateSettings({ codeLineNumbers: DEFAULT_UNIFIED_SETTINGS.codeLineNumbers })
+            }
+          />
+        ) : null
+      }
+      control={
+        <Switch
+          checked={settings.codeLineNumbers}
+          onCheckedChange={(checked) => updateSettings({ codeLineNumbers: Boolean(checked) })}
+          aria-label={gt("Show line numbers in code blocks by default")}
+        />
+      }
+    />
+  );
+}
+
 function FontSettingsGroup() {
   return (
     <>
@@ -376,6 +406,7 @@ export function TypographySection() {
     <SettingsSection id="typography" title={gt("Typography")}>
       {showAdvanced ? <FontSettingsGroup /> : <SimpleFontRows />}
       <WordWrapRow />
+      <CodeLineNumbersRow />
       <AdvancedSettings
         targetIds={[searchableSetting("separate-fonts").id, searchableSetting("font-smoothing").id]}
       >

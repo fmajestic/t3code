@@ -572,6 +572,9 @@ export function useSettingsRestore(onRestored?: () => void) {
       ? [gt("Snooze options")]
       : []),
     ...(settings.wordWrap !== DEFAULT_UNIFIED_SETTINGS.wordWrap ? [gt("Word wrap")] : []),
+    ...(settings.codeLineNumbers !== DEFAULT_UNIFIED_SETTINGS.codeLineNumbers
+      ? [gt("Code line numbers")]
+      : []),
     ...(settings.persistComposerContextStrip !==
     DEFAULT_UNIFIED_SETTINGS.persistComposerContextStrip
       ? [gt("Composer context")]
@@ -725,6 +728,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       notificationMode: DEFAULT_UNIFIED_SETTINGS.notificationMode,
       inAppNotificationsEnabled: DEFAULT_UNIFIED_SETTINGS.inAppNotificationsEnabled,
       wordWrap: DEFAULT_UNIFIED_SETTINGS.wordWrap,
+      codeLineNumbers: DEFAULT_UNIFIED_SETTINGS.codeLineNumbers,
       persistComposerContextStrip: DEFAULT_UNIFIED_SETTINGS.persistComposerContextStrip,
       diffFilesCollapsed: DEFAULT_UNIFIED_SETTINGS.diffFilesCollapsed,
       diffIgnoreWhitespace: DEFAULT_UNIFIED_SETTINGS.diffIgnoreWhitespace,
