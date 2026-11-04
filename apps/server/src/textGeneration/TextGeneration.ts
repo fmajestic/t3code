@@ -9,6 +9,7 @@ import {
 } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
 import { exhaustedUsageWindow } from "@t3tools/shared/usageLimits";
+import { resolveSelectableModel } from "@t3tools/shared/model";
 import {
   defaultTextGenerationModel,
   fallbackTextGenerationModelSelection,
@@ -121,6 +122,23 @@ export const make = Effect.gen(function* () {
           },
           { includeConfiguredInstances: true },
         ) ?? selection;
+    }
+    // A saved model the provider stopped offering would fail every call; settings already show this fallback.
+    const target = snapshots.find((provider) => provider.instanceId === selection.instanceId);
+    const models = target?.models ?? [];
+    const driver = target?.driver;
+    if (driver !== undefined && models.length > 0) {
+      const offered = resolveSelectableModel(driver, selection.model, models);
+      if (offered === null) {
+        selection = {
+          instanceId: selection.instanceId,
+          model:
+            resolveSelectableModel(driver, defaultTextGenerationModel(driver), models) ??
+            models[0]!.slug,
+        };
+      } else if (offered !== selection.model) {
+        selection = { ...selection, model: offered };
+      }
     }
     return yield* resolveInstance(registry, operation, selection.instanceId).pipe(
       Effect.flatMap((service) => invoke(service, selection)),

@@ -27,6 +27,7 @@ Each of these is meant to be dropped once upstream has it, through its own PR or
 - **Project picker says what it searches**: the project picker from Cmd+Shift+O (Ctrl+Shift+O) reads "Search projects...", says "No matching projects." when nothing matches, and Cmd+K (Ctrl+K) there searches everything for what you typed.
 - **Typing returns the terminal to the prompt**: typing or pasting in the integrated terminal while scrolled up in its history scrolls back down to the prompt, as Ghostty does. Upstream closed the same fix, [#8762](https://github.com/pingdotgg/t3code/pull/8762), in triage for lacking a recording of the behavior.
 - **Hiding skills hides them from the slash menu**: with Settings > Chat > Show skills in slash menu off, skills no longer show up anyway as the slash commands the provider also reports them as, such as `/grill-me` from Claude.
+- **Retired text generation model falls back**: when the provider stops offering the text generation model, thread titles, commit messages and other generated text use the same fallback Settings shows, instead of failing every time, as when OpenCode rotates its free models. The picker under Settings > Threads > Text generation marks the saved model Unavailable and names the fallback, and each provider check that finds it shows a toast.
 - **Composer context row hides the timeline**: with Settings > Appearance > Composer context on, the conversation fades out above the branch and worktree row instead of scrolling through it.
 
 ## Fork only

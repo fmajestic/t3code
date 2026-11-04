@@ -27,6 +27,7 @@ import {
   getAppModelOptionsForInstance,
   resolveAppModelSelectionForInstance,
   resolveAppModelSelectionState,
+  retiredTextGenerationModel,
   resolveEffectiveDefaultModelSelection,
 } from "./modelSelection";
 
@@ -824,6 +825,19 @@ describe("instance-scoped model selection", () => {
     expect(resolveAppModelSelectionState(settings, providers).model).toBe(
       DEFAULT_TEXT_GENERATION_MODEL,
     );
+    expect(retiredTextGenerationModel(settings, providers)).toBe("gpt-5.6-luna");
+    expect(
+      retiredTextGenerationModel(
+        {
+          ...settings,
+          textGenerationModelSelection: createModelSelection(
+            ProviderInstanceId.make("codex"),
+            "gpt-6-luna",
+          ),
+        },
+        providers,
+      ),
+    ).toBeNull();
   });
 
   it("does not select a provider that cannot generate system text", () => {

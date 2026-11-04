@@ -370,6 +370,23 @@ export function selectsPlanAgent(options: ModelSelection["options"]): boolean {
   return options?.some((option) => option.id === "agent" && option.value === "plan") ?? false;
 }
 
+/** The saved text generation model when its provider is usable but no longer offers it. */
+export function retiredTextGenerationModel(
+  settings: UnifiedSettings,
+  providers: ReadonlyArray<ServerProvider>,
+): string | null {
+  const saved = settings.textGenerationModelSelection;
+  if (!saved?.model) return null;
+  const entry = deriveProviderInstanceEntries(
+    providers.filter((provider) => provider.supportsTextGeneration !== false),
+  ).find((candidate) => candidate.instanceId === saved.instanceId);
+  if (!entry?.enabled || !entry.isAvailable || entry.models.length === 0) return null;
+  const options = getAppModelOptionsForInstance(settings, entry);
+  return resolveSelectableModel(entry.driverKind, saved.model, options) === null
+    ? saved.model
+    : null;
+}
+
 export function resolveAppModelSelectionState(
   settings: UnifiedSettings,
   providers: ReadonlyArray<ServerProvider>,

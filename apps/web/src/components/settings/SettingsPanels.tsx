@@ -1,7 +1,7 @@
 import { useAtomValue } from "@effect/atom-react";
 import { NotificationSettings } from "./NotificationSettings";
 import { PRIVACY_POLICY_URL } from "../../legalLinks";
-import { CheckIcon, InfoIcon } from "lucide-react";
+import { CheckIcon, CircleAlertIcon, InfoIcon } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import {
@@ -67,6 +67,7 @@ import { managedTelemetryOffMessage, usePrimaryManagedPolicy } from "../../state
 import {
   getCustomModelOptionsByInstance,
   resolveAppModelSelectionState,
+  retiredTextGenerationModel,
   selectsPlanAgent,
 } from "../../modelSelection";
 import { providerInstanceEntriesFor } from "../../providerInstances";
@@ -1597,6 +1598,22 @@ function ScopedCompactIdleThreadsRow() {
   );
 }
 
+// Shared options mark unavailable models only for dynamic catalogs; a retired text model is confirmed gone.
+function withRetiredModelOption(
+  optionsByInstance: ReturnType<typeof getCustomModelOptionsByInstance>,
+  instanceId: ProviderInstanceId,
+  retired: string | null,
+) {
+  const options = optionsByInstance.get(instanceId);
+  if (retired === null || !options || options.some((option) => option.slug === retired)) {
+    return optionsByInstance;
+  }
+  return new Map(optionsByInstance).set(instanceId, [
+    ...options,
+    { slug: retired, name: retired, isUnavailable: true },
+  ]);
+}
+
 export function ThreadsSettingsPanel() {
   const settings = useScopedSettings();
   const updateSettings = useUpdateScopedSettings();
@@ -1638,12 +1655,7 @@ export function ThreadsSettingsPanel() {
   );
   const textGenProvider: ProviderDriverKind =
     textGenInstanceEntry?.driverKind ?? DEFAULT_DRIVER_KIND;
-  const textGenerationModelOptionsByInstance = getCustomModelOptionsByInstance(
-    settings,
-    textGenerationProviders,
-    textGenInstanceId,
-    textGenModel,
-  );
+
   const isTextGenerationModelDirty = !Equal.equals(
     settings.textGenerationModelSelection ?? null,
     DEFAULT_UNIFIED_SETTINGS.textGenerationModelSelection ?? null,
@@ -1654,6 +1666,23 @@ export function ThreadsSettingsPanel() {
   );
   const mixedAddProjectBaseDirectory = useScopedSettingsMixed(["addProjectBaseDirectory"]);
   const mixedTextGenerationModel = useScopedSettingsMixed(["textGenerationModelSelection"]);
+  const retiredTextGenModel = mixedTextGenerationModel
+    ? null
+    : retiredTextGenerationModel(settings, textGenerationProviders);
+  const textGenModelName =
+    textGenInstanceEntry?.models.find((model) => model.slug === textGenModel)?.name ?? textGenModel;
+  // The picker shows what is saved; the status line names the fallback in use.
+  const textGenPickerModel = retiredTextGenModel ?? textGenModel;
+  const textGenerationModelOptionsByInstance = withRetiredModelOption(
+    getCustomModelOptionsByInstance(
+      settings,
+      textGenerationProviders,
+      textGenInstanceId,
+      textGenPickerModel,
+    ),
+    textGenInstanceId,
+    retiredTextGenModel,
+  );
 
   return (
     <SettingsPageContainer>
@@ -1863,6 +1892,14 @@ export function ThreadsSettingsPanel() {
           settingKeys={["textGenerationModelSelection"]}
           {...searchableSetting("text-generation-model")}
           description="Used for thread titles and other generated text on connected devices with this provider. Source control can override it."
+          status={
+            retiredTextGenModel ? (
+              <span className="flex items-start gap-2 font-medium text-warning">
+                <CircleAlertIcon className="mt-px size-3.5 shrink-0" />
+                <span>No longer offered. {textGenModelName} is used instead.</span>
+              </span>
+            ) : undefined
+          }
           resetAction={
             hasServerTargets && isTextGenerationModelDirty ? (
               <SettingResetButton
@@ -1890,7 +1927,7 @@ export function ThreadsSettingsPanel() {
                 <ProviderModelPicker
                   environmentId={environmentId}
                   activeInstanceId={textGenInstanceId}
-                  model={textGenModel}
+                  model={textGenPickerModel}
                   lockedProvider={null}
                   instanceEntries={textGenerationModelInstanceEntries}
                   modelOptionsByInstance={textGenerationModelOptionsByInstance}
