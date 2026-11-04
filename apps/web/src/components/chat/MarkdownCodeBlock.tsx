@@ -1,5 +1,5 @@
 import { Check, Copy } from "lucide";
-import { PlayIcon, WrapTextIcon } from "lucide-react";
+import { ListOrderedIcon, PlayIcon, WrapTextIcon } from "lucide-react";
 import { toHtml } from "hast-util-to-html";
 import React, { use, useEffect, useState, type ReactNode } from "react";
 
@@ -22,6 +22,7 @@ import { Button } from "../ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { HighlightedCodeLines } from "./HighlightedCodeLines";
 import {
+  countCodeLines,
   createHighlightCacheKey,
   estimateHighlightedSize,
   extractFenceLanguage,
@@ -47,6 +48,7 @@ export function MarkdownCodeBlockFrame({
   fenceTitle,
   theme,
   wrapped = true,
+  lineNumberDigits = null,
   title,
   actions,
   headerProps,
@@ -57,6 +59,8 @@ export function MarkdownCodeBlockFrame({
   fenceTitle: string | null;
   theme: "light" | "dark";
   wrapped?: boolean;
+  /** Width of the line number gutter in digits; null hides line numbers. */
+  lineNumberDigits?: number | null;
   title?: React.ReactNode;
   actions?: React.ReactNode;
   headerProps?: React.HTMLAttributes<HTMLDivElement>;
@@ -68,6 +72,12 @@ export function MarkdownCodeBlockFrame({
       className="chat-markdown-codeblock my-[0.65rem] text-start overflow-hidden rounded-lg border border-border/70 bg-secondary leading-snug dark:border-transparent dark:bg-input/32"
       data-language={language}
       data-wrap={wrapped ? "true" : "false"}
+      data-line-numbers={lineNumberDigits === null ? undefined : "true"}
+      style={
+        lineNumberDigits === null
+          ? undefined
+          : ({ "--code-line-number-digits": lineNumberDigits } as React.CSSProperties)
+      }
     >
       <div
         {...headerProps}
@@ -164,7 +174,9 @@ export function MarkdownCodeBlock({
       ),
   });
   const [wrapped, setWrapped] = useState(() => getClientSettings().wordWrap);
+  const [lineNumbers, setLineNumbers] = useState(() => getClientSettings().codeLineNumbers);
   const wrapLabel = wrapped ? "Disable line wrap" : "Wrap lines";
+  const lineNumbersLabel = lineNumbers ? "Hide line numbers" : "Show line numbers";
   const copyLabel = copied ? "Copied" : "Copy code";
   const command = code.trim();
   const canRun =
@@ -217,6 +229,7 @@ export function MarkdownCodeBlock({
       fenceTitle={fenceTitle}
       theme={theme}
       wrapped={wrapped}
+      lineNumberDigits={lineNumbers ? String(countCodeLines(code)).length : null}
       headerProps={THREAD_FIND_IGNORE_PROPS}
       actions={
         <span className="flex items-center gap-0.5" role="toolbar" aria-label="Code block actions">
@@ -239,6 +252,23 @@ export function MarkdownCodeBlock({
               <TooltipPopup side="top">{wrapLabel}</TooltipPopup>
             </Tooltip>
           ) : null}
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant={lineNumbers ? "secondary" : "ghost-muted"}
+                  size="icon-xs"
+                  aria-pressed={lineNumbers}
+                  onClick={() => setLineNumbers((value) => !value)}
+                  aria-label={lineNumbersLabel}
+                />
+              }
+            >
+              <ListOrderedIcon className="size-3" />
+            </TooltipTrigger>
+            <TooltipPopup side="top">{lineNumbersLabel}</TooltipPopup>
+          </Tooltip>
           {canRun ? (
             <Tooltip>
               <TooltipTrigger
