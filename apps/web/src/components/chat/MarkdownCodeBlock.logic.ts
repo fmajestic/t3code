@@ -123,3 +123,12 @@ export function createHighlightCacheKey(
 export function estimateHighlightedSize(html: string, cacheKey: string): number {
   return (cacheKey.length + html.length) * 2;
 }
+
+/** The fence's final newline closes the last line rather than starting another. */
+export function countCodeLines(code: string): number {
+  let lines = code.endsWith("\n") ? 0 : 1;
+  for (let index = code.indexOf("\n"); index !== -1; index = code.indexOf("\n", index + 1)) {
+    lines++;
+  }
+  return Math.max(lines, 1);
+}

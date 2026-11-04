@@ -2249,6 +2249,49 @@ code {
   overflow-wrap: anywhere;
 }
 
+/* Numbers come from a counter on the highlighter's .line spans, so streaming
+   and cached HTML need no extra markup and copied text stays clean. The
+   inline-block hanging indent keeps wrapped continuations clear of the gutter. */
+.chat-markdown .chat-markdown-codeblock[data-line-numbers="true"] .chat-markdown-shiki {
+  --code-line-number-gap: 2ch;
+  --code-line-number-gutter: calc(
+    var(--code-line-number-digits, 1) * 1ch + var(--code-line-number-gap)
+  );
+
+  & code {
+    counter-reset: code-line;
+  }
+
+  & .line {
+    display: inline-block;
+    box-sizing: border-box;
+    padding-inline-start: var(--code-line-number-gutter);
+    counter-increment: code-line;
+  }
+
+  /* The fence's final newline leaves an empty trailing line. */
+  & .line:last-child:empty {
+    display: none;
+  }
+
+  & .line::before {
+    content: counter(code-line);
+    display: inline-block;
+    width: calc(var(--code-line-number-digits, 1) * 1ch);
+    margin-inline: calc(-1 * var(--code-line-number-gutter)) var(--code-line-number-gap);
+    text-align: end;
+    color: color-mix(in srgb, currentColor 40%, transparent);
+    user-select: none;
+  }
+}
+
+.chat-markdown
+  .chat-markdown-codeblock[data-line-numbers="true"][data-wrap="true"]
+  .chat-markdown-shiki
+  .line {
+  width: 100%;
+}
+
 :is(.chat-markdown, .composer-tiptap) .chat-markdown-shiki :is(.shiki, .diffs) {
   background: transparent !important;
 }

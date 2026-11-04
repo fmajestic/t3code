@@ -17,6 +17,7 @@ Each of these is meant to be dropped once upstream has it, through its own PR or
 - **Quit shortcut off**: Settings > General > Quit shortcut has an Off mode, so Ctrl+Q (Cmd+Q on macOS) reaches the terminal instead of quitting. The menu's Quit item still works.
 - **Quote user messages**: select text in a user message and choose Cite in composer, as with assistant responses.
 - **Cmd+F searches the open file**: with focus in the file editor in the right panel, Cmd+F (Ctrl+F) opens the editor's search instead of the thread search.
+- **Line numbers in code blocks**: chat code blocks can number their lines. Settings > Appearance > Code line numbers sets the default, and each block's header toggles it, like word wrap. Copied code has no numbers.
 - **`@` completes paths outside the project**: an `@` path starting with `~/`, `/`, `./`, `../` or a drive letter lists one folder at a time on the server, instead of searching the project. Proposed in [discussion #17399](https://github.com/pingdotgg/t3code/discussions/17399).
 - **`..` hides while filtering when adding a project**: in the add-project folder browser, `..` only shows before you type a filter, so it never sits above the matching folders. Tab completion itself came upstream in [#28243](https://github.com/pingdotgg/t3code/pull/28243).
 - **Compaction shows tokens and time**: while compacting, the thread reads "Compacting 436K tokens for 12s", and the finished line adds how long it took, as in "Context compacted 436K → 19.3K tokens in 16s". Claude's auto-compaction shows no token count until it finishes.
