@@ -452,6 +452,12 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: [msg("long lines code blocks diffs file previews")],
   },
   {
+    id: "code-line-numbers",
+    title: msg("Code line numbers"),
+    to: "/settings/appearance",
+    searchTerms: [msg("gutter code blocks chat")],
+  },
+  {
     id: "composer-context",
     title: msg("Composer context"),
     to: "/settings/appearance",
