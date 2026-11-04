@@ -36,6 +36,7 @@ Each of these is meant to be dropped once upstream has it, through its own PR or
 - **Install without mobile**: `vp run i:desktop` installs only what desktop, web, the server and the repo scripts need. Worktree setup uses it too.
 - **Regional date formats**: on macOS, dates and times use the order, separators and clock of the system region, while month and weekday names stay in the UI language.
 - **`check:changed` compares against `fork`**: `vp run check:changed` also tries the local `fork` branch as a base, so a branch off `fork` checks only its own changes instead of every fork commit since `upstream/main`.
+- **Dev server ignores `package.json`**: `vp run dev` no longer restarts the server when `apps/server/package.json` changes, because FortiClient's on-access scan touches the file and restarted it in a loop. Restart by hand after a dependency change.
 
 ## Syncing
 
