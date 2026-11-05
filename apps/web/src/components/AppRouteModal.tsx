@@ -28,10 +28,13 @@ import { SharedTooltipTrigger } from "./ui/shared-tooltip";
 export function AppRouteModal({
   label,
   actionsRef,
+  initialFocus,
   children,
 }: {
   label: string;
   actionsRef?: RefObject<DialogPrimitive.Root.Actions | null>;
+  /** Focused on open instead of the surface, when visible and the pointer is not touch. */
+  initialFocus?: RefObject<HTMLElement | null>;
   children: ReactNode;
 }) {
   const closeAppModal = useCloseAppModal();
@@ -122,7 +125,12 @@ export function AppRouteModal({
         >
           <DialogPrimitive.Popup
             ref={popupRef}
-            initialFocus={popupRef}
+            initialFocus={() => {
+              const target = initialFocus?.current;
+              return target?.checkVisibility() && window.matchMedia("(pointer: fine)").matches
+                ? target
+                : popupRef.current;
+            }}
             finalFocus={(closeType) => {
               if (closeType !== "keyboard" || !opener?.isConnected) return false;
               if (!opener.closest("[inert]")) return opener;

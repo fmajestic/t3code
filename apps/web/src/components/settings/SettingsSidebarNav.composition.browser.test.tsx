@@ -18,7 +18,7 @@ vi.mock("../chat/GlobalVoiceInputIndicator", () => ({ GlobalVoiceInputIndicator:
 it("ignores composing keys in the search", async () => {
   await using screen = await render(
     <SidebarProvider defaultOpen>
-      <SettingsSidebarNav pathname="/settings/general" />
+      <SettingsSidebarNav pathname="/settings/general" searchInputRef={{ current: null }} />
     </SidebarProvider>,
     { router: "/settings/general" },
   );
@@ -51,7 +51,7 @@ it("Esc clears a search of spaces and a held Esc keeps Settings open", async () 
   await using _screen = await render(
     <AppRouteModal label="Settings">
       <SidebarProvider defaultOpen>
-        <SettingsSidebarNav pathname="/settings/general" />
+        <SettingsSidebarNav pathname="/settings/general" searchInputRef={{ current: null }} />
       </SidebarProvider>
     </AppRouteModal>,
     { router: "/settings/general" },
@@ -85,7 +85,7 @@ it("Esc clears a search of spaces and a held Esc keeps Settings open", async () 
 function renderNav() {
   return render(
     <SidebarProvider defaultOpen>
-      <SettingsSidebarNav pathname="/settings/general" />
+      <SettingsSidebarNav pathname="/settings/general" searchInputRef={{ current: null }} />
     </SidebarProvider>,
     { router: "/settings/general" },
   );
