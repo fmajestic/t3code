@@ -75,6 +75,24 @@ export function resolveHandoffEndpoints(
   return { from: fromEndpoints, to: { instanceId: item.toProviderInstanceId, model: toModel } };
 }
 
+/**
+ * The row for a handoff that kept every model, where only the delivery changed: the target got a
+ * summary instead of the native session. Null when the handoff changed a model.
+ */
+export function resolveSummaryOnlyHandoff(
+  { from, to }: HandoffEndpoints,
+  reason: Extract<OrchestrationV2TurnItem, { type: "handoff" }>["reason"],
+): { readonly label: string; readonly detail: string | undefined } | null {
+  const keepsModels =
+    from.length > 0 &&
+    from.every((endpoint) => endpoint.instanceId === to.instanceId && endpoint.model === to.model);
+  if (!keepsModels) return null;
+  return {
+    label: "Context summarized",
+    detail: reason === "source_busy" ? "Forked while a turn was running" : undefined,
+  };
+}
+
 function latestRunModelBefore(
   runs: ReadonlyArray<HandoffTimelineRun>,
   instanceId: ProviderInstanceId,

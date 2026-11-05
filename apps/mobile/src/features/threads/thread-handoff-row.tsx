@@ -4,6 +4,7 @@ import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import {
   resolveHandoffEndpoints,
   resolveModelSwitchChange,
+  resolveSummaryOnlyHandoff,
   type HandoffEndpoints,
 } from "@t3tools/client-runtime/handoff";
 import { resolveModelShortName } from "@t3tools/client-runtime/provider-clients";
@@ -17,6 +18,7 @@ import type {
   ModelSelection,
   OrchestrationV2ModelSwitch,
   OrchestrationV2ProjectedTurnItem,
+  OrchestrationV2TurnItem,
   ProviderInstanceId,
   ServerProvider,
 } from "@t3tools/contracts";
@@ -99,6 +101,7 @@ export function ThreadHandoffRow(props: {
       iconColor={color}
       surfaceColor={props.surfaceColor}
       label="Context handoff"
+      reason={item.reason}
       failed={item.status === "failed"}
     />
   );
@@ -110,10 +113,24 @@ export function ThreadHandoffDivider(props: {
   iconColor: ColorValue;
   surfaceColor: string;
   label: string;
+  reason?: Extract<OrchestrationV2TurnItem, { type: "handoff" }>["reason"];
   failed?: boolean;
 }) {
   const config = useAtomValue(serverEnvironment.configValueAtom(props.environmentId));
   const { endpoints } = props;
+  const summaryOnly = resolveSummaryOnlyHandoff(endpoints, props.reason);
+  if (summaryOnly !== null) {
+    return (
+      <ThreadContextDivider
+        label={
+          summaryOnly.detail ? `${summaryOnly.label} · ${summaryOnly.detail}` : summaryOnly.label
+        }
+        icon="arrow.left.arrow.right"
+        iconColor={props.iconColor}
+        failed={props.failed}
+      />
+    );
+  }
   const endpointProps = {
     providers: (config?.providers ?? []).map((provider) => {
       const rawConfig = config?.settings.providerInstances[provider.instanceId]?.config;

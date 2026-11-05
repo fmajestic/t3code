@@ -19,6 +19,7 @@ import {
   type HandoffEndpoints,
   type HandoffTimelineRun,
   resolveModelSwitchChange,
+  resolveSummaryOnlyHandoff,
 } from "@t3tools/client-runtime/handoff";
 import { formatSubagentDisplayTitle } from "@t3tools/client-runtime/state/subagent-display";
 import {
@@ -89,6 +90,7 @@ export function V2LifecycleRow(props: {
       <EnvironmentHandoffRow
         environmentId={props.environmentId}
         endpoints={resolveHandoffEndpoints(item, props.runs)}
+        reason={item.reason}
         failed={item.status === "failed"}
       />
     );
@@ -590,6 +592,7 @@ function EnvironmentHandoffRow({
 }: {
   readonly environmentId: EnvironmentId;
   readonly endpoints: HandoffEndpoints;
+  readonly reason: Extract<OrchestrationV2TurnItem, { type: "handoff" }>["reason"];
   readonly failed: boolean;
 }) {
   const providers =
@@ -625,6 +628,7 @@ export function HandoffRow(props: {
   readonly environmentId: EnvironmentId;
   readonly endpoints: HandoffEndpoints;
   readonly providers: ReadonlyArray<ServerProvider>;
+  readonly reason?: Extract<OrchestrationV2TurnItem, { type: "handoff" }>["reason"];
   readonly pending?: boolean;
   readonly failed?: boolean;
 }) {
@@ -632,6 +636,17 @@ export function HandoffRow(props: {
   const settings = useAtomValue(serverEnvironment.settingsValueAtom(props.environmentId));
   const derived = deriveProviderInstanceEntries(props.providers);
   const entries = settings ? applyProviderInstanceSettings(derived, settings, null) : derived;
+  const summaryOnly = resolveSummaryOnlyHandoff(props.endpoints, props.reason);
+  if (summaryOnly !== null) {
+    return (
+      <TimelineSystemDivider
+        label={summaryOnly.label}
+        detail={summaryOnly.detail}
+        icon={ArrowRightLeftIcon}
+        tone={props.failed ? "danger" : "neutral"}
+      />
+    );
+  }
   return (
     <TimelineSystemDivider
       label={props.pending ? "Context handoff pending" : "Context handoff"}
