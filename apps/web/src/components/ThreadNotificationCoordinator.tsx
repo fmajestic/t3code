@@ -402,6 +402,8 @@ export function startThreadNotifications(
       });
     }
     if (hasNotificationSound(nextMode)) {
+      // Electron allows autoplay by default, so only browsers need to wait for a gesture.
+      if (window.desktopBridge) unlockNotificationAudio();
       document.addEventListener("pointerdown", unlockNotificationAudio);
       document.addEventListener("keydown", unlockNotificationAudio);
       stops.push(() => {
