@@ -8851,6 +8851,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         : sourceProjection.runs.filter(
             (candidate) => sourceRun === null || candidate.ordinal > sourceRun.ordinal,
           );
+    const sourceBusy = sourceRunsAfterFork.some(isActiveRun);
     const forkExecution =
       pendingForkTransfer === undefined || sourceRun === null
         ? null
@@ -8868,7 +8869,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
                   ?.nativeTurnRef != null,
               sourceRunStatus: sourceRun.status,
               fromSpecificTurn: sourceRun !== null,
-              sourceBusy: sourceRunsAfterFork.some(isActiveRun),
+              sourceBusy,
             }),
           );
     const canResolveForkNatively = forkExecution === "native_fork";
@@ -9445,6 +9446,9 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
             toModel: modelSelection.model,
             strategy: activeHandoff.strategy,
             summary: activeHandoff.summaryText,
+            ...(portableForkHandoff !== null && sourceBusy
+              ? { reason: "source_busy" as const }
+              : {}),
           };
     const nativeForkResolution: OrchestrationV2ContextTransferResolution | null =
       !canResolveForkNatively || providerThread.nativeThreadRef === null

@@ -10,6 +10,7 @@ import {
   resolveHandoffEndpoints,
   resolveModelSwitchChange,
   resolvePendingHandoff,
+  resolveSummaryOnlyHandoff,
   type HandoffTimelineRun,
 } from "./handoff.ts";
 
@@ -72,6 +73,20 @@ describe("handoff endpoints shared by web and mobile", () => {
     expect(
       resolveHandoffEndpoints(item, [run("target", 2, from, "wrong-model")]).to.model,
     ).toBeUndefined();
+  });
+
+  it("labels a handoff that kept every model as a summary, with the reason when known", () => {
+    const same = { instanceId: to, model: "opus" };
+    expect(resolveSummaryOnlyHandoff({ from: [same], to: same }, "source_busy")).toEqual({
+      label: "Context summarized",
+      detail: "Forked while a turn was running",
+    });
+    expect(
+      resolveSummaryOnlyHandoff({ from: [same], to: same }, undefined)?.detail,
+    ).toBeUndefined();
+    expect(
+      resolveSummaryOnlyHandoff({ from: [same], to: { ...same, model: "sonnet" } }, "source_busy"),
+    ).toBeNull();
   });
 });
 
