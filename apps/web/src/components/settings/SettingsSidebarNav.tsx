@@ -2,10 +2,10 @@ import {
   lazy,
   Suspense,
   useEffect,
-  useRef,
   useState,
   type ComponentType,
   type KeyboardEvent,
+  type RefObject,
 } from "react";
 import {
   ArchiveIcon,
@@ -126,7 +126,13 @@ function SettingsSectionIcon({ to }: { to: SettingsPath }) {
   return <Icon className="size-4 shrink-0 text-(--sidebar-icon-color)" />;
 }
 
-export function SettingsSidebarNav({ pathname }: { pathname: string }) {
+export function SettingsSidebarNav({
+  pathname,
+  searchInputRef,
+}: {
+  pathname: string;
+  searchInputRef: RefObject<HTMLInputElement | null>;
+}) {
   const navArea = workspaceAreaProps("settings-nav", 0, "Settings sections");
   const navigate = useNavigate();
   const currentHash = useLocation({ select: (location) => location.hash });
@@ -139,7 +145,6 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
       navPaths[0] ??
       "",
   );
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   // Below md the nav is an icon rail; searching expands it over the page.
   const [compactSearchOpen, setCompactSearchOpen] = useState(false);
@@ -188,12 +193,12 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [searchInputRef]);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- focuses the search input DOM node after the compact search opens
   useEffect(() => {
     if (compactSearchOpen) searchInputRef.current?.focus();
-  }, [compactSearchOpen]);
+  }, [compactSearchOpen, searchInputRef]);
 
   const handleSectionClick = (to: SettingsPath) => {
     void navigate({

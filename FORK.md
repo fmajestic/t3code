@@ -30,6 +30,7 @@ Each of these is meant to be dropped once upstream has it, through its own PR or
 - **Retired text generation model falls back**: when the provider stops offering the text generation model, thread titles, commit messages and other generated text use the same fallback Settings shows, instead of failing every time, as when OpenCode rotates its free models. The picker under Settings > Threads > Text generation marks the saved model Unavailable and names the fallback, and each provider check that finds it shows a toast.
 - **Composer context row hides the timeline**: with Settings > Appearance > Composer context on, the conversation fades out above the branch and worktree row instead of scrolling through it.
 - **Test notification**: Settings > General > Thread notifications has a Test button. Five seconds after you press it, it sends a system notification whatever the window focus, and then reports the permission and whether the window counted as focused.
+- **Settings opens in its search**: opening Settings puts the cursor in its search box, so you can start typing right away. Touch screens and narrow windows still open without focus, so no keyboard pops up.
 
 ## Fork only
 
