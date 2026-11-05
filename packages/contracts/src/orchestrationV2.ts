@@ -1830,6 +1830,8 @@ export const OrchestrationV2TurnItem = Schema.Union([
       "manual_context",
     ]),
     summary: Schema.optional(Schema.String),
+    /** Why a fork onto a natively forkable provider got a summary instead. */
+    reason: Schema.optional(Schema.Literal("source_busy")),
   }),
   Schema.Struct({
     ...OrchestrationV2TurnItemBaseFields,
@@ -2700,6 +2702,8 @@ export const OrchestrationV2TurnItemJson = Schema.Union([
       "manual_context",
     ]),
     summary: Schema.optional(Schema.String),
+    /** Why a fork onto a natively forkable provider got a summary instead. */
+    reason: Schema.optional(Schema.Literal("source_busy")),
   }),
   Schema.Struct({
     ...OrchestrationV2TurnItemJsonBaseFields,
