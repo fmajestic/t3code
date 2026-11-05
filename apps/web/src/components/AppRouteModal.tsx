@@ -1,6 +1,6 @@
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { XIcon } from "lucide-react";
-import { useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 
 import { useNativeTitlebarHeight } from "../lib/windowControlsOverlay";
 import { useCloseAppModal } from "./sidebar/mainAppLocation";
@@ -13,7 +13,16 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
  * backdrop returns to the page that opened it. Keyboard guards that skip dialogs exempt
  * `[data-app-modal]`, because these pages own their shortcuts.
  */
-export function AppRouteModal({ label, children }: { label: string; children: ReactNode }) {
+export function AppRouteModal({
+  label,
+  initialFocus,
+  children,
+}: {
+  label: string;
+  /** Focused on open instead of the surface, when visible and the pointer is not touch. */
+  initialFocus?: RefObject<HTMLElement | null>;
+  children: ReactNode;
+}) {
   const closeAppModal = useCloseAppModal();
   const [open, setOpen] = useState(true);
   // Text selection that ends on the backdrop is not a dismissal.
@@ -64,7 +73,12 @@ export function AppRouteModal({ label, children }: { label: string; children: Re
         >
           <DialogPrimitive.Popup
             ref={popupRef}
-            initialFocus={popupRef}
+            initialFocus={() => {
+              const target = initialFocus?.current;
+              return target?.checkVisibility() && window.matchMedia("(pointer: fine)").matches
+                ? target
+                : popupRef.current;
+            }}
             finalFocus={false}
             aria-label={label}
             data-slot="dialog-popup"
