@@ -1201,6 +1201,46 @@ it.effect("a side chat of an idle parent still starts with the framing note", ()
   }).pipe(Effect.provide(forkCases[0]!.layer)),
 );
 
+it.effect("a fork taken during a later parent turn says why it got a summary", () =>
+  Effect.gen(function* () {
+    const orchestrator = yield* Orchestrator.OrchestratorV2;
+    const parentId = ThreadId.make("fork-mid-turn-parent");
+    const childId = ThreadId.make("fork-mid-turn-child");
+    yield* createParent(parentId);
+    yield* writeParentRun({
+      threadId: parentId,
+      runId: RunId.make("fork-mid-turn-stable-run"),
+      ordinal: 1,
+      status: "completed",
+      text: "Parent work",
+      stable: true,
+    });
+    yield* writeParentRun({
+      threadId: parentId,
+      runId: RunId.make("fork-mid-turn-running-run"),
+      ordinal: 2,
+      status: "running",
+      text: "Parent still working",
+    });
+
+    yield* orchestrator.dispatch({
+      type: "thread.fork",
+      commandId: CommandId.make("fork-mid-turn-fork"),
+      sourceThreadId: parentId,
+      targetThreadId: childId,
+      sourcePoint: { type: "latest_stable" },
+      createdBy: "user",
+      creationSource: "web",
+    });
+    yield* askSideChat(childId, "fork-mid-turn-first-message", forkCases[0]!.modelSelection);
+
+    const started = yield* orchestrator.getThreadProjection(childId);
+    assert.isNull(started.providerThreads[0]?.forkedFrom);
+    const handoffRow = started.turnItems.find((item) => item.type === "handoff");
+    assert.equal(handoffRow?.type === "handoff" ? handoffRow.reason : undefined, "source_busy");
+  }).pipe(Effect.provide(forkCases[0]!.layer)),
+);
+
 it.effect("a side chat waits for the parent's new worktree, also after its setup ended", () =>
   Effect.gen(function* () {
     for (const status of ["preparing", "failed", "interrupted"] as const) {
