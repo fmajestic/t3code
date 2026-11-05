@@ -1,6 +1,6 @@
 import { workspaceAreaProps } from "../lib/workspaceFocus";
 import { Outlet, createFileRoute, redirect, useLocation } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { T, useGT, useMessages, Var } from "gt-react";
 import { RotateCcwIcon } from "lucide-react";
 import { Button } from "../components/ui/button";
@@ -131,11 +131,12 @@ function SettingsContentLayout() {
       ? environment?.environmentId
       : JSON.stringify(search);
   const [restoreSignal, setRestoreSignal] = useState(0);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <AppRouteModal label={gt("Settings")}>
+    <AppRouteModal label={gt("Settings")} initialFocus={searchInputRef}>
       <div className="relative flex min-h-0 flex-1">
-        <SettingsSidebarNav pathname={location.pathname} />
+        <SettingsSidebarNav pathname={location.pathname} searchInputRef={searchInputRef} />
         <div {...contentArea} className="flex min-h-0 min-w-0 flex-1 flex-col">
           <header className="flex h-12 shrink-0 items-center gap-3 border-b ps-5 pe-2">
             <SettingsBreadcrumb pathname={location.pathname} />
