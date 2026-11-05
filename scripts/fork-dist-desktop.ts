@@ -20,6 +20,17 @@ class ForkDistBuildFailedError extends Schema.TaggedError<ForkDistBuildFailedErr
   }
 }
 
+class ForkSignFailedError extends Schema.TaggedError<ForkSignFailedError>()("ForkSignFailedError", {
+  exitCode: Schema.Int,
+}) {
+  override get message(): string {
+    return `codesign exited with code ${this.exitCode}.`;
+  }
+}
+
+// macOS only delivers notifications from an app signed by a trusted certificate; scripts/fork-signing-identity.sh creates it.
+const SIGNING_IDENTITY = "T3 Fork Local";
+
 const decodeVersion = Schema.decodeUnknownEffect(
   Schema.fromJsonString(Schema.Struct({ version: Schema.String })),
 );
@@ -84,6 +95,33 @@ const program = Effect.gen(function* () {
       yield* fs.remove(path.join(releaseDir, name), { recursive: true });
     }
   }
+
+  const identities = yield* spawner.string(
+    ChildProcess.make("security", ["find-identity", "-v", "-p", "codesigning"]),
+  );
+  if (!identities.includes(`"${SIGNING_IDENTITY}"`)) {
+    yield* Effect.logWarning(
+      `No "${SIGNING_IDENTITY}" code signing identity, so this build cannot show notifications. Run scripts/fork-signing-identity.sh once.`,
+    );
+    return;
+  }
+  const signExitCode = Number(
+    yield* spawner.exitCode(
+      ChildProcess.make(
+        "codesign",
+        [
+          "--force",
+          "--deep",
+          "--sign",
+          SIGNING_IDENTITY,
+          "--timestamp=none",
+          path.join(releaseDir, built),
+        ],
+        { stdout: "inherit", stderr: "inherit" },
+      ),
+    ),
+  );
+  if (signExitCode !== 0) return yield* new ForkSignFailedError({ exitCode: signExitCode });
 });
 
 if (import.meta.main) {
