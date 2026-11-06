@@ -217,4 +217,6 @@ Architecture and its constraints: `docs/internals/overview.md`. Glossary: `docs/
 
 ## Fork
 
-This checkout is a personal fork; see `FORK.md`.
+This checkout is a personal fork; `FORK.md` lists every way it differs from upstream.
+
+Every commit on `fork` that changes what a user or maintainer sees carries its `FORK.md` entry in the same commit. Before you commit, check that `git diff --cached --stat` lists `FORK.md` and that the entry describes the change as it now stands: a new entry under the matching heading, or the existing entry for that feature rewritten. A commit without it is unfinished, so amend it in rather than leaving it for later.
