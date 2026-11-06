@@ -286,7 +286,7 @@ export const make = Effect.gen(function* () {
       const symlinkCandidates: Array<{ readonly name: string; readonly fullPath: string }> = [];
       for (const dirent of dirents) {
         if (
-          !dirent.name.toLowerCase().startsWith(lowerPrefix) ||
+          !dirent.name.toLowerCase().includes(lowerPrefix) ||
           (!showHidden && dirent.name.startsWith("."))
         ) {
           continue;
