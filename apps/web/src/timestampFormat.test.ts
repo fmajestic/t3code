@@ -14,6 +14,12 @@ describe("timestamps in an explicit time zone", () => {
     expect(formatUpcomingTimestamp("2026-07-02T05:30:00.000Z", "12-hour", now, zone)).toMatch(
       /^tomorrow at /,
     );
+    expect(formatUpcomingTimestamp("2026-07-07T05:30:00.000Z", "12-hour", now, zone)).toMatch(
+      /^Tuesday at /,
+    );
+    expect(formatUpcomingTimestamp("2026-07-08T05:30:00.000Z", "12-hour", now, zone)).toMatch(
+      /^Wed \S/,
+    );
     expect(formatDayAwareTimestamp("2026-07-01T03:30:00.000Z", "12-hour", now, zone)).toMatch(
       /^yesterday at /,
     );

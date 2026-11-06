@@ -237,7 +237,11 @@ export function formatUpcomingTimestamp(
   if (dayDiff < 0) return formatDayAwareTimestamp(isoDate, timestampFormat, nowMs, timeZone);
   if (dayDiff === 0) return time;
   if (dayDiff === 1) return `tomorrow at ${time}`;
-  return `${formatNumericDate(date, targetDay.year === today.year, timeZone)} ${time}`;
+  // The surrounding copy is English, so weekday names are too.
+  const weekday = (style: "long" | "short") =>
+    new Intl.DateTimeFormat("en-US", { weekday: style, timeZone }).format(date);
+  if (dayDiff < 7) return `${weekday("long")} at ${time}`;
+  return `${weekday("short")} ${formatNumericDate(date, targetDay.year === today.year, timeZone)} ${time}`;
 }
 
 type RelativeTimeParts = { value: string; suffix: string | null };
