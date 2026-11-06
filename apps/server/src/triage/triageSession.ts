@@ -51,6 +51,7 @@ export const writeTriageSession = Effect.fn("triage.writeTriageSession")(functio
   readonly entry: TriageEntry;
   readonly server: string;
   readonly sourceClone?: TriageSourceClone | undefined;
+  readonly buildCommit: string | undefined;
 }) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
@@ -74,6 +75,7 @@ export const writeTriageSession = Effect.fn("triage.writeTriageSession")(functio
       nodeVersion: process.version,
       server: input.server,
       sourceClone: input.sourceClone,
+      buildCommit: input.buildCommit,
       paths: {
         stateDir: paths.stateDir,
         dbPath: paths.dbPath,

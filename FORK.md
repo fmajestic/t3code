@@ -45,6 +45,7 @@ Each of these is meant to be dropped once upstream has it, through its own PR or
 - **Signed local builds**: `vp run fork:dist:desktop:app` signs the app with a self-signed "T3 Fork Local" certificate, because macOS shows notifications only from apps signed by a trusted certificate. Run `scripts/fork-signing-identity.sh` once per Mac to create and trust it; it asks for your password. Without it, builds still work but cannot show notifications.
 - **Regional date formats**: on macOS, dates and times use the order, separators and clock of the system region, while month and weekday names stay in the UI language.
 - **`check:changed` compares against `fork`**: `vp run check:changed` also tries the local `fork` branch as a base, so a branch off `fork` checks only its own changes instead of every fork commit since `upstream/main`.
+- **Triage reads the fork's source**: Triage an issue reads the checkout at `~/personal/t3code`, `~/projects/t3code` or `~/code/t3code` when it contains the commit the build came from, so nothing is downloaded. Without one, it clones that commit from the fork, or the tip of `fork` when the build does not record its commit, and skips vendored sources (`.repos/`, mobile `Vendor/`) and binary assets, about 25 MB instead of several hundred. The triage context tells `t3 triage` agents the same. `src/triage/forkSource.ts` holds the paths, remote and sparse patterns.
 
 ## Syncing
 
