@@ -32,6 +32,7 @@ Each of these is meant to be dropped once upstream has it, through its own PR or
 - **Test notification**: Settings > General > Thread notifications has a Test button. Five seconds after you press it, it sends a system notification whatever the window focus, and then reports the permission and whether the window counted as focused.
 - **Notification sounds right after launch**: in the desktop app, thread sounds play from the moment it starts, instead of only after your first click or key press, which only browsers need.
 - **Sidebar drags start where you grabbed**: starting to drag a thread no longer scrolls a long sidebar to the bottom, which made a quick grab and release drop the thread far down the list. The dragged thread also stays in its own slot when the Pinned and Active labels open.
+- **Compaction offered, not chosen**: Settings > Providers > Advanced > Compact idle threads has an "Offered when you return" mode. The Compact chip still shows when you return to an idle thread, but starts on Keep, so you click it only when you want to compact.
 - **Settings opens in its search**: opening Settings puts the cursor in its search box, so you can start typing right away. Touch screens and narrow windows still open without focus, so no keyboard pops up.
 
 ## Fork only

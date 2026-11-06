@@ -266,7 +266,8 @@ export function shouldCompactBeforeSend(input: {
     provider === undefined ||
     !input.threadIdle ||
     COMPACT_COMMAND_PATTERN.test(input.text) ||
-    resolveIdleCompaction(input.settings, provider.instanceId) === "off" ||
+    // Mobile has no Compact/Keep chip, so it never takes up an offer.
+    ["off", "offered"].includes(resolveIdleCompaction(input.settings, provider.instanceId)) ||
     !provider.slashCommands.some((command) => command.name === "compact") ||
     resolvePendingHandoff(projection, input.selection, input.providers) !== null ||
     projection.runtimeRequests.some((request) => request.status === "pending") ||

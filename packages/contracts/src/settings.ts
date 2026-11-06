@@ -700,6 +700,7 @@ const CLAUDE_AUTO_COMPACT_WINDOW_PATTERN = /^(?:|[1-9]\d{5}|1000000)$/;
 
 export const IDLE_COMPACTION_MODES = [
   { value: "onReturn", label: "When you return" },
+  { value: "offered", label: "Offered when you return" },
   { value: "beforeCacheExpires", label: "Before the cache expires (beta)" },
   { value: "off", label: "Never" },
 ] as const;
