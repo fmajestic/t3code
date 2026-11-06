@@ -1,3 +1,7 @@
+// @effect-diagnostics nodeBuiltinImport:off
+import * as NodeOS from "node:os";
+import * as NodePath from "node:path";
+
 import {
   type AuthClientPresentationMetadata,
   ServerPrepareTriageError,
@@ -8,15 +12,21 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 
 import packageJson from "../../package.json" with { type: "json" };
 import * as ServerConfig from "../config.ts";
 import * as GitVcsDriver from "../vcs/GitVcsDriver.ts";
+import {
+  BUILD_COMMIT,
+  FORK_BRANCH,
+  FORK_REPOSITORY_URL,
+  LOCAL_CHECKOUT_DIRS,
+  SPARSE_PATTERNS,
+} from "./forkSource.ts";
 import { buildTriageAppPrompt, type TriageSourceClone } from "./triagePrompt.ts";
 import { triageSourceCacheDir, writeTriageSession } from "./triageSession.ts";
-
-const T3CODE_REPOSITORY_URL = "https://github.com/pingdotgg/t3code";
 
 // No tty: a credential prompt would hang until the timeout, so git must fail
 // instead. An empty GIT_ASKPASS also skips core.askPass and SSH_ASKPASS helpers.
@@ -48,24 +58,14 @@ const describeClient = (client: AuthClientPresentationMetadata) =>
     .filter((part) => part !== undefined)
     .join(" ");
 
-/** Picks the release tag for `version`, or `main` when the build has no tag. */
-export const pickSourceRef = (lsRemoteOutput: string, version: string) => {
-  const commits = new Map(
-    lsRemoteOutput
-      .split("\n")
-      .map((line) => line.trim().split("\t"))
-      .filter((fields): fields is [string, string] => fields.length === 2)
-      .map(([commit, ref]) => [ref, commit]),
-  );
-  const tag = `v${version}`;
-  // Annotated tags list the tag object first and the commit as `^{}`.
-  const tagCommit = commits.get(`refs/tags/${tag}^{}`) ?? commits.get(`refs/tags/${tag}`);
-  if (tagCommit !== undefined) return { ref: tag, commit: tagCommit };
-  const mainCommit = commits.get("refs/heads/main");
-  return mainCommit === undefined ? undefined : { ref: "main", commit: mainCommit };
-};
+export interface TriageSourceOptions {
+  /** The commit this server was built from, when known. */
+  readonly buildCommit: string | undefined;
+  /** Checkouts of the fork to read in place of a clone, in order. */
+  readonly localCheckouts: ReadonlyArray<string>;
+}
 
-const make = Effect.gen(function* () {
+const make = Effect.fn("TriageService.make")(function* (options: TriageSourceOptions) {
   const config = yield* ServerConfig.ServerConfig;
   const git = yield* GitVcsDriver.GitVcsDriver;
   const fs = yield* FileSystem.FileSystem;
@@ -75,7 +75,7 @@ const make = Effect.gen(function* () {
   // clone in progress must not look like a stale entry. Same filesystem, so the
   // finished clone moves in with a rename.
   const stagingDir = `${sourceDir}-staging`;
-  const serverVersion = packageJson.version;
+  const { buildCommit } = options;
 
   const runGit = (operation: string, cwd: string, args: ReadonlyArray<string>, timeoutMs: number) =>
     git.execute({ operation: `TriageService.${operation}`, cwd, args, timeoutMs, env: GIT_ENV });
@@ -86,8 +86,33 @@ const make = Effect.gen(function* () {
   // Clones a previous server process left half done.
   yield* fs.remove(stagingDir, { recursive: true }).pipe(Effect.ignore);
 
-  // Fetches the exact commit `ls-remote` resolved, so the folder the session
-  // names is the one that appears even when main moves meanwhile.
+  // The first checkout on disk that has the build's commit, so nothing is downloaded.
+  const findLocalCheckout = Effect.fn("TriageService.findLocalCheckout")(function* () {
+    for (const directory of options.localCheckouts) {
+      if (!(yield* fs.exists(path.join(directory, ".git")))) continue;
+      const hasCommit =
+        buildCommit === undefined ||
+        (yield* runGit(
+          "checkLocalCommit",
+          directory,
+          ["cat-file", "-e", `${buildCommit}^{commit}`],
+          10_000,
+        ).pipe(
+          Effect.as(true),
+          Effect.orElseSucceed(() => false),
+        ));
+      if (!hasCommit) continue;
+      const head = yield* runGit("checkLocalHead", directory, ["rev-parse", "HEAD"], 10_000).pipe(
+        Effect.map((result) => result.stdout.trim()),
+        Effect.option,
+      );
+      if (Option.isSome(head)) return Option.some({ directory, head: head.value });
+    }
+    return Option.none<{ readonly directory: string; readonly head: string }>();
+  });
+
+  // Fetches the exact commit, so the folder the session names is the one that
+  // appears even when the branch moves meanwhile.
   const cloneSource = Effect.fn("TriageService.cloneSource")(function* (commit: string) {
     yield* fs.makeDirectory(stagingDir, { recursive: true });
     const staging = yield* fs.makeTempDirectory({ directory: stagingDir, prefix: "clone-" });
@@ -97,7 +122,13 @@ const make = Effect.gen(function* () {
       yield* runGit(
         "addSourceRemote",
         staging,
-        ["remote", "add", "origin", T3CODE_REPOSITORY_URL],
+        ["remote", "add", "origin", FORK_REPOSITORY_URL],
+        10_000,
+      );
+      yield* runGit(
+        "sparseSource",
+        staging,
+        ["sparse-checkout", "set", "--no-cone", ...SPARSE_PATTERNS],
         10_000,
       );
       yield* runGit(
@@ -121,22 +152,17 @@ const make = Effect.gen(function* () {
     );
   });
 
-  // Release tags never move, so one lookup serves every later session. Builds
-  // with no tag track main, which does move, so they look it up each time.
-  let releaseSource: { readonly ref: string; readonly commit: string } | undefined;
-  const resolveSource = Effect.fn("TriageService.resolveSource")(function* () {
-    if (releaseSource !== undefined) return releaseSource;
-    const tag = `refs/tags/v${serverVersion}`;
+  // Without a recorded build commit, the tip of the fork branch is the closest match.
+  const resolveCommit = Effect.fn("TriageService.resolveCommit")(function* () {
+    if (buildCommit !== undefined) return buildCommit;
     const listed = yield* runGit(
       "resolveSourceRef",
       sourceDir,
-      ["ls-remote", T3CODE_REPOSITORY_URL, tag, `${tag}^{}`, "refs/heads/main"],
+      ["ls-remote", FORK_REPOSITORY_URL, `refs/heads/${FORK_BRANCH}`],
       // Triage still starts without source; a dead network should not stall it.
       5_000,
     );
-    const source = pickSourceRef(listed.stdout, serverVersion);
-    if (source?.ref !== "main") releaseSource = source;
-    return source;
+    return listed.stdout.trim().split("\t")[0] || undefined;
   });
 
   // Commits with a clone running, so sessions started meanwhile share it.
@@ -146,16 +172,17 @@ const make = Effect.gen(function* () {
   // the agent finds and reuses this clone instead of making another. The folder
   // appears only once the clone is complete.
   const startSourceClone = Effect.fn("TriageService.startSourceClone")(function* () {
+    const local = yield* findLocalCheckout();
+    if (Option.isSome(local)) return { _tag: "local", ...local.value } satisfies TriageSourceClone;
     yield* fs.makeDirectory(sourceDir, { recursive: true });
-    const source = yield* resolveSource();
-    if (source === undefined) {
+    const commit = yield* resolveCommit();
+    if (commit === undefined) {
       return {
         _tag: "failed",
-        serverVersion,
-        reason: "the repository listed neither the release tag nor main.",
+        reason: `the fork did not list its \`${FORK_BRANCH}\` branch.`,
       } satisfies TriageSourceClone;
     }
-    const directory = path.join(sourceDir, source.commit);
+    const directory = path.join(sourceDir, commit);
     if (yield* fs.exists(directory)) {
       // Our clones appear only when complete, but an agent may have cloned
       // here by hand and stopped partway.
@@ -166,42 +193,38 @@ const make = Effect.gen(function* () {
             Effect.orElseSucceed(() => ""),
           )
         : "";
-      return head === source.commit
-        ? ({ _tag: "cloned", directory, serverVersion, ...source } as const)
+      return head === commit
+        ? ({ _tag: "cloned", directory, commit } as const)
         : ({
             _tag: "failed",
-            serverVersion,
-            reason: `${directory} exists but is not a complete checkout of ${source.commit}. Remove it first.`,
+            reason: `${directory} exists but is not a complete checkout of ${commit}. Remove it first.`,
           } satisfies TriageSourceClone);
     }
-    if (!cloning.has(source.commit)) {
-      cloning.add(source.commit);
-      yield* cloneSource(source.commit).pipe(
+    if (!cloning.has(commit)) {
+      cloning.add(commit);
+      yield* cloneSource(commit).pipe(
         Effect.ignoreCause({ log: true }),
-        Effect.ensuring(Effect.sync(() => cloning.delete(source.commit))),
+        Effect.ensuring(Effect.sync(() => cloning.delete(commit))),
         Effect.forkIn(serviceScope),
       );
     }
-    return { _tag: "cloning", directory, serverVersion, ...source } as const;
+    return { _tag: "cloning", directory, commit } as const;
   });
 
   const prepare: TriageService["Service"]["prepare"] = Effect.fn("TriageService.prepare")(
     function* (input) {
       const sourceClone = yield* startSourceClone().pipe(
         Effect.catch((error) =>
-          Effect.succeed<TriageSourceClone>({
-            _tag: "failed",
-            serverVersion,
-            reason: error.message,
-          }),
+          Effect.succeed<TriageSourceClone>({ _tag: "failed", reason: error.message }),
         ),
       );
       const session = yield* writeTriageSession({
         baseDir: config.baseDir,
         paths: config,
         entry: { kind: "app", client: describeClient(input.client) },
-        server: `running (pid ${String(process.pid)}, version ${serverVersion}); this session runs inside it`,
+        server: `running (pid ${String(process.pid)}, version ${packageJson.version}); this session runs inside it`,
         sourceClone,
+        buildCommit,
       }).pipe(
         Effect.provideService(FileSystem.FileSystem, fs),
         Effect.provideService(Path.Path, path),
@@ -214,4 +237,15 @@ const make = Effect.gen(function* () {
   return TriageService.of({ prepare });
 });
 
-export const layer = Layer.effect(TriageService, make);
+export const layerWith = (options: TriageSourceOptions) =>
+  Layer.effect(TriageService, make(options));
+
+export const layer = Layer.effect(
+  TriageService,
+  Effect.suspend(() =>
+    make({
+      buildCommit: BUILD_COMMIT,
+      localCheckouts: LOCAL_CHECKOUT_DIRS.map((dir) => NodePath.join(NodeOS.homedir(), dir)),
+    }),
+  ),
+);
