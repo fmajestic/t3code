@@ -243,7 +243,7 @@ export const make = Effect.gen(function* () {
             : null;
         if (
           kind !== null &&
-          dirent.name.toLowerCase().startsWith(lowerPrefix) &&
+          dirent.name.toLowerCase().includes(lowerPrefix) &&
           (showHidden || !dirent.name.startsWith("."))
         ) {
           entries.push({

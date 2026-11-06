@@ -70,31 +70,43 @@ export function getFilesystemBrowsePath(query: string, platform = "", enabled = 
   };
 }
 
+/** Names that start with the query come first, then names that only contain it. */
 export function filterFilesystemBrowseEntries(
   entries: ReadonlyArray<FilesystemBrowseEntry>,
   query: string,
 ) {
   const lowerQuery = query.toLowerCase();
   const showHidden = query.startsWith(".");
-  const visibleEntries = entries.filter(
-    (entry) =>
-      entry.name.toLowerCase().startsWith(lowerQuery) &&
-      (showHidden || !entry.name.startsWith(".")),
-  );
+  const prefixEntries: Array<FilesystemBrowseEntry> = [];
+  const substringEntries: Array<FilesystemBrowseEntry> = [];
+  for (const entry of entries) {
+    if (!showHidden && entry.name.startsWith(".")) continue;
+    const lowerName = entry.name.toLowerCase();
+    if (lowerName.startsWith(lowerQuery)) prefixEntries.push(entry);
+    else if (lowerName.includes(lowerQuery)) substringEntries.push(entry);
+  }
+  const visibleEntries = [...prefixEntries, ...substringEntries];
   const exactEntry =
     query.length > 0 ? (visibleEntries.find((entry) => entry.name === query) ?? null) : null;
 
   return { visibleEntries, exactEntry };
 }
 
-/** Shell-style Tab: a single match enters the directory, several extend to their common prefix. */
+/**
+ * Shell-style Tab: a single match enters the directory, several prefix matches extend to their
+ * common prefix. Substring matches never rewrite what was typed unless they are the only match.
+ */
 export function getFilesystemBrowseTabCompletion(
   visibleEntries: ReadonlyArray<FilesystemBrowseEntry>,
   filterQuery: string,
 ): { readonly name: string; readonly isComplete: boolean } | null {
-  const [first, ...rest] = visibleEntries;
+  const [only, ...others] = visibleEntries;
+  if (only !== undefined && others.length === 0) return { name: only.name, isComplete: true };
+  const lowerQuery = filterQuery.toLowerCase();
+  const [first, ...rest] = visibleEntries.filter((entry) =>
+    entry.name.toLowerCase().startsWith(lowerQuery),
+  );
   if (first === undefined) return null;
-  if (rest.length === 0) return { name: first.name, isComplete: true };
   let prefix = Array.from(first.name);
   for (const entry of rest) {
     const characters = Array.from(entry.name);
@@ -108,8 +120,8 @@ export function getFilesystemBrowseTabCompletion(
   }
   const name = prefix.join("");
   const lowerName = name.toLowerCase();
-  return lowerName.length > filterQuery.toLowerCase().length &&
-    visibleEntries.every((entry) => entry.name.toLowerCase().startsWith(lowerName))
+  return lowerName.length > lowerQuery.length &&
+    [first, ...rest].every((entry) => entry.name.toLowerCase().startsWith(lowerName))
     ? { name, isComplete: false }
     : null;
 }

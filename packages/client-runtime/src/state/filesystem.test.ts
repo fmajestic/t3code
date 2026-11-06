@@ -3,6 +3,7 @@ import { AuthFilesystemReadScope, AuthOrchestrationReadScope } from "@t3tools/co
 
 import {
   createBrowseNavigationCoordinator,
+  filterFilesystemBrowseEntries,
   getFilesystemBrowsePath,
   getFilesystemBrowseTabCompletion,
   resolveFilesystemReadAccess,
@@ -106,6 +107,33 @@ describe("filesystem browse model", () => {
       isComplete: false,
     });
     expect(getFilesystemBrowseTabCompletion([], "x")).toBeNull();
+    expect(
+      getFilesystemBrowseTabCompletion([entry("specs"), entry("digital-sign-up-spec")], "spec"),
+    ).toEqual({ name: "specs", isComplete: false });
+  });
+
+  it("matches substrings after prefixes and completes a lone substring match", () => {
+    const entry = (name: string) => ({ name, fullPath: `/work/${name}` });
+    const entries = [
+      entry(".account"),
+      entry("account-tools"),
+      entry("business-account-service"),
+      entry("business-account-ui"),
+      entry("digital-sign-up-specification"),
+    ];
+    const { visibleEntries } = filterFilesystemBrowseEntries(entries, "account");
+    expect(visibleEntries.map((e) => e.name)).toEqual([
+      "account-tools",
+      "business-account-service",
+      "business-account-ui",
+    ]);
+    const substringOnly = filterFilesystemBrowseEntries(entries, "-account").visibleEntries;
+    expect(getFilesystemBrowseTabCompletion(substringOnly, "-account")).toBeNull();
+    const spec = filterFilesystemBrowseEntries(entries, "spec").visibleEntries;
+    expect(getFilesystemBrowseTabCompletion(spec, "spec")).toEqual({
+      name: "digital-sign-up-specification",
+      isComplete: true,
+    });
   });
 });
 
