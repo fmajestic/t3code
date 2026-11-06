@@ -16,6 +16,7 @@ import packageJson from "../../package.json" with { type: "json" };
 import * as ServerConfig from "../config.ts";
 import { resolveBaseDir } from "../os-jank.ts";
 import { buildTriageLaunchPrompt } from "../triage/triagePrompt.ts";
+import { BUILD_COMMIT } from "../triage/forkSource.ts";
 import { describeServerProcess, writeTriageSession } from "../triage/triageSession.ts";
 import { baseDirFlag } from "./config.ts";
 import { interactiveStdin } from "./consoleStdin.ts";
@@ -165,6 +166,7 @@ export const triageCommand = Command.make("triage", {
           launchedAs: yield* resolveCliCommand("triage"),
         },
         server: yield* describeServerProcess(paths.serverRuntimeStatePath),
+        buildCommit: BUILD_COMMIT,
       });
 
       const installed: Array<TriageAgent> = [];
