@@ -280,7 +280,15 @@ export function formatUpcomingTimestamp(
   }
   if (dayDiff === 0) return time;
   if (dayDiff === 1) return resolve(msg("tomorrow at {time}", { time }));
-  return `${formatNumericDate(date, targetDay.year === today.year, timeZone)} ${time}`;
+  // Weekday names follow the UI language, like the surrounding copy.
+  const weekday = (style: "long" | "short") =>
+    new Intl.DateTimeFormat(getActiveLocale(), { weekday: style, timeZone }).format(date);
+  if (dayDiff < 7) {
+    return resolve(
+      msg("{weekday} at {time}", { weekday: weekday("long"), time, $context: "upcoming day" }),
+    );
+  }
+  return `${weekday("short")} ${formatNumericDate(date, targetDay.year === today.year, timeZone)} ${time}`;
 }
 
 /** `label` is the whole phrase ("5m ago"); `value` and `suffix` split it for styled layouts. */
