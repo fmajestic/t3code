@@ -869,6 +869,7 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceEntries", (it) => {
         const cwd = yield* makeTempDir({ prefix: "t3code-workspace-browse-files-" });
         yield* writeTextFile(cwd, "alphabet.txt", "keep me");
         yield* writeTextFile(cwd, "alpha/index.ts", "export {};\n");
+        yield* writeTextFile(cwd, "digit-alpine/index.ts", "");
 
         const result = yield* workspaceEntries.browse({
           partialPath: path.join(cwd, "alp"),
@@ -878,6 +879,7 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceEntries", (it) => {
         expect(result.entries).toEqual([
           { name: "alpha", fullPath: path.join(cwd, "alpha"), kind: "directory" },
           { name: "alphabet.txt", fullPath: path.join(cwd, "alphabet.txt"), kind: "file" },
+          { name: "digit-alpine", fullPath: path.join(cwd, "digit-alpine"), kind: "directory" },
         ]);
       }),
     );
