@@ -2707,16 +2707,17 @@ export default function ChatView(props: ChatViewProps) {
     activeMessageCount > 0 && serverConfig?.environment.capabilities.freshContext === true;
   const freshSessionArmed = useFreshSessionArmed(routeThreadKey);
   const freshSessionPending = freshSessionAvailable && freshSessionArmed;
+  const idleCompaction = resolveIdleCompaction(
+    settings,
+    activeProviderInstanceId ?? ProviderInstanceId.make("claudeAgent"),
+  );
   // The context window is the current conversation's, so neither a handoff destination nor
   // the fresh session armed by /clear inherits it.
   const resumeCompactionTokens =
     activeContextWindow &&
     pendingHandoff === null &&
     !freshSessionPending &&
-    resolveIdleCompaction(
-      settings,
-      activeProviderInstanceId ?? ProviderInstanceId.make("claudeAgent"),
-    ) !== "off" &&
+    idleCompaction !== "off" &&
     !resumeCompactionPermanentlyDismissed &&
     !nativeResumeCompactionDismissed &&
     !compactDisabled &&
@@ -2731,19 +2732,22 @@ export default function ChatView(props: ChatViewProps) {
     })
       ? activeContextWindow.usedTokens
       : null;
-  const [fullHistoryThreadKeys, setFullHistoryThreadKeys] = useState<ReadonlySet<string>>(
+  // Threads whose Compact/Keep chip the user switched away from the mode's default.
+  const [switchedChipThreadKeys, setSwitchedChipThreadKeys] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
-  const keepFullHistory = fullHistoryThreadKeys.has(routeThreadKey);
-  const setKeepFullHistory = (threadKey: string, keep: boolean) => {
-    setFullHistoryThreadKeys((current) => {
-      if (current.has(threadKey) === keep) return current;
+  const keepsHistoryByDefault = idleCompaction === "offered";
+  const keepFullHistory = switchedChipThreadKeys.has(routeThreadKey) !== keepsHistoryByDefault;
+  const setChipSwitched = (threadKey: string, switched: boolean) => {
+    setSwitchedChipThreadKeys((current) => {
+      if (current.has(threadKey) === switched) return current;
       const next = new Set(current);
-      if (keep) next.add(threadKey);
+      if (switched) next.add(threadKey);
       else next.delete(threadKey);
       return next;
     });
   };
+  const resetKeepFullHistory = (threadKey: string) => setChipSwitched(threadKey, false);
   // While a question or approval owns the composer, its text answers that, not the agent.
   const freshSessionCommandAvailable =
     freshSessionAvailable && activePendingApproval === null && pendingUserInputs.length === 0;
@@ -2755,7 +2759,7 @@ export default function ChatView(props: ChatViewProps) {
   });
   const toggleKeepFullHistory = () => {
     cancelHeldComposerSend(composerDraftTargetKey);
-    setKeepFullHistory(routeThreadKey, !keepFullHistory);
+    setChipSwitched(routeThreadKey, !switchedChipThreadKeys.has(routeThreadKey));
   };
   const toggleKeepFullHistoryStable = useStableCallback(toggleKeepFullHistory);
   const armFreshSessionStable = useStableCallback(() => armFreshSession(routeThreadKey));
@@ -3237,7 +3241,7 @@ export default function ChatView(props: ChatViewProps) {
     },
     setFeedbackSubmissionsByThreadKey,
     setThreadError,
-    setKeepFullHistory,
+    resetKeepFullHistory,
     anchorNewTurn,
     acknowledgeActiveThreadWoke,
     onSideChat: sideChat.available ? sendSideChatStable : undefined,
