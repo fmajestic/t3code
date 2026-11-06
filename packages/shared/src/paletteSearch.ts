@@ -897,6 +897,9 @@ export interface ThreadSearchMatch {
    * Built on demand, so only the rows shown pay for it.
    */
   readonly explain?: () => SearchMatchHint | undefined;
+  /** Last activity, then last open, break ties in `rankSearchGroups`. */
+  readonly activityAt: number;
+  readonly openedAt: number;
   /** When the thread was picked for this query, while that pick lasts; see `rankSearchGroups`. */
   readonly pickedAt?: number;
   /** Picked for exactly this query, before newer picks for longer ones; see `rankSearchGroups`. */
@@ -1047,6 +1050,8 @@ export function scoreThreadSearch(
     // of that name: every new thread is titled "New thread" for a while.
     groupQuality: Math.min(match.quality, WHOLE_NAME - 0.01),
     strong: match.strong,
+    activityAt: thread.activityAt ?? 0,
+    openedAt: thread.opens?.openedAt ?? 0,
     ranges: match.primaryRanges,
     ...(explain ? { explain } : {}),
     ...(pick ? { pickedAt: pick.at } : {}),
@@ -1146,6 +1151,8 @@ export function rankSearchGroups<
     readonly pickedAt?: number;
     readonly pickedExactly?: boolean;
     readonly groupQuality?: number;
+    readonly activityAt?: number;
+    readonly openedAt?: number;
   },
 >(
   groups: ReadonlyArray<{ readonly group: G; readonly items: ReadonlyArray<T> }>,
@@ -1179,7 +1186,9 @@ export function rankSearchGroups<
           exactPickAt(right.match) - exactPickAt(left.match) ||
           matchClass(right.match.quality) - matchClass(left.match.quality) ||
           (right.match.pickedAt ?? 0) - (left.match.pickedAt ?? 0) ||
-          right.match.score - left.match.score,
+          right.match.score - left.match.score ||
+          (right.match.activityAt ?? 0) - (left.match.activityAt ?? 0) ||
+          (right.match.openedAt ?? 0) - (left.match.openedAt ?? 0),
       );
       const best = Math.max(
         ...items.map(({ match }) => matchClass(match.groupQuality ?? match.quality)),
