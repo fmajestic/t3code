@@ -204,6 +204,11 @@ describe("compactBeforeSendTokens", () => {
     { name: "under 200K", usedTokens: 150_000, expected: false },
     { name: "with idle compaction off", settings: { idleCompaction: "off" }, expected: false },
     {
+      name: "with idle compaction only offered",
+      settings: { idleCompaction: "offered" },
+      expected: false,
+    },
+    {
       name: "with the Claude instance overriding idle compaction to off",
       settings: {
         idleCompaction: "onReturn",

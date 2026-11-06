@@ -11909,7 +11909,8 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
                     Effect.orElseSucceed(() => adapterOptions.settings.idleCompaction),
                   )
                 : adapterOptions.settings.idleCompaction;
-              if (idleCompaction === "off") {
+              // Under "offered" the composer's chip already offered compaction and the user passed.
+              if (idleCompaction === "off" || idleCompaction === "offered") {
                 return { behavior: "completed" as const, result: "continue" as const };
               }
               const ageMinutes =

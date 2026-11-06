@@ -240,7 +240,7 @@ interface ComposerSendInput {
     SetStateAction<Record<string, ReadonlyArray<CodexFeedbackSubmission>>>
   >;
   readonly setThreadError: ReturnType<typeof makeThreadErrorSetter>;
-  readonly setKeepFullHistory: (threadKey: string, keep: boolean) => void;
+  readonly resetKeepFullHistory: (threadKey: string) => void;
   readonly anchorNewTurn: TimelineFollow["anchorNewTurn"];
   readonly acknowledgeActiveThreadWoke: () => void;
   /** Resolves true once the side chat started and got the prompt. */
@@ -330,7 +330,7 @@ export function useComposerSend(input: ComposerSendInput) {
     optimisticBlobPreviews,
     setFeedbackSubmissionsByThreadKey,
     setThreadError,
-    setKeepFullHistory,
+    resetKeepFullHistory,
     anchorNewTurn,
     acknowledgeActiveThreadWoke,
     onSideChat,
@@ -1348,7 +1348,7 @@ export function useComposerSend(input: ComposerSendInput) {
             checkoutPullRequestUrl,
           );
         }
-        setKeepFullHistory(routeThreadKey, false);
+        resetKeepFullHistory(routeThreadKey);
         if (freshArm !== undefined) disarmFreshSession(routeThreadKey, freshArm);
         clearUsageLimitsFor(routeThreadKey);
         if (turnUsesAttachmentUploads) {
