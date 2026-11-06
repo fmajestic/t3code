@@ -1,5 +1,7 @@
 import { serializeComposerFileLink } from "@t3tools/shared/composerTrigger";
 
+import { FORK_REPOSITORY_URL, forkCloneSteps, LOCAL_CHECKOUT_DIRS } from "./forkSource.ts";
+
 /** Keep TRIAGE_PLAYBOOK byte-identical to .github/triage/PLAYBOOK.md after unescaping backticks and backslashes. */
 
 export const TRIAGE_PLAYBOOK = `# T3 Code triage playbook
@@ -192,16 +194,19 @@ ${
 
 ${TRIAGE_PLAYBOOK}`;
 
-/** A clone the server made before the session started, or why it could not. */
+/** Source the server found or cloned before the session started, or why it could not. */
 export type TriageSourceClone =
+  | {
+      readonly _tag: "local";
+      readonly directory: string;
+      readonly head: string;
+    }
   | {
       readonly _tag: "cloned" | "cloning";
       readonly directory: string;
-      readonly ref: string;
       readonly commit: string;
-      readonly serverVersion: string;
     }
-  | { readonly _tag: "failed"; readonly serverVersion: string; readonly reason: string };
+  | { readonly _tag: "failed"; readonly reason: string };
 
 export interface TriageContextInput {
   readonly generatedAt: string;
@@ -210,6 +215,7 @@ export interface TriageContextInput {
   readonly nodeVersion: string;
   readonly server: string;
   readonly sourceClone?: TriageSourceClone | undefined;
+  readonly buildCommit?: string | undefined;
   readonly paths: {
     readonly stateDir: string;
     readonly dbPath: string;
@@ -240,37 +246,78 @@ const entryLines = (entry: TriageEntry) =>
         after: undefined,
       };
 
-const sourceSection = (clone: TriageSourceClone) => {
-  if (clone._tag === "failed") {
-    return `
+const forkSourceIntro = (buildCommit: string | undefined) => `
 ## Source
 
-The server could not clone the source for its version (${clone.serverVersion}): ${clone.reason}
-Clone it as step 4 describes.
+This build comes from a personal fork of T3 Code, ${FORK_REPOSITORY_URL},
+not from pingdotgg/t3code. In step 4, skip the release tag and the upstream clone,
+and use the source below. Its \`FORK.md\` lists every way the fork differs:
+check it before blaming or filing upstream code.
+
+This build's commit: ${buildCommit ?? "not recorded (the server runs unbundled)"}
 `;
+
+const localSourceText = (directory: string, head: string, buildCommit: string | undefined) => {
+  const moved =
+    buildCommit !== undefined && head !== buildCommit
+      ? `
+HEAD has moved since this build. Read the build's code with
+\`git -C ${directory} show ${buildCommit}:<path>\`, and see what changed since with
+\`git -C ${directory} diff ${buildCommit} HEAD -- <path>\`.
+`
+      : "";
+  return `The source is the user's own checkout of the fork:
+
+    ${directory}  (HEAD ${head})
+${moved}
+It may hold uncommitted work: read it, but never edit it, switch branches,
+stash, or clean it.
+`;
+};
+
+const sourceSection = (
+  clone: TriageSourceClone | undefined,
+  sourceCacheDir: string,
+  buildCommit: string | undefined,
+) => {
+  const intro = forkSourceIntro(buildCommit);
+  const cloneSteps = `Clone the fork's source into the source cache directory:
+
+${forkCloneSteps(sourceCacheDir, buildCommit)}
+`;
+  if (clone === undefined) {
+    const checkouts = LOCAL_CHECKOUT_DIRS.map((dir) => `~/${dir}`).join(", ");
+    return `${intro}
+First look for a checkout of the fork in ${checkouts}${
+      buildCommit === undefined ? "" : " that contains this build's commit"
+    }, and read it instead of cloning. Never edit it, switch its branch, stash, or
+clean it. Only when there is none:
+
+${cloneSteps}`;
+  }
+  if (clone._tag === "local")
+    return `${intro}\n${localSourceText(clone.directory, clone.head, buildCommit)}`;
+  if (clone._tag === "failed") {
+    return `${intro}
+The server could not clone it: ${clone.reason}
+${cloneSteps}`;
   }
   const verb = clone._tag === "cloned" ? "The server cloned" : "The server is cloning";
-  const what =
-    clone.ref === "main"
-      ? `main, since its version (${clone.serverVersion}) has no release tag`
-      : `the source for its own version (${clone.serverVersion})`;
   const wait =
     clone._tag === "cloned"
       ? ""
       : `
 The folder appears only when the clone is complete. Wait for it instead of
-cloning again. If it has not appeared after a few minutes, clone as step 4
-describes.
+cloning again. If it has not appeared after a few minutes, clone it yourself:
+
+${forkCloneSteps(sourceCacheDir, buildCommit)}
 `;
-  return `
-## Source
+  return `${intro}
+${verb} it, without vendored sources and binary assets:
 
-${verb} ${what}:
-
-    ${clone.directory}  (${clone.ref}, commit ${clone.commit})
+    ${clone.directory}  (commit ${clone.commit})
 ${wait}
-Use it when the bug happened on this server's build. When it happened on another
-build, clone that version as step 4 describes.
+When the bug happened on another build, clone that build's commit the same way.
 `;
 };
 
@@ -294,7 +341,7 @@ ${entry.before}
 - Node: ${input.nodeVersion}
 ${entry.after === undefined ? "" : `${entry.after}\n`}- Server process: ${input.server}
 - Repo: https://github.com/pingdotgg/t3code
-${input.entry.kind === "app" ? IN_APP_SECTION : ""}${input.sourceClone === undefined ? "" : sourceSection(input.sourceClone)}
+${input.entry.kind === "app" ? IN_APP_SECTION : ""}${sourceSection(input.sourceClone, input.paths.sourceCacheDir, input.buildCommit)}
 ## Paths
 
 - State dir: ${input.paths.stateDir}
