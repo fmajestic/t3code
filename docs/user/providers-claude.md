@@ -72,6 +72,9 @@ composer commands.
 over 200,000 tokens. Each Claude provider's settings can override it:
 
 - **When you return** shows the **Compact** chip described above. This is the default.
+- **Offered when you return** shows the same chip, but it starts on **Keep**: click it
+  when you do want a message to compact first. Claude's resume prompt is skipped, and the
+  mobile app never compacts first.
 - **Before the cache expires (beta)** tries to compact an idle thread shortly before its
   prompt cache expires, while the history is still cached.
   The compaction appears in the thread as a `/compact` turn sent by T3 Code.

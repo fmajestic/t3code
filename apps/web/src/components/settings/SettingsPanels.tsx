@@ -1801,6 +1801,7 @@ export function CompactIdleThreadsRow() {
 
 const IDLE_COMPACTION_MODE_LABELS: Record<IdleCompactionMode, string> = {
   onReturn: msg("When you return"),
+  offered: msg("Offered when you return"),
   beforeCacheExpires: msg("Before the cache expires (beta)"),
   off: msg("Never", { $context: "idle thread compaction mode" }),
 };

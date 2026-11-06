@@ -181,6 +181,7 @@ export function managedCapabilityDenial(
 const IDLE_COMPACTION_MODE_LABELS: Record<IdleCompactionMode | "default", string> = {
   default: msg("Use default"),
   onReturn: msg("When you return"),
+  offered: msg("Offered when you return"),
   beforeCacheExpires: msg("Before the cache expires (beta)"),
   off: msg("Never", { $context: "idle compaction mode" }),
 };
