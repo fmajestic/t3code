@@ -142,6 +142,24 @@ describe("filesystem browse model", () => {
     ];
     expect(filterFilesystemBrowseEntries(angstroms, "\u00C5").exactEntry).toBeNull();
   });
+
+  it("completes a lone substring match", () => {
+    const entry = (name: string) => ({ name, fullPath: `/work/${name}` });
+    const entries = [
+      entry(".account"),
+      entry("account-tools"),
+      entry("business-account-service"),
+      entry("business-account-ui"),
+      entry("digital-sign-up-specification"),
+    ];
+    const substringOnly = filterFilesystemBrowseEntries(entries, "-account").visibleEntries;
+    expect(getFilesystemBrowseTabCompletion(substringOnly, "-account")).toBeNull();
+    const spec = filterFilesystemBrowseEntries(entries, "spec").visibleEntries;
+    expect(getFilesystemBrowseTabCompletion(spec, "spec")).toEqual({
+      name: "digital-sign-up-specification",
+      isComplete: true,
+    });
+  });
 });
 
 describe("browse navigation", () => {
