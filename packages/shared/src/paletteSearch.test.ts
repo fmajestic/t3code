@@ -116,6 +116,14 @@ describe("scoreThreadSearch", () => {
         }),
       ]),
     ).toEqual(["Goldbug notes", "Goldbug processes"]);
+    // Both at the use cap: the latest activity comes first, over a later open.
+    const heavyUse = (at: number) => ({ openedAt: at, score: 16, picks: [] });
+    expect(
+      rankTitles("goldbug", [
+        thread("Finish goldbug", { activityAt: NOW - 2 * DAY, opens: heavyUse(NOW - 500) }),
+        thread("Goldbug failure", { activityAt: NOW - 1000, opens: heavyUse(NOW - 2 * DAY) }),
+      ]),
+    ).toEqual(["Goldbug failure", "Finish goldbug"]);
   });
 
   it("puts the thread picked for a query first when that query is typed again", () => {

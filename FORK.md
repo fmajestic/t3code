@@ -33,6 +33,7 @@ Each of these is meant to be dropped once upstream has it, through its own PR or
 - **Dragged thread stays in its slot**: while dragging a thread in the sidebar, it stays over its own slot when the Pinned and Active labels open, instead of the slot opening below it. Upstream stopped the drag from scrolling the list in [#30346](https://github.com/pingdotgg/t3code/pull/30346).
 - **Compaction offered, not chosen**: Settings > Providers > Advanced > Compact idle threads has an "Offered when you return" mode. The Compact chip still shows when you return to an idle thread, but starts on Keep, so you click it only when you want to compact.
 - **Settings opens in its search**: opening Settings puts the cursor in its search box, so you can start typing right away. Touch screens and narrow windows still open without focus, so no keyboard pops up.
+- **Equal thread matches list newest first**: in Cmd+K (Ctrl+K), threads that match equally well and are both heavily used list by latest activity, then latest open, instead of in no particular order.
 
 ## Fork only
 
