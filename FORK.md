@@ -30,6 +30,7 @@ Each of these is meant to be dropped once upstream has it, through its own PR or
 - **Composer context row hides the timeline**: with Settings > Appearance > Composer context on, the conversation fades out above the branch and worktree row instead of scrolling through it.
 - **Test notification**: Settings > General > Thread notifications has a Test button. Five seconds after you press it, it sends a system notification whatever the window focus, and then reports the permission and whether the window counted as focused.
 - **Notification sounds right after launch**: in the desktop app, thread sounds play from the moment it starts, instead of only after your first click or key press, which only browsers need.
+- **Dragged thread stays in its slot**: while dragging a thread in the sidebar, it stays over its own slot when the Pinned and Active labels open, instead of the slot opening below it. Upstream stopped the drag from scrolling the list in [#30346](https://github.com/pingdotgg/t3code/pull/30346).
 - **Settings opens in its search**: opening Settings puts the cursor in its search box, so you can start typing right away. Touch screens and narrow windows still open without focus, so no keyboard pops up.
 
 ## Fork only

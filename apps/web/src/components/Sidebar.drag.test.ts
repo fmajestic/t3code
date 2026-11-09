@@ -3,6 +3,7 @@ import { closestCenter, type CollisionDetection } from "@dnd-kit/core";
 import type { SortingStrategy } from "@dnd-kit/sortable";
 import {
   createSidebarCollisionDetection,
+  createSidebarDragSourceOffset,
   createSidebarSortingStrategy,
   restrictBelowSidebarLabel,
 } from "./Sidebar.drag";
@@ -375,6 +376,62 @@ describe("sidebar drag projection", () => {
     expect(result.get("a1")?.y).toBe(32 + 83);
     expect(result.get(sidebarMarkerId("settled-header"))?.y).toBe(32);
     expect(result.get("s")?.y).toBe(32);
+  });
+
+  it("keeps a taller dragged card inside its own slot when the labels open", () => {
+    const items = [
+      pinnedHeader,
+      divider,
+      thread("a1", "active"),
+      thread("a2", "active"),
+      thread("a3", "active"),
+      settledHeader,
+    ];
+    const sourceOffset = createSidebarDragSourceOffset();
+    const strategy = createSidebarSortingStrategy({
+      items,
+      settledOrder: [],
+      settledExpanded: true,
+      boundaryLabelHeight: 24,
+      sourceOffset,
+    });
+    const args = layout(items, "a2", "a2", 1, 60);
+    for (const rect of args.rects.slice(3)) {
+      if (rect !== args.rects[3]) {
+        rect.top += 18;
+      }
+      rect.bottom += 18;
+    }
+    args.rects[3]!.height = 78;
+    const y = (index: number) => strategy({ ...args, index })?.y;
+    expect(y(2)).toBe(48);
+    expect(sourceOffset.get()).toBe(48);
+    expect(y(4)).toBe(48);
+
+    const collisionRect = { ...args.rects[3]!, top: args.rects[3]!.top + 48 };
+    collisionRect.bottom = collisionRect.top + collisionRect.height;
+    const detect = createSidebarCollisionDetection(() => true, { sourceOffset });
+    const collisions = detect({
+      active: {
+        id: "a2",
+        data: { current: {} },
+        rect: { current: { initial: args.rects[3]!, translated: collisionRect } },
+      },
+      collisionRect,
+      droppableRects: new Map(
+        items.map((item, index) => [sidebarListItemId(item), args.rects[index]!]),
+      ),
+      droppableContainers: items.map((item, index) => ({
+        id: sidebarListItemId(item),
+        key: sidebarListItemId(item),
+        disabled: false,
+        data: { current: {} },
+        node: { current: null },
+        rect: { current: args.rects[index]! },
+      })),
+      pointerCoordinates: null,
+    });
+    expect(collisions[0]?.id).toBe("a2");
   });
 
   it.each(["s1", "missing-target"])(
