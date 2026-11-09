@@ -218,7 +218,9 @@ import {
 } from "./Sidebar.logic";
 import {
   createSidebarCollisionDetection,
+  createSidebarDragSourceOffset,
   createSidebarSortingStrategy,
+  followSidebarDragSource,
   restrictBelowSidebarLabel,
 } from "./Sidebar.drag";
 import { SidebarPointerSensor } from "./Sidebar.pointer";
@@ -1048,6 +1050,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   const searchResultsListRef = useRef<HTMLUListElement | null>(null);
   const sidebarContentRef = useRef<HTMLDivElement | null>(null);
   const dragLabelOffsetRef = useRef(0);
+  const [dragSourceOffset] = useState(createSidebarDragSourceOffset);
   const listMotionRef = useRef<ReturnType<typeof createSidebarListMotion> | null>(null);
   const shiftGuardRef = useRef<ReturnType<typeof createSidebarShiftGuard> | null>(null);
   const [dragState, setDragState] = useState<{
@@ -1699,8 +1702,10 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   };
   const restrictBelowPins: Modifier = (args) =>
     restrictBelowSidebarLabel(args, dragLabelOffsetRef.current);
+  const followDragSource: Modifier = (args) => followSidebarDragSource(args, dragSourceOffset);
   const dndModifiers = [
     restrictToVerticalAxis,
+    followDragSource,
     restrictBelowPins,
     restrictToFirstScrollableAncestor,
   ];
@@ -1921,6 +1926,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     contextDragKeyRef.current = activeKey;
     const activeSection = sectionByThreadKey.get(activeKey);
     if (activeSection === undefined) return;
+    dragSourceOffset.set(0);
     listMotionRef.current?.suspend();
     const list = threadListRef.current;
     const viewport = list?.closest('[data-slot="scroll-area-viewport"]');
@@ -2066,6 +2072,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     settledVisibleCount,
     routeThreadKey: routeRowThreadKey,
     snoozedThreadCount: snoozedThreads.length,
+    sourceOffset: dragSourceOffset,
   });
   const draggedThreadKey = dragState?.activeKey;
   const draggedFromSection = dragState?.activeSection;
@@ -2100,6 +2107,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       {
         items: sidebarListItems,
         activationY: dragActivationY ?? null,
+        sourceOffset: dragSourceOffset,
       },
     );
   })();
