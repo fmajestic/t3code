@@ -220,7 +220,9 @@ export type SidebarListMarker =
   | "pinned-divider"
   | "working-header"
   | "snoozed-header"
-  | "settled-header";
+  | "settled-header"
+  // Fork: a user section's header or drop placeholder, see sidebar/sections.logic.ts.
+  | `custom-section:${string}`;
 
 export function sidebarMarkerId(marker: SidebarListMarker): string {
   return `${SIDEBAR_MARKER_PREFIX}${marker}`;
@@ -1049,6 +1051,75 @@ export function resolveSidebarFolderDot(
   if (hasUnread) return "unread";
   if (statuses.has("working") || statuses.has("preparing")) return "working";
   return null;
+}
+
+/** Whether a thread's row shows Woke: it woke after the last visit and wasn't settled by hand. */
+export function isThreadWoke(input: {
+  wokeAt: string | null;
+  lastVisitedAt?: string | null | undefined;
+  settledOverride: "settled" | "active" | null;
+}): boolean {
+  if (input.wokeAt === null || input.settledOverride === "settled") return false;
+  const wokeAt = Date.parse(input.wokeAt);
+  if (Number.isNaN(wokeAt)) return false;
+  const lastVisitedAt = input.lastVisitedAt ? Date.parse(input.lastVisitedAt) : Number.NaN;
+  return Number.isNaN(lastVisitedAt) || lastVisitedAt < wokeAt;
+}
+
+export type SidebarSectionEventKind = "done" | "woke";
+
+export interface SidebarSectionSignal {
+  /** The folder dot without its unread state, which the counts carry instead. */
+  readonly dot: "attention" | "failed" | "working" | null;
+  readonly done: number;
+  readonly woke: number;
+  readonly latest: { readonly kind: SidebarSectionEventKind; readonly at: number } | null;
+}
+
+/** What a collapsed user section says about its hidden threads, counting each as its row shows it. */
+export function resolveSidebarSectionSignal(
+  threads: ReadonlyArray<
+    ThreadStatusInput &
+      SidebarThreadStatusInput & {
+        wokeAt: string | null;
+        settledOverride: "settled" | "active" | null;
+      }
+  >,
+): SidebarSectionSignal {
+  let done = 0;
+  let woke = 0;
+  let latest: SidebarSectionSignal["latest"] = null;
+  const quiet: Array<(typeof threads)[number]> = [];
+  for (const thread of threads) {
+    if (resolveSidebarThreadStatus(thread) !== "ready") {
+      quiet.push(thread);
+      continue;
+    }
+    let event: NonNullable<SidebarSectionSignal["latest"]> | null = null;
+    if (isThreadWoke(thread)) {
+      woke += 1;
+      event = { kind: "woke", at: Date.parse(thread.wokeAt!) };
+    } else if (hasUnseenCompletion(thread)) {
+      done += 1;
+      event = { kind: "done", at: Date.parse(thread.latestRun!.completedAt!) };
+    }
+    if (event !== null && (latest === null || event.at > latest.at)) latest = event;
+  }
+  const dot = resolveSidebarFolderDot(quiet);
+  return { dot: dot === "unread" ? null : dot, done, woke, latest };
+}
+
+/**
+ * The colour of the one-shot sheen when a collapsed section's newest done or
+ * woke event moves forward; collapsing, mounting, and visits stay quiet.
+ */
+export function resolveSidebarSectionSheen(
+  previous: { readonly collapsed: boolean; readonly latestAt: number | null },
+  current: { readonly collapsed: boolean; readonly latest: SidebarSectionSignal["latest"] },
+): SidebarSectionEventKind | null {
+  if (!previous.collapsed || !current.collapsed || current.latest === null) return null;
+  if (previous.latestAt !== null && current.latest.at <= previous.latestAt) return null;
+  return current.latest.kind;
 }
 
 /**

@@ -537,7 +537,21 @@ export type ActiveThreadListEntry = Pick<
   | "settledAt"
   | "snoozedUntil"
   | "updatedAt"
+  | "tags"
 >;
+
+function activeThreadTags(json: string | null): { readonly tags?: ReadonlyArray<string> } {
+  if (json === null) return {};
+  try {
+    const parsed: unknown = JSON.parse(json);
+    const tags = Array.isArray(parsed)
+      ? parsed.filter((tag): tag is string => typeof tag === "string")
+      : [];
+    return tags.length === 0 ? {} : { tags };
+  } catch {
+    return {};
+  }
+}
 
 export interface OlderSettledThreadsQuery {
   readonly before: OrchestrationV2OlderSettledCursor;
@@ -9785,6 +9799,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
         readonly settled_override: string | null;
         readonly settled_at: string | null;
         readonly snoozed_until: string | null;
+        readonly tags_json: string | null;
       }>`
         SELECT
           t.thread_id,
@@ -9801,7 +9816,8 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
           json_extract(t.payload_json, '$.delegatedFrom.title') AS delegated_from_title,
           json_extract(t.payload_json, '$.settledOverride') AS settled_override,
           json_extract(t.payload_json, '$.settledAt') AS settled_at,
-          json_extract(t.payload_json, '$.snoozedUntil') AS snoozed_until
+          json_extract(t.payload_json, '$.snoozedUntil') AS snoozed_until,
+          json_extract(t.payload_json, '$.tags') AS tags_json
         FROM orchestration_v2_projection_threads t
         WHERE t.deleted_at IS NULL
           AND t.archived_at IS NULL${projectId === undefined ? sql`` : sql` AND t.project_id = ${projectId}`}
@@ -9830,6 +9846,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
         settledAt: row.settled_at === null ? null : DateTime.makeUnsafe(row.settled_at),
         snoozedUntil: row.snoozed_until === null ? null : DateTime.makeUnsafe(row.snoozed_until),
         updatedAt: DateTime.makeUnsafe(row.updated_at),
+        ...activeThreadTags(row.tags_json),
       }));
     }, Effect.mapError(shellSnapshotReadError));
 

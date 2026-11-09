@@ -42,6 +42,7 @@ export const SidebarProjectFolderHeader = memo(function SidebarProjectFolderHead
   group: SidebarProjectSnapshot;
   collapsed: boolean;
   hiddenThreads: readonly EnvironmentThreadShell[];
+  threadCount: number;
   onToggle: (group: SidebarProjectSnapshot) => void;
   onNewThread: (group: SidebarProjectSnapshot) => void;
   onContextMenu: (
@@ -68,7 +69,7 @@ export const SidebarProjectFolderHeader = memo(function SidebarProjectFolderHead
         })),
       )
     : null;
-  const hasCount = collapsed && hiddenThreads.length > 0;
+  const hasCount = collapsed && props.threadCount > 0;
   return (
     <li
       data-testid="sidebar-project-folder"
@@ -108,7 +109,7 @@ export const SidebarProjectFolderHeader = memo(function SidebarProjectFolderHead
         >
           {hasCount ? (
             <span className="text-xs tabular-nums text-sidebar-muted-foreground group-hover/project-folder:invisible group-has-[[data-sidebar-action-for]:focus]/project-folder:invisible pointer-coarse:invisible">
-              {hiddenThreads.length}
+              {props.threadCount}
             </span>
           ) : null}
         </span>

@@ -24,6 +24,7 @@ import { museModelCapabilities, resolveMuseReasoningEffort } from "./modelCatalo
 import { isMuseUsageLimitFailure } from "./usageLimits.ts";
 import type { ProviderTextGeneration } from "@t3tools/provider-core/server/textGeneration";
 import {
+  generatedSection,
   generatedThreadTitle,
   investigationUnsupported,
   TranscriptionPostProcessingOutput,
@@ -381,7 +382,7 @@ export const makeMuseTextGeneration = Effect.fn("makeMuseTextGeneration")(functi
       ...buildThreadTitlePrompt(input),
       modelSelection: input.modelSelection,
     });
-    return { title: yield* generatedThreadTitle(generated.title) };
+    return { title: yield* generatedThreadTitle(generated.title), ...generatedSection(generated) };
   });
   const generateTranscriptionPostProcessing: ProviderTextGeneration["generateTranscriptionPostProcessing"] =
     Effect.fn("MuseTextGeneration.generateTranscriptionPostProcessing")(function* (input) {

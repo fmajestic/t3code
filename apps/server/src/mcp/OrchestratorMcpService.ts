@@ -66,6 +66,7 @@ import {
   latestProviderTurnForAttempt,
   resolveProjectProviderInstanceEnabled,
   SECRET_REQUEST_UNSAVED_NOTE,
+  resolveThreadSectionId,
 } from "@t3tools/contracts";
 import { getProviderOptionCurrentValue, withLegacyUltracodeEffort } from "@t3tools/shared/model";
 import { backgroundWorkHoldsCompletion } from "@t3tools/shared/orchestrationV2PendingBackgroundWork";
@@ -1017,6 +1018,7 @@ function listItemFromShell(
   scope: McpInvocationScope,
   shell: OrchestrationV2ThreadShell,
   nowMs: number,
+  sectionId: string | null,
 ): OrchestratorMcpThreadListItem {
   return {
     threadId: shell.id,
@@ -1040,6 +1042,7 @@ function listItemFromShell(
     parentThreadId: shell.lineage.parentThreadId,
     relationshipToParent: shell.lineage.relationshipToParent,
     ...(shell.delegatedFrom == null ? {} : { delegatedFrom: shell.delegatedFrom }),
+    ...(sectionId === null ? {} : { sectionId }),
     itemCount: shell.visibleItemCount,
     createdAt: DateTime.formatIso(shell.createdAt),
     updatedAt: DateTime.formatIso(shell.updatedAt),
@@ -3562,6 +3565,11 @@ const make = Effect.gen(function* () {
         })
         .pipe(Effect.mapError(listFailure));
       const nowMs = yield* Clock.currentTimeMillis;
+      const { sidebarSections } = yield* serverSettings.getSettings.pipe(
+        Effect.mapError(() => failure("orchestration_error", "Unable to read server settings.")),
+      );
+      const sectionIdOf = (thread: Pick<OrchestrationV2ThreadShell, "tags">) =>
+        resolveThreadSectionId(thread.tags, sidebarSections);
       // An empty list is no filter: clients that fill every optional field send `[]`.
       const statuses =
         input.statuses === undefined || input.statuses.length === 0
@@ -3596,6 +3604,9 @@ const make = Effect.gen(function* () {
           (thread) =>
             input.snoozed !== true ||
             (thread.snoozedUntil != null && DateTime.toEpochMillis(thread.snoozedUntil) > nowMs),
+        )
+        .filter(
+          (thread) => input.sectionId === undefined || sectionIdOf(thread) === input.sectionId,
         );
       // Shells are the costly part, so build them only for the threads the page needs.
       const shellsOf = (threads: ReadonlyArray<{ readonly id: ThreadId }>) =>
@@ -3631,7 +3642,7 @@ const make = Effect.gen(function* () {
       return {
         projectId,
         currentThreadId: parent?.thread.id ?? null,
-        threads: page.map((shell) => listItemFromShell(scope, shell, nowMs)),
+        threads: page.map((shell) => listItemFromShell(scope, shell, nowMs, sectionIdOf(shell))),
         nextCursor,
         total,
       } satisfies OrchestratorMcpThreadListResult;

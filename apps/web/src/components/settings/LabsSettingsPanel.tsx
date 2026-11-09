@@ -38,6 +38,7 @@ export function LabsSettingsPanel() {
   return (
     <SettingsPageContainer>
       <SettingsSection id="beta" title={gt("Beta")}>
+        <SectionsSidebarRow />
         <BoringSidebarRow />
         {/* Clerk is only mounted when this build has T3 Connect. */}
         {hasCloudPublicConfig() ? <GuestLinksRowWithSignIn /> : <GuestLinksRow />}
@@ -53,6 +54,64 @@ export function LabsSettingsPanel() {
   );
 }
 
+function SectionsSidebarRow() {
+  const searchableSetting = useSearchableSetting();
+  const settings = useScopedSettings();
+  const updateSettings = useUpdateScopedSettings();
+  const gt = useGT();
+  return (
+    <SettingsRow
+      {...searchableSetting("sections-sidebar")}
+      description={gt(
+        "Split active sidebar threads into sections you name, such as priority and nice-to-have. Right-click a thread or drag it onto a section to file it.",
+      )}
+      control={
+        <Switch
+          checked={settings.sectionsSidebarEnabled}
+          onCheckedChange={(checked) =>
+            updateSettings({ sectionsSidebarEnabled: Boolean(checked) })
+          }
+          aria-label={gt("Sidebar sections")}
+        />
+      }
+    >
+      {settings.sectionsSidebarEnabled ? (
+        <div className="mt-2 mb-2 border-l-2 border-border/60 ps-3">
+          <AutoFileThreadsRow />
+        </div>
+      ) : null}
+    </SettingsRow>
+  );
+}
+
+function AutoFileThreadsRow() {
+  const searchableSetting = useSearchableSetting();
+  const settings = useScopedSettings();
+  const updateSettings = useUpdateScopedSettings();
+  const gt = useGT();
+  return (
+    <SettingsRow
+      serverScoped
+      {...searchableSetting("sections-auto-file")}
+      className="px-0 py-2 sm:px-0"
+      settingKeys={["autoFileThreadsIntoSections"]}
+      description={gt(
+        "When a new thread gets its title, also file it into the section that clearly fits. Guide the choice in the thread title instructions.",
+      )}
+      control={
+        <ScopedSwitch
+          settingKeys={["autoFileThreadsIntoSections"]}
+          checked={settings.autoFileThreadsIntoSections}
+          onCheckedChange={(checked) =>
+            updateSettings({ autoFileThreadsIntoSections: Boolean(checked) })
+          }
+          aria-label={gt("File new threads into sections")}
+        />
+      }
+    />
+  );
+}
+
 function BoringSidebarRow() {
   const searchableSetting = useSearchableSetting();
   const settings = useScopedSettings();
@@ -62,12 +121,19 @@ function BoringSidebarRow() {
     <SettingsRow
       {...searchableSetting("boring-sidebar")}
       devicePreference
-      description={gt(
-        "Group sidebar threads into project folders. Pinned threads stay on top, and Snoozed and Settled stay below the folders.",
-      )}
+      description={
+        settings.sectionsSidebarEnabled
+          ? gt(
+              "Group sidebar threads into project folders. Unavailable while Sidebar sections is on.",
+            )
+          : gt(
+              "Group sidebar threads into project folders. Pinned threads stay on top, and Snoozed and Settled stay below the folders.",
+            )
+      }
       control={
         <Switch
           checked={settings.boringSidebarEnabled}
+          disabled={settings.sectionsSidebarEnabled}
           onCheckedChange={(checked) => updateSettings({ boringSidebarEnabled: Boolean(checked) })}
           aria-label={gt("Boring sidebar (group by project)")}
         />

@@ -38,6 +38,8 @@ import {
   resolveSidebarDropVerb,
   groupSidebarThreadsByProject,
   resolveSidebarFolderDot,
+  resolveSidebarSectionSheen,
+  resolveSidebarSectionSignal,
   sidebarFolderExpansionKeys,
   withoutRemovedCheckout,
 } from "./Sidebar.logic";
@@ -1762,6 +1764,84 @@ describe("resolveSidebarFolderDot", () => {
     expect(resolveSidebarFolderDot([idle, working])).toBe("working");
     expect(resolveSidebarFolderDot([working, unread])).toBe("unread");
     expect(resolveSidebarFolderDot([unread, limited])).toBe("attention");
+  });
+});
+
+describe("resolveSidebarSectionSignal", () => {
+  const read = {
+    hasActionableProposedPlan: false,
+    hasPendingApprovals: false,
+    hasPendingUserInput: false,
+    interactionMode: "default" as const,
+    latestRun: makeLatestRun(),
+    lastVisitedAt: "2026-03-09T10:06:00.000Z",
+    runtime: null,
+    wokeAt: null,
+    settledOverride: null,
+  };
+  const done = { ...read, lastVisitedAt: "2026-03-09T10:04:00.000Z" };
+  const woke = { ...read, wokeAt: "2026-03-09T10:07:00.000Z" };
+
+  it("counts done and woke threads as their rows show them, beside the folder dot", () => {
+    const failed = {
+      ...done,
+      runtime: {
+        status: "failed" as const,
+        activeRunId: null,
+        providerInstanceId: ProviderInstanceId.make("codex"),
+        providerName: "Codex",
+        lastError: null,
+        updatedAt: "2026-03-09T10:00:00.000Z",
+      },
+    };
+
+    expect(resolveSidebarSectionSignal([read])).toEqual({
+      dot: null,
+      done: 0,
+      woke: 0,
+      latest: null,
+    });
+    // A thread that woke with an unread completion reads Woke, like its row.
+    expect(resolveSidebarSectionSignal([done, woke, { ...done, wokeAt: woke.wokeAt }])).toEqual({
+      dot: null,
+      done: 1,
+      woke: 2,
+      latest: { kind: "woke", at: Date.parse("2026-03-09T10:07:00.000Z") },
+    });
+    expect(resolveSidebarSectionSignal([{ ...woke, settledOverride: "settled" }]).woke).toBe(0);
+    expect(resolveSidebarSectionSignal([failed, done])).toMatchObject({ dot: "failed", done: 1 });
+  });
+});
+
+describe("resolveSidebarSectionSheen", () => {
+  const woke = { kind: "woke" as const, at: 2 };
+
+  it("fires only when a section that stays collapsed gets a newer event", () => {
+    expect(
+      resolveSidebarSectionSheen(
+        { collapsed: true, latestAt: 1 },
+        { collapsed: true, latest: woke },
+      ),
+    ).toBe("woke");
+    expect(
+      resolveSidebarSectionSheen(
+        { collapsed: true, latestAt: null },
+        { collapsed: true, latest: woke },
+      ),
+    ).toBe("woke");
+    expect(
+      resolveSidebarSectionSheen(
+        { collapsed: false, latestAt: null },
+        { collapsed: true, latest: woke },
+      ),
+    ).toBeNull();
+    // Visiting the newest thread uncovers an older event.
+    expect(
+      resolveSidebarSectionSheen(
+        { collapsed: true, latestAt: 3 },
+        { collapsed: true, latest: woke },
+      ),
+    ).toBeNull();
   });
 });
 

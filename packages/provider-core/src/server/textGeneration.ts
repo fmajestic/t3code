@@ -70,6 +70,8 @@ export interface ThreadTitleGenerationInput {
   forkSource?: ThreadTitleForkSource | undefined;
   attachments?: ReadonlyArray<ChatAttachment> | undefined;
   instructions?: string | undefined;
+  sections?: ReadonlyArray<string> | undefined;
+  projectPath?: string | undefined;
   modelSelection: ModelSelection;
   projectId?: ProjectId | null | undefined;
 }
@@ -77,6 +79,8 @@ export interface ThreadTitleGenerationInput {
 export interface ThreadTitleGenerationResult {
   title: string;
   needsRefinement?: boolean | undefined;
+  /** The name of the offered section the model picked, as returned. */
+  section?: string | undefined;
 }
 
 export interface ReviewGuideStackLayer {

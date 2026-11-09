@@ -368,6 +368,7 @@ export const OrchestratorMcpThreadListInput = Schema.Struct({
   settled: Schema.optional(Schema.Boolean),
   snoozed: Schema.optional(Schema.Boolean),
   includeSubagents: Schema.optional(Schema.Boolean),
+  sectionId: Schema.optional(TrimmedNonEmptyString),
   cursor: Schema.optional(NonNegativeInt),
   limit: Schema.optional(clampedPositiveInt(100)),
 });
@@ -427,6 +428,8 @@ export const OrchestratorMcpThreadListItem = Schema.Struct({
   relationshipToParent: Schema.NullOr(Schema.Literals(["fork", "subagent"])),
   /** The linked environment's thread that delegated this one; absent otherwise. */
   delegatedFrom: Schema.optional(OrchestrationV2DelegatedFrom),
+  /** The sidebar section it is filed in; absent when it is in none. */
+  sectionId: Schema.optional(Schema.String),
   itemCount: NonNegativeInt,
   createdAt: IsoDateTime,
   updatedAt: IsoDateTime,

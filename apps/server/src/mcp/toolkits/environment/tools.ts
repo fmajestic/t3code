@@ -6,7 +6,10 @@ import {
   OrchestratorMcpFailure,
   ServerSettings,
   ServerSettingsPatch,
+  SidebarSectionSetting,
+  TrimmedNonEmptyString,
 } from "@t3tools/contracts";
+import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as Schema from "effect/Schema";
 import { Tool, Toolkit } from "effect/ai";
 import * as ServerEnvironment from "../../../environment/ServerEnvironment.ts";
@@ -67,4 +70,25 @@ const EnvironmentPreferencesTool = Tool.make("t3_environment_preferences_update"
   }),
   success: Schema.Struct(PreferenceFields),
 }).annotate(Tool.Destructive, true);
-export const EnvironmentToolkit = Toolkit.make(EnvironmentReadTool, EnvironmentPreferencesTool);
+const SidebarSectionTool = Tool.make("t3_sidebar_section", {
+  ...shared,
+  dependencies: [...shared.dependencies, SecureRandom.SecureRandom],
+  description:
+    "Sidebar thread sections, in display order. list. create: `name`, optional `beforeSectionId`. rename: `sectionId` to `name`. delete: `sectionId`; its threads stay, unfiled. reorder: `sectionId` before `beforeSectionId`, or last with null. File threads with `t3_thread_organize`. Shown while Settings > Labs > Sidebar sections is on.",
+  parameters: Schema.Struct({
+    environmentId: OrchestratorMcpEnvironmentTarget,
+    action: Schema.Literals(["list", "create", "rename", "delete", "reorder"]),
+    sectionId: Schema.optional(TrimmedNonEmptyString),
+    name: Schema.optional(Schema.String),
+    beforeSectionId: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
+  }),
+  success: Schema.Struct({
+    sections: Schema.Array(SidebarSectionSetting),
+    sectionId: Schema.optional(Schema.String),
+  }),
+}).annotate(Tool.Destructive, true);
+export const EnvironmentToolkit = Toolkit.make(
+  EnvironmentReadTool,
+  EnvironmentPreferencesTool,
+  SidebarSectionTool,
+);

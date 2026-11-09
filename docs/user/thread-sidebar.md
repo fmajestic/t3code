@@ -39,6 +39,18 @@ While enabled, Active is sorted by most recent return (manual reordering is paus
 
 Enable **Settings → Labs → Boring sidebar (group by project)** on web/desktop (per device) to group active threads into collapsible project folders. Pinned threads stay above; Snoozed and Settled stay below. In this mode, the Working section and sidebar drag-reordering are disabled (dragging a thread onto the composer still works).
 
+### Sort threads into sections (beta)
+
+Enable **Settings → Labs → Sidebar sections** on web/desktop to split the active list into sections you name, such as "priority" and "nice-to-have". Sections replace project folders while both are on.
+
+- **Add and manage**: Click **+ Section** below the active list. Right-click a section to rename or delete it (its threads stay), drag sections to reorder them, and click one to collapse it.
+- **File a thread**: Drag it onto a section, right-click it and choose **Move to section**, or use **Move thread to section** in the command palette. A thread sits in at most one section; the rest stay at the top of the active list.
+- **Automatic filing**: When a new thread gets its title, the title model also files it into a section that clearly fits its first message. Describe each section in **Settings → Threads → Thread title instructions** (it also sees the project folder, so "projects under ~/personal go in tooling" works). Turn filing off under **Sidebar sections** in Labs.
+- **Shelves win**: Pinned, Working, Snoozed, and Settled threads stay in those shelves and return to their section when they come back.
+- **Agents** can create, rename, reorder, and delete sections, and move threads between them.
+
+The section list is saved on the server this client connects to first; each device keeps its own on/off choice.
+
 ## Settle, snooze, and archive
 
 | Action      | When to use          | Effect                                                                                                                                         |

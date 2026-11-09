@@ -520,6 +520,20 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: [msg("hide fold running monitoring threads inbox sidebar shelf")],
   },
   {
+    id: "sections-sidebar",
+    title: msg("Sidebar sections"),
+    to: "/settings/labs",
+    searchTerms: [msg("beta sections focus priority groups categories file threads sidebar")],
+  },
+  {
+    id: "sections-auto-file",
+    title: msg("File new threads into sections"),
+    to: "/settings/labs",
+    // Shown inside the sidebar sections row only while it is on, so search lands on the parent.
+    targetId: "sections-sidebar",
+    searchTerms: [msg("beta sections auto file organize sort new threads title model")],
+  },
+  {
     id: "boring-sidebar",
     title: msg("Boring sidebar (group by project)"),
     to: "/settings/labs",

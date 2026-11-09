@@ -49,6 +49,7 @@ import {
   CircleDotDashedIcon,
   ClockIcon,
   FolderGit2Icon,
+  FolderInputIcon,
   GitBranchIcon,
   MessageCircleQuestionIcon,
   PinIcon,
@@ -88,7 +89,7 @@ import {
   useEnvironmentScope,
   useEnvironmentScopeDenied,
 } from "../../state/session";
-import { formatRelativeTime, parseTimestampDate } from "../../timestampFormat";
+import { formatRelativeTime } from "../../timestampFormat";
 import type { SidebarThreadSummary } from "../../types";
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
 import { cn } from "~/lib/utils";
@@ -97,6 +98,7 @@ import { EnvironmentMachineIcon } from "../EnvironmentMachineIcon";
 import {
   animateSidebarLayoutChanges,
   hasUnseenCompletion,
+  isThreadWoke,
   resolveSidebarRowAccessibility,
   type SidebarDropVerb,
   resolveSidebarRowStatus,
@@ -617,6 +619,8 @@ type SidebarThreadRowProps = {
   isPinned: boolean;
   sortable?: SortableThreadRowBag | undefined;
   dropVerb: SidebarDropVerb | null;
+  // Fork: names a move between user sections; it replaces the drop verb's badge.
+  sectionDropLabel?: string | null;
   dragOverPinned: boolean;
   sweepAction: SidebarSweepAction | null;
   snoozeWakeLabelText: string | null;
@@ -805,12 +809,11 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
 
   const isUnread = hasUnseenCompletion({ ...thread, lastVisitedAt });
   const status = resolveSidebarRowStatus({ ...thread, lastVisitedAt });
-  const lastVisitedDate = lastVisitedAt === undefined ? null : parseTimestampDate(lastVisitedAt);
-  const wokeAtDate = props.wokeAt === null ? null : parseTimestampDate(props.wokeAt);
-  const isWoke =
-    wokeAtDate !== null &&
-    (lastVisitedDate === null || lastVisitedDate < wokeAtDate) &&
-    thread.settledOverride !== "settled";
+  const isWoke = isThreadWoke({
+    wokeAt: props.wokeAt,
+    lastVisitedAt,
+    settledOverride: thread.settledOverride,
+  });
   const shouldRecede = shouldRecedeSidebarThread({
     status,
     isUnread,
@@ -1087,13 +1090,22 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     : props.sweepAction === "unsnooze"
       ? "wake"
       : props.sweepAction;
+  const destinationBadge =
+    sortable?.isDragging && props.sectionDropLabel ? (
+      <>
+        <FolderInputIcon aria-hidden className="size-3 shrink-0" />
+        <span className="max-w-32 truncate">{props.sectionDropLabel}</span>
+      </>
+    ) : destinationVerb !== null ? (
+      dropVerbBadge[destinationVerb]
+    ) : null;
   const dragDestination =
-    destinationVerb !== null ? (
+    destinationBadge !== null ? (
       <span
         role="status"
         className="pointer-events-none ml-auto inline-flex h-5 shrink-0 items-center gap-1 rounded-sm border border-primary/40 bg-primary/10 px-1.5 text-2xs font-medium text-primary"
       >
-        {dropVerbBadge[destinationVerb]}
+        {destinationBadge}
       </span>
     ) : null;
 
