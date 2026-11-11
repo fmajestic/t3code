@@ -14,12 +14,14 @@ export function isEditableFocused(target: EventTarget | null = document.activeEl
   return element !== null && element.closest(EDITABLE_SELECTOR) !== null;
 }
 
-/** The file editor runs its own Mod+F search, so global shortcuts leave the key to it. */
+export const FILE_FIND_SCOPE_ATTRIBUTE = "data-file-find-scope";
+
+/** File surfaces run their own Mod+F search, so global shortcuts leave the key to them. */
 export function isFileEditorFocused(target: EventTarget | null = document.activeElement): boolean {
   return (
     target instanceof Element &&
-    target.closest("diffs-container") !== null &&
-    isEditableFocused(target)
+    ((target.closest("diffs-container") !== null && isEditableFocused(target)) ||
+      target.closest(`[${FILE_FIND_SCOPE_ATTRIBUTE}]`) !== null)
   );
 }
 
