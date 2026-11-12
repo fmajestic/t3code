@@ -501,6 +501,12 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: [msg("hide fold running monitoring threads inbox sidebar shelf")],
   },
   {
+    id: "sections-sidebar",
+    title: msg("Sidebar sections"),
+    to: "/settings/labs",
+    searchTerms: [msg("beta sections focus priority groups categories file threads sidebar")],
+  },
+  {
     id: "boring-sidebar",
     title: msg("Boring sidebar (group by project)"),
     to: "/settings/labs",

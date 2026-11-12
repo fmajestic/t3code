@@ -283,6 +283,23 @@ import {
   SidebarSectionHeader,
   SidebarSectionPlaceholder,
 } from "./sidebar/SidebarListMarkers";
+import {
+  SidebarAddSection,
+  SidebarCustomSectionMarker,
+} from "./sidebar/SidebarCustomSectionHeader";
+import {
+  arrangeCustomSections,
+  customSectionListItems,
+  isSectionMenuId,
+  parseCustomSectionMarker,
+  parseSectionMenuId,
+  planCustomSectionOrders,
+  preferVisualCustomSection,
+  resolveCustomSectionDrop,
+  resolveCustomSectionDropLabel,
+  type SidebarCustomSection,
+} from "./sidebar/sections.logic";
+import { useSidebarSections } from "./sidebar/useSidebarSections";
 
 function sameSidebarProviderEntries(
   left: ReadonlyMap<string, SidebarProviderEntry>,
@@ -435,6 +452,12 @@ function useSidebarThreads(input: {
   readonly folderGroups: readonly SidebarProjectSnapshot[] | null;
   // Keeps folders with no active threads, so a project the user filtered to or pinned can start one.
   readonly keepEmptyFolders: (group: SidebarProjectSnapshot) => boolean;
+  // Fork: set while user sections split the active list.
+  readonly customSections: {
+    readonly sections: ReadonlyArray<SidebarCustomSection>;
+    readonly sectionIdOf: (thread: EnvironmentThreadShell) => string | null;
+    readonly collapsedIds: ReadonlySet<string>;
+  } | null;
 }) {
   const {
     projectScopeKey,
@@ -447,6 +470,7 @@ function useSidebarThreads(input: {
     routeRowThreadKey,
     folderGroups,
     keepEmptyFolders: keepEmpty,
+    customSections,
   } = input;
   // Folders already separate the work, so boring mode has no Working shelf.
   const workingShelfEnabled =
@@ -552,11 +576,24 @@ function useSidebarThreads(input: {
               : EMPTY_THREADS,
           };
         });
+  const customSectionGroups =
+    customSections === null
+      ? null
+      : arrangeCustomSections({
+          threads: activeThreads,
+          sections: customSections.sections,
+          sectionIdOf: customSections.sectionIdOf,
+          keyOf: threadShellKey,
+          collapsedIds: customSections.collapsedIds,
+          routeKey: routeRowThreadKey,
+        });
   const orderedThreads = [
     ...pinnedThreads,
-    ...(projectFolders === null
-      ? activeThreads
-      : projectFolders.flatMap((folder) => folder.threads)),
+    ...(customSectionGroups !== null
+      ? customSectionGroups.visibleThreads
+      : projectFolders === null
+        ? activeThreads
+        : projectFolders.flatMap((folder) => folder.threads)),
     ...visibleWorkingThreads,
     ...visibleSnoozedThreads,
     ...renderedSettledThreads,
@@ -598,6 +635,7 @@ function useSidebarThreads(input: {
     workingShelfExpanded,
     toggleWorkingShelf: () => setWorkingShelfExpanded((value) => !value),
     projectFolders,
+    customSectionGroups,
     toggleProjectFolder: (group: SidebarProjectSnapshot) => {
       const keys = sidebarFolderExpansionKeys(group);
       setProjectExpanded(keys, !resolveProjectExpanded(projectExpandedById, keys));
@@ -1059,6 +1097,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     readonly occurredAt: string;
     readonly activationY: number | null;
     readonly targetSection: SidebarSection | null;
+    // Fork: the user section a drop into the active list files into; null is no section.
+    readonly targetCustomSectionId?: string | null | undefined;
     readonly contextDrag: boolean;
   } | null>(null);
   const dragSensorRef = useRef<SidebarPointerSensor | null>(null);
@@ -1121,6 +1161,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
             ? asLaunchingThread(thread)
             : thread,
         );
+  const customSections = useSidebarSections(listedThreads);
   const routeRowThreadKey =
     routeThreadRef === null
       ? null
@@ -1333,6 +1374,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     workingShelfExpanded,
     toggleWorkingShelf,
     projectFolders,
+    customSectionGroups,
     toggleProjectFolder,
     renderedSettledThreads,
     visibleSnoozedThreads,
@@ -1355,14 +1397,23 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     threads: listedThreads,
     delegatedUnderParent,
     routeRowThreadKey,
-    folderGroups: boringSidebarEnabled
-      ? scopedProjectGroups.length === 0
-        ? // An archived project keeps a folder for its active threads, below the rest.
-          [...scopeGroups, ...projectGroups.filter((project) => project.archived)]
-        : scopedProjectGroups
-      : null,
+    // Sections mode takes precedence over boring mode.
+    folderGroups:
+      boringSidebarEnabled && !customSections.enabled
+        ? scopedProjectGroups.length === 0
+          ? // An archived project keeps a folder for its active threads, below the rest.
+            [...scopeGroups, ...projectGroups.filter((project) => project.archived)]
+          : scopedProjectGroups
+        : null,
     keepEmptyFolders: (group) =>
       scopedProjectGroups.length > 0 || (group.pinned && !group.archived),
+    customSections: customSections.enabled
+      ? {
+          sections: customSections.sections,
+          sectionIdOf: customSections.sectionIdOf,
+          collapsedIds: customSections.collapsedIds,
+        }
+      : null,
   });
 
   // Ranked across environments as the palette ranks them, so one
@@ -1744,6 +1795,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     dragState?.contextDrag === true ||
     dragState?.activeSection === "working";
   const dragTargetSection = isContextDrag ? null : (dragState?.targetSection ?? null);
+  const dragTargetCustomSectionId =
+    dragTargetSection === "active" ? dragState?.targetCustomSectionId : undefined;
   const finishThreadDrag = (started: boolean) => {
     dragSensorRef.current = null;
     contextDragKeyRef.current = null;
@@ -1978,7 +2031,17 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     items.push({ kind: "marker", marker: "pinned-divider" });
     const activeRows = rowsOf(activeThreads, "active");
     items.push({ kind: "marker", marker: "active-placeholder" });
-    items.push(...activeRows);
+    if (customSectionGroups === null) items.push(...activeRows);
+    else
+      items.push(
+        ...customSectionListItems({
+          looseKeys: customSectionGroups.loose.map(threadShellKey),
+          sections: customSectionGroups.sections.map(({ section, threads }) => ({
+            sectionId: section.id,
+            keys: threads.map(threadShellKey),
+          })),
+        }),
+      );
     if (workingThreads.length > 0) {
       items.push({ kind: "marker", marker: "working-header" });
       items.push(...rowsOf(visibleWorkingThreads, "working"));
@@ -2044,10 +2107,15 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     const target = event.over
       ? resolveSidebarDropTarget(sidebarListItems, String(event.active.id), String(event.over.id))
       : null;
+    const targetCustomSectionId =
+      event.over && target?.section === "active"
+        ? resolveCustomSectionDrop(sidebarListItems, String(event.active.id), String(event.over.id))
+            ?.sectionId
+        : undefined;
     setDragState((current) =>
       current === null || current.activeKey !== String(event.active.id)
         ? current
-        : { ...current, targetSection: target?.section ?? null },
+        : { ...current, targetSection: target?.section ?? null, targetCustomSectionId },
     );
   };
   const sortableIds = sidebarListItems.map(sidebarListItemId);
@@ -2074,6 +2142,34 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     snoozedThreadCount: snoozedThreads.length,
     sourceOffset: dragSourceOffset,
   });
+  // Fork: a drop into the active list with sections plans keys within its section and may refile.
+  const resolveCustomDrop = (
+    activeKey: string,
+    activeThread: EnvironmentThreadShell,
+    overId: string,
+    target: NonNullable<ReturnType<typeof resolveSidebarDropTarget>>,
+  ) => {
+    if (target.section !== "active") return null;
+    const drop = resolveCustomSectionDrop(sidebarListItems, activeKey, overId);
+    if (drop === null) return null;
+    const orders = planCustomSectionOrders({
+      activeKeys,
+      draggedKey: activeKey,
+      sectionIdOf: customSections.sectionIdOfKey,
+      sectionIds: customSections.sections.map((section) => section.id),
+      target: drop,
+      collapsedIds: customSections.collapsedIds,
+    });
+    return {
+      planOverrides: {
+        target: { ...target, activeOrder: orders.segmentOrder },
+        activeOrder: orders.currentSegmentOrder,
+      },
+      fileInto:
+        drop.sectionId === customSections.sectionIdOf(activeThread) ? undefined : drop.sectionId,
+      fullOrder: orders.fullOrder,
+    };
+  };
   const draggedThreadKey = dragState?.activeKey;
   const draggedFromSection = dragState?.activeSection;
   const dragActivationY = dragState?.activationY;
@@ -2086,6 +2182,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       (id) => {
         const target = resolveSidebarDropTarget(sidebarListItems, draggedThreadKey, id);
         if (target === null) return false;
+        const customDrop = resolveCustomDrop(draggedThreadKey, source, id, target);
+        if (customDrop?.fileInto !== undefined) return true;
         return (
           planSidebarThreadDrop({
             activeKey: draggedThreadKey,
@@ -2101,6 +2199,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
             activeKeysById,
             activeReorderableKeys: activeReorderableThreadKeys,
             activeTimeOrdered: workingShelfEnabled,
+            ...customDrop?.planOverrides,
           }).kind !== "none"
         );
       },
@@ -2108,6 +2207,25 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
         items: sidebarListItems,
         activationY: dragActivationY ?? null,
         sourceOffset: dragSourceOffset,
+        ...(customSectionGroups === null
+          ? {}
+          : {
+              refine: (args, collisions) =>
+                args.pointerCoordinates === null
+                  ? collisions
+                  : [
+                      ...preferVisualCustomSection({
+                        items: sidebarListItems,
+                        activeKey: draggedThreadKey,
+                        pointerY: args.pointerCoordinates.y,
+                        collisions,
+                        rectOf: (id) =>
+                          args.droppableContainers
+                            .find((container) => container.id === id)
+                            ?.node.current?.getBoundingClientRect(),
+                      }),
+                    ],
+            }),
       },
     );
   })();
@@ -2122,6 +2240,10 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     const activeThread = threadByKey.get(activeKey);
     if (activeSection === undefined || target === null || activeThread === undefined) return;
     const threadRef = scopeThreadRef(activeThread.environmentId, activeThread.id);
+    const customDrop =
+      event.over === null
+        ? null
+        : resolveCustomDrop(activeKey, activeThread, String(event.over.id), target);
     const plan = planSidebarThreadDrop({
       activeKey,
       activeSection,
@@ -2136,8 +2258,14 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       activeKeysById,
       activeReorderableKeys: activeReorderableThreadKeys,
       activeTimeOrdered: workingShelfEnabled,
+      ...customDrop?.planOverrides,
     });
-    if (plan.kind === "none") return;
+    if (plan.kind === "none") {
+      if (customDrop?.fileInto !== undefined && checkThreadOperations([activeThread])) {
+        void customSections.fileThread(threadRef, customDrop.fileInto);
+      }
+      return;
+    }
     if (plan.kind === "settle" && settlingThreadKeysRef.current.has(activeKey)) return;
     const assignments =
       plan.kind === "pin"
@@ -2166,11 +2294,18 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
         plan.kind === "pin" ||
         plan.kind === "settle" ||
         (plan.kind === "move-active" && plan.unsnooze),
-      order: plan.kind === "settle" ? null : plan.order,
+      order:
+        plan.kind === "settle"
+          ? null
+          : customDrop !== null && plan.order !== null
+            ? customDrop.fullOrder
+            : plan.order,
       keysAtDrop: target.section === "active" ? activeKeysById : pinnedKeysById,
       assignedKeys: new Map(assignments.map(({ id, orderKey }) => [id, orderKey])),
     };
     setOptimisticDrop(drop);
+    if (customDrop?.fileInto !== undefined)
+      void customSections.fileThread(threadRef, customDrop.fileInto);
     void (async () => {
       const run = async (
         operation: Promise<AtomCommandResult<unknown, unknown>>,
@@ -2666,7 +2801,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
             ),
           ) ?? null;
         const clicked = await settlePromise(() =>
-          api.contextMenu.show(
+          customSections.showThreadMenu(
+            api,
+            thread,
             buildThreadActionMenuItems({
               canOperate: readEnvironmentScope(
                 threadRef.environmentId,
@@ -2707,6 +2844,13 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
           ),
         );
         if (clicked._tag === "Failure" || clicked.value === null) return;
+        if (isSectionMenuId(clicked.value)) {
+          const pick = parseSectionMenuId(clicked.value);
+          if (pick.kind === "new") customSections.startCreate(threadRef);
+          else if (checkThreadOperations([thread]))
+            void customSections.fileThread(threadRef, pick.sectionId);
+          return;
+        }
         if (threadActionRequiresOperate(clicked.value) && !checkThreadOperations([thread])) return;
         if (clicked.value?.startsWith("snooze:")) {
           const preset =
@@ -3474,6 +3618,15 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                             dragOverPinned={
                               dragState?.activeKey === threadKey && dragTargetSection === "pinned"
                             }
+                            sectionDropLabel={
+                              dragState?.activeKey === threadKey
+                                ? resolveCustomSectionDropLabel({
+                                    targetSectionId: dragTargetCustomSectionId,
+                                    currentSectionId: customSections.sectionIdOf(thread),
+                                    sections: customSections.sections,
+                                  })
+                                : null
+                            }
                             sweepAction={
                               actionSweep?.keys.has(threadKey) ? actionSweep.action : null
                             }
@@ -3539,6 +3692,15 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                         );
                       };
                       const from = isContextDrag ? null : (dragState?.activeSection ?? null);
+                      // An empty drop area, or one the dragged thread is leaving, shows its hint.
+                      const showDropHint = (keys: ReadonlyArray<string>, isTarget: boolean) =>
+                        from !== null &&
+                        (keys.length === 0 ||
+                          (keys.length === 1 &&
+                            keys[0] === dragState?.activeKey &&
+                            dragTargetSection !== null &&
+                            !isTarget));
+                      let addSectionShown = false;
                       const items: ReactNode[] = [
                         <SidebarDraftBlock
                           key="draft-sessions"
@@ -3582,6 +3744,39 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                           }
                           continue;
                         }
+                        if (
+                          customSectionGroups !== null &&
+                          parseCustomSectionMarker(item.marker) !== null
+                        ) {
+                          items.push(
+                            <SidebarCustomSectionMarker
+                              key={item.marker}
+                              marker={item.marker}
+                              groups={customSectionGroups}
+                              controls={customSections}
+                              dragging={from !== null}
+                              dropTargetId={dragTargetCustomSectionId}
+                              showDropHint={showDropHint}
+                            />,
+                          );
+                          continue;
+                        }
+                        if (
+                          customSectionGroups !== null &&
+                          !addSectionShown &&
+                          (item.marker === "working-header" ||
+                            item.marker === "snoozed-header" ||
+                            item.marker === "settled-header")
+                        ) {
+                          addSectionShown = true;
+                          items.push(
+                            <SidebarAddSection
+                              key="add-custom-section"
+                              controls={customSections}
+                              hidden={dragState !== null}
+                            />,
+                          );
+                        }
                         switch (item.marker) {
                           case "pinned-header":
                             items.push(
@@ -3610,16 +3805,29 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                               <SidebarSectionPlaceholder
                                 key="active-placeholder"
                                 marker="active-placeholder"
-                                label={gt("Active", { $context: "sidebar section" })}
-                                showHint={
-                                  from !== null &&
-                                  (activeThreads.length === 0 ||
-                                    (from === "active" &&
-                                      activeThreads.length === 1 &&
-                                      dragTargetSection !== null &&
-                                      dragTargetSection !== "active"))
+                                label={
+                                  customSectionGroups === null
+                                    ? gt("Active", { $context: "sidebar section" })
+                                    : gt("No section")
                                 }
-                                isDropTarget={dragTargetSection === "active"}
+                                showHint={
+                                  customSectionGroups !== null
+                                    ? showDropHint(
+                                        customSectionGroups.loose.map(threadShellKey),
+                                        dragTargetCustomSectionId === null,
+                                      )
+                                    : from !== null &&
+                                      (activeThreads.length === 0 ||
+                                        (from === "active" &&
+                                          activeThreads.length === 1 &&
+                                          dragTargetSection !== null &&
+                                          dragTargetSection !== "active"))
+                                }
+                                isDropTarget={
+                                  dragTargetSection === "active" &&
+                                  (customSectionGroups === null ||
+                                    dragTargetCustomSectionId === null)
+                                }
                               />,
                             );
                             break;
