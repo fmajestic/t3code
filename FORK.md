@@ -46,6 +46,7 @@ None right now.
 - **`check:changed` compares against `fork`**: `vp run check:changed` also tries the local `fork` branch as a base, so a branch off `fork` checks only its own changes instead of every fork commit since `upstream/main`.
 - **Triage reads the fork's source**: Triage an issue reads the checkout at `~/personal/t3code`, `~/projects/t3code` or `~/code/t3code` when it contains the commit the build came from, so nothing is downloaded. Without one, it clones that commit from the fork, or the tip of `fork` when the build does not record its commit, and skips vendored sources (`.repos/`, mobile `Vendor/`) and binary assets, about 25 MB instead of several hundred. The triage context tells `t3 triage` agents the same. `src/triage/forkSource.ts` holds the paths, remote and sparse patterns.
 - **Dev server ignores `package.json`**: `vp run dev` no longer restarts the server when `apps/server/package.json` changes, because FortiClient's on-access scan touches the file and restarted it in a loop. Restart by hand after a dependency change.
+- **Dev runner names its state directory**: the `[dev-runner]` line adds `stateDir=`, where the server keeps its database. In the main checkout `baseDir=~/.t3` reads like the live install, but dev state goes to `~/.t3/dev`; AGENTS.md says the same.
 
 ## Syncing
 

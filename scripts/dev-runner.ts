@@ -765,9 +765,14 @@ export const runDevRunnerWithInput = Effect.fn("dev-runner.runDevRunnerWithInput
       ? ` selectedOffset(server=${serverOffset},web=${webOffset})`
       : "";
   const baseDir = env.T3CODE_HOME ?? (yield* DEFAULT_T3_HOME);
+  // Mirrors deriveServerPaths in apps/server/src/config.ts: a dev URL without an explicit home uses `dev`.
+  const stateDir = (yield* Path.Path).join(
+    baseDir,
+    env.T3CODE_HOME === undefined ? "dev" : "userdata",
+  );
 
   yield* Effect.logInfo(
-    `[dev-runner] mode=${input.mode} source=${source}${selectionSuffix} serverPort=${String(env.T3CODE_PORT)} webPort=${String(env.PORT)} baseDir=${baseDir}`,
+    `[dev-runner] mode=${input.mode} source=${source}${selectionSuffix} serverPort=${String(env.T3CODE_PORT)} webPort=${String(env.PORT)} baseDir=${baseDir} stateDir=${stateDir}`,
   );
 
   // Before the share block: --dry-run only resolves and prints. Sharing would
@@ -931,7 +936,7 @@ const devRunnerCli = Command.make("dev-runner", {
   ),
   t3Home: Flag.String("home-dir").pipe(
     Flag.withDescription(
-      "Explicit T3 Code data directory; runtime state is stored under userdata (equivalent to T3CODE_HOME). Inside a git worktree this defaults to that worktree's own .t3 so dev state stays off the shared home.",
+      "Explicit T3 Code data directory; runtime state is stored under userdata (equivalent to T3CODE_HOME). Inside a git worktree this defaults to that worktree's own .t3 so dev state stays off the shared home; elsewhere dev state goes under ~/.t3/dev.",
     ),
     Flag.optional,
     Flag.map(Option.getOrUndefined),
