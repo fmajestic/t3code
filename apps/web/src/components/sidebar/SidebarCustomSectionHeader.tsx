@@ -1,5 +1,6 @@
 import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/models";
 import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime/environment";
+import { SECTION_NAME_MAX_LENGTH } from "@t3tools/contracts";
 import { T, useGT } from "gt-react";
 import { PlusIcon } from "lucide-react";
 import {
@@ -20,7 +21,6 @@ import { CollapsibleSectionHeader } from "../ui/collapsible-section-header";
 import { SortableSidebarMarker } from "./SidebarListMarkers";
 import {
   parseCustomSectionMarker,
-  SECTION_NAME_MAX_LENGTH,
   type ArrangedCustomSections,
   type SidebarCustomSection,
 } from "./sections.logic";
