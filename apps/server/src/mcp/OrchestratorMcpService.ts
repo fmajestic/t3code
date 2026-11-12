@@ -65,6 +65,7 @@ import {
   latestProviderTurnForAttempt,
   resolveProjectProviderInstanceEnabled,
   SECRET_REQUEST_UNSAVED_NOTE,
+  resolveThreadSectionId,
 } from "@t3tools/contracts";
 import { getProviderOptionCurrentValue, withLegacyUltracodeEffort } from "@t3tools/shared/model";
 import { backgroundWorkHoldsCompletion } from "@t3tools/shared/orchestrationV2PendingBackgroundWork";
@@ -869,6 +870,7 @@ function listItemFromShell(
   scope: McpInvocationScope,
   shell: OrchestrationV2ThreadShell,
   nowMs: number,
+  sectionId: string | null,
 ): OrchestratorMcpThreadListItem {
   return {
     threadId: shell.id,
@@ -890,6 +892,7 @@ function listItemFromShell(
     ...threadBackgroundWork(shell),
     parentThreadId: shell.lineage.parentThreadId,
     relationshipToParent: shell.lineage.relationshipToParent,
+    ...(sectionId === null ? {} : { sectionId }),
     itemCount: shell.visibleItemCount,
     createdAt: DateTime.formatIso(shell.createdAt),
     updatedAt: DateTime.formatIso(shell.updatedAt),
@@ -3107,6 +3110,11 @@ const make = Effect.gen(function* () {
           ),
         );
       const nowMs = yield* Clock.currentTimeMillis;
+      const { sidebarSections } = yield* serverSettings.getSettings.pipe(
+        Effect.mapError(() => failure("orchestration_error", "Unable to read server settings.")),
+      );
+      const sectionIdOf = (thread: OrchestrationV2ThreadShell) =>
+        resolveThreadSectionId(thread.tags, sidebarSections);
       // An empty list is no filter: clients that fill every optional field send `[]`.
       const statuses =
         input.statuses === undefined || input.statuses.length === 0
@@ -3125,6 +3133,9 @@ const make = Effect.gen(function* () {
         .filter(
           (thread) =>
             titleContains === undefined || thread.title.toLocaleLowerCase().includes(titleContains),
+        )
+        .filter(
+          (thread) => input.sectionId === undefined || sectionIdOf(thread) === input.sectionId,
         );
       const cursor = input.cursor ?? 0;
       const limit = input.limit ?? DEFAULT_THREAD_LIST_LIMIT;
@@ -3133,7 +3144,7 @@ const make = Effect.gen(function* () {
       return {
         projectId,
         currentThreadId: parent?.thread.id ?? null,
-        threads: page.map((shell) => listItemFromShell(scope, shell, nowMs)),
+        threads: page.map((shell) => listItemFromShell(scope, shell, nowMs, sectionIdOf(shell))),
         nextCursor,
         total: filtered.length,
       } satisfies OrchestratorMcpThreadListResult;

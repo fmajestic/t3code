@@ -346,6 +346,7 @@ export const OrchestratorMcpThreadListInput = Schema.Struct({
   settled: Schema.optional(Schema.Boolean),
   snoozed: Schema.optional(Schema.Boolean),
   includeSubagents: Schema.optional(Schema.Boolean),
+  sectionId: Schema.optional(TrimmedNonEmptyString),
   cursor: Schema.optional(NonNegativeInt),
   limit: Schema.optional(PositiveInt.check(Schema.isLessThanOrEqualTo(100))),
 });
@@ -401,6 +402,8 @@ export const OrchestratorMcpThreadListItem = Schema.Struct({
   pendingBackgroundTasks: Schema.optional(Schema.Array(OrchestratorMcpThreadBackgroundTask)),
   parentThreadId: Schema.NullOr(ThreadId),
   relationshipToParent: Schema.NullOr(Schema.Literals(["fork", "subagent"])),
+  /** The sidebar section it is filed in; absent when it is in none. */
+  sectionId: Schema.optional(Schema.String),
   itemCount: NonNegativeInt,
   createdAt: IsoDateTime,
   updatedAt: IsoDateTime,

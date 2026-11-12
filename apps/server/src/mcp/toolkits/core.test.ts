@@ -19,6 +19,7 @@ import {
   RuntimeRequestId,
   ThreadId,
   TurnItemId,
+  type OrchestrationV2ServerCommand,
   type OrchestrationV2ProjectedTurnItem,
   type OrchestrationV2ThreadShell,
 } from "@t3tools/contracts";
@@ -27,6 +28,7 @@ import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as TestClock from "effect/testing/TestClock";
 import * as Layer from "effect/Layer";
+import * as Ref from "effect/Ref";
 import * as Schema from "effect/Schema";
 import { McpAttachmentInput } from "./attachment/input.ts";
 import { McpSchema, McpServer } from "effect/ai";
@@ -88,6 +90,7 @@ const layerThreadToolkit = McpHttpServer.layerThreadToolkit.pipe(
   Layer.provide(Layer.mock(PeerForwarding.PeerForwarding)({})),
   Layer.provide(Layer.mock(PeerLinkRequests.PeerLinkRequests)({})),
   Layer.provide(Layer.mock(PeerLinks.PeerLinks)({})),
+  Layer.provide(Layer.mock(ServerSettings.ServerSettingsService)({})),
 );
 
 const threadId = ThreadId.make("mcp-core-thread");
@@ -142,6 +145,61 @@ it.effect("checks capability through the production registration", () =>
     ),
   ),
 );
+
+it.effect("files a thread into a listed sidebar section, clearing its other section tags", () => {
+  const shell = {
+    ...McpToolAccessTestkit.liveThreadShell(threadId),
+    tags: ["private", "section:stale"],
+  };
+  const dispatched = Ref.makeUnsafe<ReadonlyArray<OrchestrationV2ServerCommand>>([]);
+  return Effect.gen(function* () {
+    const server = yield* McpServer.McpServer;
+    const file = (sectionId: string | null) =>
+      server
+        .callTool({ name: "t3_thread_organize", arguments: { action: "section", sectionId } })
+        .pipe(
+          Effect.provideService(McpInvocationContext.McpInvocationContext, scope),
+          Effect.provideService(McpSchema.McpServerClient, client),
+        );
+    expect(declaredFailure(yield* file("missing"))).toMatchObject({ code: "invalid_request" });
+    expect((yield* file("focus")).structuredContent).toEqual({ sectionId: "focus" });
+    expect(yield* Ref.get(dispatched)).toMatchObject([
+      { type: "thread.tag.set", tag: "section:focus", tagged: true },
+      { type: "thread.tag.set", tag: "section:stale", tagged: false },
+    ]);
+  }).pipe(
+    Effect.provide(
+      McpHttpServer.layerThreadToolkit.pipe(
+        Layer.provideMerge(McpHttpServer.layerInProcessMcpServer),
+        Layer.provide(NodeCrypto.layer),
+        Layer.provide(Layer.mock(ThreadSearch.ThreadSearch)({})),
+        Layer.provide(Layer.mock(ScheduledTaskService.ScheduledTaskService)({})),
+        Layer.provide(Layer.mock(PeerForwarding.PeerForwarding)({})),
+        Layer.provide(Layer.mock(PeerLinkRequests.PeerLinkRequests)({})),
+        Layer.provide(Layer.mock(PeerLinks.PeerLinks)({})),
+        Layer.provide(
+          Layer.mock(ThreadManagement.ThreadManagementService)({
+            getThreadShell: () => Effect.succeed(shell),
+            getProjectThreadRecords: () =>
+              Effect.succeed(McpToolAccessTestkit.idleThreadProjection(shell)),
+            dispatch: (command) =>
+              Ref.update(dispatched, (all) => [...all, command]).pipe(
+                Effect.as({ sequence: 1 } as never),
+              ),
+          }),
+        ),
+        Layer.provide(
+          Layer.mock(ServerSettings.ServerSettingsService)({
+            getSettings: Effect.succeed({
+              ...DEFAULT_SERVER_SETTINGS,
+              sidebarSections: [{ id: "focus", name: "Focus" }],
+            }),
+          }),
+        ),
+      ),
+    ),
+  );
+});
 
 it.effect("an answered question reports already answered instead of not found", () => {
   const shell = McpToolAccessTestkit.liveThreadShell(threadId);
@@ -697,6 +755,7 @@ it.effect("search names the calling thread, so an agent can tell its own match a
         Layer.provideMerge(McpHttpServer.layerInProcessMcpServer),
         Layer.provide(NodeCrypto.layer),
         Layer.provide(McpToolAccessTestkit.liveThreadsLayer),
+        Layer.provide(Layer.mock(ServerSettings.ServerSettingsService)({})),
         Layer.provide(
           Layer.mock(ThreadSearch.ThreadSearch)({
             searchThreads: () =>
@@ -941,6 +1000,7 @@ it.effect.each([
         Layer.provide(Layer.mock(PeerForwarding.PeerForwarding)({})),
         Layer.provide(Layer.mock(PeerLinkRequests.PeerLinkRequests)({})),
         Layer.provide(Layer.mock(PeerLinks.PeerLinks)({})),
+        Layer.provide(Layer.mock(ServerSettings.ServerSettingsService)({})),
         Layer.provide(
           Layer.mock(ScheduledTaskService.ScheduledTaskService)({
             list: () => Effect.succeed({ tasks }),

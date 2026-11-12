@@ -6,9 +6,12 @@ import {
   type RunId,
   OrchestratorMcpFailure,
   type OrchestrationV2Command,
+  planSectionTagWrites,
 } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import { modelSelectionCommandType } from "@t3tools/shared/model";
+
+import * as Settings from "../../../serverSettings.ts";
 
 import * as McpInvocationContext from "../../McpInvocationContext.ts";
 import * as McpToolAccess from "../../McpToolAccess.ts";
@@ -22,6 +25,7 @@ import {
 import * as ThreadSearch from "../../../orchestration-v2/ThreadSearch.ts";
 import * as ScheduledTasks from "../../../scheduledTasks/ScheduledTaskService.ts";
 import { queuedRunsInDeliveryOrder } from "../../../orchestration-v2/QueuedRunOrder.ts";
+import { requireSection } from "../environment/handlers.ts";
 import { ThreadToolkit } from "./tools.ts";
 
 function queueEntry(
@@ -336,6 +340,28 @@ export const layer = McpToolAccess.toLayer(ThreadToolkit, {
   t3_thread_organize: writesThread((input) =>
     Effect.gen(function* () {
       const { threads, projection, caller } = yield* readThread(input.threadId);
+      if (input.action === "section") {
+        const sectionId = yield* required(input.sectionId, "sectionId");
+        const settings = yield* Settings.ServerSettingsService;
+        const { sidebarSections } = yield* settings.getSettings.pipe(Effect.mapError(unavailable));
+        if (sectionId !== null) yield* requireSection(sidebarSections, sectionId);
+        const writes = planSectionTagWrites(projection.thread.tags, sectionId);
+        for (const [tag, tagged] of [
+          ...(writes.add === null ? [] : [[writes.add, true] as const]),
+          ...writes.remove.map((tag) => [tag, false] as const),
+        ]) {
+          yield* threads
+            .dispatch({
+              type: "thread.tag.set",
+              commandId: yield* newCommandId(),
+              threadId: projection.thread.id,
+              tag,
+              tagged,
+            })
+            .pipe(Effect.mapError(dispatchFailure));
+        }
+        return { sectionId };
+      }
       const common = { commandId: yield* newCommandId(), threadId: projection.thread.id };
       if (input.action === "settle") {
         return yield* threads

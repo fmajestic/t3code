@@ -1,5 +1,6 @@
 import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/models";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
+import { resolveThreadSectionId } from "@t3tools/contracts";
 import { FolderInputIcon, FolderXIcon } from "lucide-react";
 
 import { usePrimarySettings } from "../../hooks/useSettings";
@@ -8,7 +9,6 @@ import {
   ITEM_ICON_CLASS,
   type CommandPaletteSubmenuItem,
 } from "../CommandPalette.logic";
-import { resolveThreadSectionId } from "./sections.logic";
 import { useFileThreadIntoSection, useSidebarSectionsEnabled } from "./useSidebarSections";
 
 /** "Move thread to section" for the open thread, while sidebar sections are on. */

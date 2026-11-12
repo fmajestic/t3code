@@ -6,7 +6,15 @@ import {
   squashAtomCommandFailure,
   type AtomCommandResult,
 } from "@t3tools/client-runtime/state/runtime";
-import type { ContextMenuItem, LocalApi, ScopedThreadRef } from "@t3tools/contracts";
+import {
+  planSectionTagWrites,
+  resolveThreadSectionId,
+  sectionThreadTag,
+  validateSectionName,
+  type ContextMenuItem,
+  type LocalApi,
+  type ScopedThreadRef,
+} from "@t3tools/contracts";
 import * as Schema from "effect/Schema";
 import { AsyncResult } from "effect/reactivity";
 import { useState } from "react";
@@ -23,15 +31,7 @@ import { readThreadShell } from "../../state/entities";
 import { threadEnvironment } from "../../state/threads";
 import { useOrchestrationCommand } from "../../state/use-orchestration-command";
 import { stackedThreadToast, toastManager } from "../ui/toast";
-import {
-  planSectionTagWrites,
-  resolveThreadSectionId,
-  sectionTagsSettled,
-  sectionThreadTag,
-  validateSectionName,
-  withSectionMenu,
-  type SidebarCustomSection,
-} from "./sections.logic";
+import { sectionTagsSettled, withSectionMenu, type SidebarCustomSection } from "./sections.logic";
 
 const COLLAPSED_SECTIONS_KEY = "t3code:sidebar:collapsed-sections";
 const CollapsedSectionIds = Schema.Array(Schema.String);

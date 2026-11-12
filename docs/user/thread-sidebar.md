@@ -178,6 +178,9 @@ section keeps its threads. Sections replace project folders while both are on. T
 is saved on the server this client connects to first, and each device keeps its own choice of
 whether sections are on.
 
+Agents can do the same through T3 Code's tools: ask one to create, rename, reorder, or delete
+sections, or to move threads into and out of them.
+
 ## Settle finished work
 
 Choose **Settle thread** from its menu to move finished work out of the active list

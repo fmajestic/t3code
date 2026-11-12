@@ -3966,7 +3966,7 @@ describe("OrchestratorMcpService thread list", () => {
   const shells = [
     shell("thread:a-snoozed", "project:a", true),
     shell("thread:a-awake", "project:a", false),
-    shell("thread:b-snoozed", "project:b", true, true),
+    { ...shell("thread:b-snoozed", "project:b", true, true), tags: ["section:focus"] },
     {
       ...shell("thread:a-awaiting-command", "project:a", false),
       activityRunStatus: null,
@@ -3988,7 +3988,7 @@ describe("OrchestratorMcpService thread list", () => {
               ),
             ),
         }),
-        ServerSettings.layerTest(),
+        ServerSettings.layerTest({ sidebarSections: [{ id: "focus", name: "Focus" }] }),
         Layer.mock(ProviderRegistry.ProviderRegistry)({ getProviders: Effect.succeed([]) }),
         Layer.mock(ProviderAdapterRegistry.ProviderAdapterRegistryV2)({
           list: () => Effect.succeed([]),
@@ -4048,6 +4048,22 @@ describe("OrchestratorMcpService thread list", () => {
             ],
           ],
         ],
+      );
+    }).pipe(Effect.provide(service)),
+  );
+
+  it.effect("filters by sidebar section and names each listed thread's section", () =>
+    Effect.gen(function* () {
+      const mcp = yield* OrchestratorMcpService.OrchestratorMcpService;
+      const all = yield* mcp.listThreads(client, { allProjects: true });
+      assert.deepStrictEqual(
+        all.threads.map((thread) => [thread.threadId, thread.sectionId]),
+        shells.map((thread) => [thread.id, thread.id === "thread:b-snoozed" ? "focus" : undefined]),
+      );
+      const filed = yield* mcp.listThreads(client, { allProjects: true, sectionId: "focus" });
+      assert.deepStrictEqual(
+        filed.threads.map((thread) => thread.threadId),
+        ["thread:b-snoozed"],
       );
     }).pipe(Effect.provide(service)),
   );
