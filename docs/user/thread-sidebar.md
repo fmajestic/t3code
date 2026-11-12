@@ -160,6 +160,24 @@ Pinned threads stay above the folders, and Snoozed and Settled stay below them. 
 can drag a thread onto the composer to mention it, but not within the sidebar, and the Working
 section is off. Each device keeps its own choice.
 
+### Sort threads into sections (beta)
+
+Turn on **Settings → Labs → Sidebar sections** on web and desktop to split the active list into
+sections you name, such as "priority" and "nice-to-have". Click **+ Section** below the active list
+to add one. To file a thread, drag it onto a section, right-click it and choose **Move to section**,
+or use **Move thread to section** in the command palette. A thread sits in one section at most;
+threads in none, including new ones, stay at the top of the active list.
+
+Pinned, Working, Snoozed, and Settled threads stay in those shelves and return to their section
+when they come back to the active list. Inside a section, threads follow the same order as the
+active list: by when they last came back to you while the Working section is on, or your own
+drag order while it is off. The project filter narrows every section. Click a section to close
+it; a closed section shows how many threads it holds, and a dot when one of them needs you.
+Right-click a section to rename or delete it, and drag sections to reorder them. Deleting a
+section keeps its threads. Sections replace project folders while both are on. The section list
+is saved on the server this client connects to first, and each device keeps its own choice of
+whether sections are on.
+
 ## Settle finished work
 
 Choose **Settle thread** from its menu to move finished work out of the active list

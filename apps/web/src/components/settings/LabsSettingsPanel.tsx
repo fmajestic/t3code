@@ -18,6 +18,7 @@ export function LabsSettingsPanel() {
   return (
     <SettingsPageContainer>
       <SettingsSection id="beta" title="Beta">
+        <SectionsSidebarRow />
         <BoringSidebarRow />
         {/* Clerk is only mounted when this build has T3 Connect. */}
         {hasCloudPublicConfig() ? <GuestLinksRowWithSignIn /> : <GuestLinksRow />}
@@ -30,16 +31,41 @@ export function LabsSettingsPanel() {
   );
 }
 
+function SectionsSidebarRow() {
+  const settings = useScopedSettings();
+  const updateSettings = useUpdateScopedSettings();
+  return (
+    <SettingsRow
+      {...searchableSetting("sections-sidebar")}
+      description="Split active sidebar threads into sections you name, such as priority and nice-to-have. Right-click a thread or drag it onto a section to file it."
+      control={
+        <Switch
+          checked={settings.sectionsSidebarEnabled}
+          onCheckedChange={(checked) =>
+            updateSettings({ sectionsSidebarEnabled: Boolean(checked) })
+          }
+          aria-label="Sidebar sections"
+        />
+      }
+    />
+  );
+}
+
 function BoringSidebarRow() {
   const settings = useScopedSettings();
   const updateSettings = useUpdateScopedSettings();
   return (
     <SettingsRow
       {...searchableSetting("boring-sidebar")}
-      description="Group sidebar threads into project folders. Pinned threads stay on top, and Snoozed and Settled stay below the folders."
+      description={
+        settings.sectionsSidebarEnabled
+          ? "Group sidebar threads into project folders. Unavailable while Sidebar sections is on."
+          : "Group sidebar threads into project folders. Pinned threads stay on top, and Snoozed and Settled stay below the folders."
+      }
       control={
         <Switch
           checked={settings.boringSidebarEnabled}
+          disabled={settings.sectionsSidebarEnabled}
           onCheckedChange={(checked) => updateSettings({ boringSidebarEnabled: Boolean(checked) })}
           aria-label="Boring sidebar (group by project)"
         />

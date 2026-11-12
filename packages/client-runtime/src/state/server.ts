@@ -8,6 +8,7 @@ import {
   type ServerProviderWorkspaceSnapshot,
   type ServerSelfUpdateProgressEvent,
   type ServerSelfUpdateResult,
+  isSectionThreadTag,
   shouldRecommendDatabaseCompaction,
   type UsageSummary,
   WS_METHODS,
@@ -1242,7 +1243,9 @@ export function createServerEnvironmentAtoms<R, E>(
       const settings = get(settingsValueAtom(environmentId));
       if (settings?.hideTaggedThreads !== true) return null;
       // Tags are trimmed on write; trim hand-edited entries so " private" still matches.
-      const tags = settings.hiddenThreadTags.map((tag) => tag.trim()).filter((tag) => tag !== "");
+      const tags = settings.hiddenThreadTags
+        .map((tag) => tag.trim())
+        .filter((tag) => tag !== "" && !isSectionThreadTag(tag));
       return tags.length > 0 ? tags : null;
     }).pipe(
       // Trimming makes a new array on every settings push; keep equal lists stable.

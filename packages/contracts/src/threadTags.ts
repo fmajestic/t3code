@@ -16,3 +16,9 @@ export type ThreadTag = typeof ThreadTag.Type;
 export const StoredThreadTags = Schema.Array(Schema.String).pipe(
   Schema.catchDecoding(() => Effect.succeedSome([])),
 );
+
+/** Tags of this form file a thread into a sidebar section; they are never shown or hidden as tags. */
+export const SECTION_THREAD_TAG_PREFIX = "section:";
+
+export const isSectionThreadTag = (tag: string): boolean =>
+  tag.startsWith(SECTION_THREAD_TAG_PREFIX);

@@ -8,6 +8,7 @@ import {
   type SidebarListMarker,
   type SidebarSection,
 } from "./Sidebar.logic";
+import { projectCustomSectionRows, resolveCustomSectionDrop } from "./sidebar/sections.logic";
 
 const stationary = { x: 0, y: 0, scaleX: 1, scaleY: 1 };
 const hidden = { ...stationary, scaleY: 0 };
@@ -56,6 +57,11 @@ export function createSidebarCollisionDetection(
     items?: readonly SidebarListItem[];
     activationY?: number | null;
     sourceOffset?: SidebarDragSourceOffset;
+    // Fork: user sections pick among the collisions by what the pointer is over on screen.
+    refine?: (
+      args: Parameters<CollisionDetection>[0],
+      collisions: ReturnType<CollisionDetection>,
+    ) => ReturnType<CollisionDetection>;
   } = {},
 ): CollisionDetection {
   const validity = new Map<string, boolean>();
@@ -115,6 +121,7 @@ export function createSidebarCollisionDetection(
         }
       }
     }
+    if (options.refine) collisions = options.refine(args, collisions);
     const nearest = collisions[0];
     if (!nearest || nearest.id === args.active.id) {
       return collisions;
@@ -190,11 +197,12 @@ export function createSidebarSortingStrategy(input: {
           ? input.settledOrder
           : (input.activeOrder ?? target.activeOrder);
     const ranks = new Map(order.map((key, index) => [key, index]));
-    const rank = ranks.get(active.key) ?? Number.POSITIVE_INFINITY;
-    const index = group.findIndex(
-      (item) => (ranks.get(item.key) ?? Number.POSITIVE_INFINITY) > rank,
-    );
-    group.splice(index < 0 ? group.length : index, 0, { ...active, section: target.section });
+    const rankOf = (key: string) => ranks.get(key) ?? Number.POSITIVE_INFINITY;
+    const customSectionDrop = resolveCustomSectionDrop(items, active.key, sidebarListItemId(over));
+    if (customSectionDrop === null || target.section !== "active") {
+      const index = group.findIndex((item) => rankOf(item.key) > rankOf(active.key));
+      group.splice(index < 0 ? group.length : index, 0, { ...active, section: target.section });
+    }
     const settledOrder = (
       input.settledOrder.length > 0 ? input.settledOrder : groups.settled.map((item) => item.key)
     ).filter((key) => key !== active.key || target.section === "settled");
@@ -215,7 +223,17 @@ export function createSidebarSortingStrategy(input: {
     marker("pinned-header");
     projected.push(...groups.pinned);
     marker("pinned-divider");
-    section("active");
+    if (customSectionDrop === null) section("active");
+    else
+      projected.push(
+        ...projectCustomSectionRows({
+          items,
+          rows: groups.active,
+          dragged: target.section === "active" ? { ...active, section: "active" } : null,
+          targetSectionId: customSectionDrop.sectionId,
+          rank: rankOf,
+        }),
+      );
     if (items.some((item) => item.kind === "marker" && item.marker === "working-header")) {
       marker("working-header");
       projected.push(...groups.working);
