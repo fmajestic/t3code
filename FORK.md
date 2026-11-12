@@ -8,7 +8,7 @@ Each of these is meant to be dropped once upstream has it, through its own PR or
 
 ### From upstream PRs
 
-- **Cited quotes reach the agent readable**: quotes in a message are sent as quoted text with their comments, not as raw `t3-citation` links. From [#16389](https://github.com/pingdotgg/t3code/pull/16389).
+None right now.
 
 ### Not in an upstream PR
 
@@ -22,12 +22,11 @@ Each of these is meant to be dropped once upstream has it, through its own PR or
 - **`..` hides while filtering when adding a project**: in the add-project folder browser, `..` only shows before you type a filter, so it never sits above the matching folders. Tab completion itself came upstream in [#28243](https://github.com/pingdotgg/t3code/pull/28243).
 - **Compaction shows tokens and time**: while compacting, the thread reads "Compacting 436K tokens for 12s", and the finished line adds how long it took, as in "Context compacted 436K → 19.3K tokens in 16s". Claude's auto-compaction shows no token count until it finishes.
 - **Context growth per turn**: each finished turn shows how much it grew the context window, after "Worked for" or beside the response's copy button, as in "+43.7K context", or "context reset to 48K" when it shrank. A turn shows nothing when the turn before it reported no usage, or when the provider doesn't report usage at all, as with Cursor, Grok and Antigravity.
-- **Rewind threads without a project**: each new thread without a project starts in a fresh Git repository, so its turns are checkpointed, show their diffs, and can be rewound, files included. When any thread's folder becomes a Git repository partway through, by `git init` or Initialize Git, every message you send after that can be rewound. Messages from before the init cannot.
+- **Rewind threads without a project**: each new thread without a project starts in a fresh Git repository, so its turns are checkpointed, show their diffs, and can be rewound, files included. When any thread's folder becomes a Git repository partway through, by `git init` or Initialize Git, every message you send after that can be rewound. Messages from before the init rewind only the conversation, as upstream does in any folder without Git since [#18379](https://github.com/pingdotgg/t3code/pull/18379).
 - **Project picker says what it searches**: the project picker from Cmd+Shift+O (Ctrl+Shift+O) reads "Search projects...", says "No matching projects." when nothing matches, and Cmd+K (Ctrl+K) there searches everything for what you typed.
 - **Typing returns the terminal to the prompt**: typing or pasting in the integrated terminal while scrolled up in its history scrolls back down to the prompt, as Ghostty does. Upstream closed the same fix, [#8762](https://github.com/pingdotgg/t3code/pull/8762), in triage for lacking a recording of the behavior.
 - **Hiding skills hides them from the slash menu**: with Settings > Chat > Show skills in slash menu off, skills no longer show up anyway as the slash commands the provider also reports them as, such as `/grill-me` from Claude.
 - **Retired text generation model falls back**: when the provider stops offering the text generation model, thread titles, commit messages and other generated text use the same fallback Settings shows, instead of failing every time, as when OpenCode rotates its free models. The picker under Settings > Threads > Text generation marks the saved model Unavailable and names the fallback, and each provider check that finds it shows a toast.
-- **Composer context row hides the timeline**: with Settings > Appearance > Composer context on, the conversation fades out above the branch and worktree row instead of scrolling through it.
 - **Test notification**: Settings > General > Thread notifications has a Test button. Five seconds after you press it, it sends a system notification whatever the window focus, and then reports the permission and whether the window counted as focused.
 - **Notification sounds right after launch**: in the desktop app, thread sounds play from the moment it starts, instead of only after your first click or key press, which only browsers need.
 - **Dragged thread stays in its slot**: while dragging a thread in the sidebar, it stays over its own slot when the Pinned and Active labels open, instead of the slot opening below it. Upstream stopped the drag from scrolling the list in [#30346](https://github.com/pingdotgg/t3code/pull/30346).
