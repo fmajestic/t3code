@@ -2568,6 +2568,8 @@ code {
 .composer-tiptap.ProseMirror {
   font-variant-ligatures: normal;
   font-feature-settings: normal;
+  /* Any non-zero word-spacing stops Chromium reusing stale shaping while typing, which breaks ligatures such as Fira Code's `...`. */
+  word-spacing: 0.0001px;
 }
 
 .composer-tiptap p {

@@ -33,6 +33,7 @@ None right now.
 - **Compaction offered, not chosen**: Settings > Providers > Advanced > Compact idle threads has an "Offered when you return" mode. The Compact chip still shows when you return to an idle thread, but starts on Keep, so you click it only when you want to compact.
 - **Settings opens in its search**: opening Settings puts the cursor in its search box, so you can start typing right away. Touch screens and narrow windows still open without focus, so no keyboard pops up.
 - **Equal thread matches list newest first**: in Cmd+K (Ctrl+K), threads that match equally well and are both heavily used list by latest activity, then latest open, instead of in no particular order.
+- **Ligatures survive typing in the composer**: with a ligature font such as Fira Code, typing after `...`, `->` or `!==` no longer leaves a gap and a stray glyph. Chromium 151–155 reshapes only around the edit ([573312311](https://issues.chromium.org/issues/573312311), fixed in 156); any non-zero `word-spacing` on the composer makes it reshape properly, so ligatures stay on. Drop it once upstream moves to Electron 45, the first on Chromium 156.
 - **Reset times name the weekday**: usage limit resets within the coming week read "Thursday at 7:00" instead of a bare date, and later ones put the short weekday before the date.
 
 ## Fork only
