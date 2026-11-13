@@ -22,26 +22,6 @@ const isShelfHeader = (item: SidebarListItem | undefined) =>
     item.marker === "snoozed-header" ||
     item.marker === "settled-header");
 
-/** How far the projection moved the dragged row's own slot, which dnd-kit leaves under the pointer. */
-export function createSidebarDragSourceOffset() {
-  let y = 0;
-  return {
-    get: () => y,
-    set: (next: number) => {
-      y = next;
-    },
-  };
-}
-export type SidebarDragSourceOffset = ReturnType<typeof createSidebarDragSourceOffset>;
-
-export function followSidebarDragSource(
-  { transform }: Parameters<Modifier>[0],
-  offset: SidebarDragSourceOffset,
-) {
-  const y = offset.get();
-  return y === 0 ? transform : { ...transform, y: transform.y + y };
-}
-
 export function restrictBelowSidebarLabel(
   { transform, containerNodeRect, draggingNodeRect }: Parameters<Modifier>[0],
   offset: number,
@@ -56,7 +36,6 @@ export function createSidebarCollisionDetection(
   options: {
     items?: readonly SidebarListItem[];
     activationY?: number | null;
-    sourceOffset?: SidebarDragSourceOffset;
     // Fork: user sections pick among the collisions by what the pointer is over on screen.
     refine?: (
       args: Parameters<CollisionDetection>[0],
@@ -69,21 +48,7 @@ export function createSidebarCollisionDetection(
   let previousPointerY = options.activationY;
   let boundarySection: "pinned" | "active" | undefined;
   return (args) => {
-    // Droppable rects are untransformed layout, so compare the dragged row at its layout position.
-    const offsetY = options.sourceOffset?.get() ?? 0;
-    const { collisionRect } = args;
-    let collisions = closestCenter(
-      offsetY === 0
-        ? args
-        : {
-            ...args,
-            collisionRect: {
-              ...collisionRect,
-              top: collisionRect.top - offsetY,
-              bottom: collisionRect.bottom - offsetY,
-            },
-          },
-    );
+    let collisions = closestCenter(args);
     const pointer = args.pointerCoordinates;
     const items = options.items;
     const source = items?.find((item) => item.kind === "thread" && item.key === args.active.id);
@@ -145,12 +110,8 @@ export function createSidebarSortingStrategy(input: {
   cardHeight?: number;
   slimHeight?: number;
   boundaryLabelHeight?: number;
-  sourceOffset?: SidebarDragSourceOffset;
 }): SortingStrategy {
-  if (input.enabled === false) {
-    input.sourceOffset?.set(0);
-    return () => stationary;
-  }
+  if (input.enabled === false) return () => stationary;
   const { items } = input;
   const indices = new Map(items.map((item, index) => [sidebarListItemId(item), index]));
   let previous: Pick<Layout, "rects" | "activeIndex" | "overIndex"> | undefined;
@@ -289,7 +250,6 @@ export function createSidebarSortingStrategy(input: {
       if (index !== undefined && rect) result[index] = { ...stationary, y: top - rect.top };
       top += heights[projectedIndex]! + 1;
     }
-    if (overIndex === activeIndex) input.sourceOffset?.set(result[activeIndex]?.y ?? 0);
     result[activeIndex] = stationary;
     return result;
   }
