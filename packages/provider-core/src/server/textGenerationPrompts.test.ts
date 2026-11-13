@@ -34,4 +34,19 @@ describe("buildThreadTitlePrompt", () => {
       "3-8 words, fewer than 40 characters.",
     );
   });
+
+  it("asks for a section only when titling a new thread with sections offered", () => {
+    const sections = ["Backend", "Mobile"];
+    const initial = buildThreadTitlePrompt({ message: "Fix the API", sections });
+    expect(initial.prompt).toContain('- "Backend"\n- "Mobile"');
+    expect(Object.keys(initial.outputSchema.fields)).toContain("section");
+    for (const input of [
+      { message: "Fix the API" },
+      { message: "Fix the API", sections, previousTitle: "API Fix" },
+    ]) {
+      const { prompt, outputSchema } = buildThreadTitlePrompt(input);
+      expect(prompt).not.toContain("sidebar sections");
+      expect(Object.keys(outputSchema.fields)).not.toContain("section");
+    }
+  });
 });
