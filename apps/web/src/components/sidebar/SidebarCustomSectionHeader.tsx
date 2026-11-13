@@ -91,6 +91,7 @@ function SidebarCustomSectionHeader(props: {
   section: SidebarCustomSection;
   collapsed: boolean;
   hiddenThreads: ReadonlyArray<EnvironmentThreadShell>;
+  threadCount: number;
   dragging: boolean;
   isDropTarget: boolean;
   renaming: boolean;
@@ -182,7 +183,7 @@ function SidebarCustomSectionHeader(props: {
                       <span className="sr-only">{DOT_LABEL[dot]}</span>
                     </span>
                   ) : null}
-                  {hiddenThreads.length}
+                  {props.threadCount}
                 </span>
               ) : undefined
             }
@@ -254,6 +255,7 @@ export function SidebarCustomSectionMarker(props: {
       section={group.section}
       collapsed={group.collapsed}
       hiddenThreads={group.hiddenThreads}
+      threadCount={group.threads.length + group.hiddenThreads.length}
       dragging={props.dragging}
       isDropTarget={isDropTarget}
       renaming={
