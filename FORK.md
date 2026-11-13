@@ -31,6 +31,7 @@ None right now.
 - **Compaction offered, not chosen**: Settings > Providers > Advanced > Compact idle threads has an "Offered when you return" mode. The Compact chip still shows when you return to an idle thread, but starts on Keep, so you click it only when you want to compact.
 - **Settings opens in its search**: opening Settings puts the cursor in its search box, so you can start typing right away. Touch screens and narrow windows still open without focus, so no keyboard pops up.
 - **Equal thread matches list newest first**: in Cmd+K (Ctrl+K), threads that match equally well and are both heavily used list by latest activity, then latest open, instead of in no particular order.
+- **Context row under the composer is a rounded pill**: the workspace and branch row sits slightly inset from the composer with rounded corners, so the glass upstream gave it in [#34846](https://github.com/pingdotgg/t3code/pull/34846) reads as its own surface instead of a sharp rectangle under the card when the chat scrolls behind it.
 - **Reset times name the weekday**: usage limit resets within the coming week read "Thursday at 7:00" instead of a bare date, and later ones put the short weekday before the date.
 
 ## Fork only
