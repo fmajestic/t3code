@@ -84,6 +84,11 @@ export const generatedThreadTitle = (raw: string) => {
     : Effect.succeed(title);
 };
 
+export const generatedSection = (generated: object): { section?: string } =>
+  "section" in generated && typeof generated.section === "string"
+    ? { section: generated.section }
+    : {};
+
 export function fromRunner(name: string, run: Runner): ProviderTextGeneration {
   const generateCommitMessage: ProviderTextGeneration["generateCommitMessage"] = Effect.fn(
     `${name}.generateCommitMessage`,
@@ -163,11 +168,13 @@ export function fromRunner(name: string, run: Runner): ProviderTextGeneration {
         linkedContext: input.linkedContext,
         attachments: input.attachments,
         instructions: input.instructions,
+        sections: input.sections,
       }),
     });
     return {
       title: yield* generatedThreadTitle(generated.title),
       ...(generated.needsRefinement ? { needsRefinement: true } : {}),
+      ...generatedSection(generated),
     };
   });
 

@@ -358,6 +358,8 @@ export interface ThreadTitlePromptInput {
   forkSource?: ThreadTitleForkSource | undefined;
   attachments?: ReadonlyArray<ChatAttachment> | undefined;
   instructions?: string | undefined;
+  /** Sidebar section names the new thread may be filed into; ignored on regeneration. */
+  sections?: ReadonlyArray<string> | undefined;
 }
 
 /** The thread a fork branched from, and its conversation up to the fork point. */
@@ -483,22 +485,36 @@ function threadTitlePromptSuffix(input: ThreadTitlePromptInput): string {
   return suffix;
 }
 
+function sectionsSection(sections: ReadonlyArray<string>): string {
+  const lines = sections.map((name) => `- ${JSON.stringify(name)}`);
+  return `\n\nThe user groups threads into these sidebar sections:
+${limitSection(lines.join("\n"), 4_000)}
+Also return the key section: the exact name of the one section this thread clearly belongs to, or null when none clearly fits. Do not pick a section on a loose association.`;
+}
+
 export function buildThreadTitlePrompt(input: ThreadTitlePromptInput) {
+  const sections = input.previousTitle === undefined ? (input.sections ?? []) : [];
   let prompt: string;
   if (input.previousTitle === undefined) {
     const message = limitTitleMessage(input.message, 8_000);
     const label = input.forkSource === undefined ? "User message" : "User message after the fork";
-    prompt = `${initialThreadTitlePrompt(input.projectTitle)}${forkSourceSection(input.forkSource)}\n\n${label}:\n${message}${threadTitlePromptSuffix(input)}`;
+    prompt = `${initialThreadTitlePrompt(input.projectTitle)}${forkSourceSection(input.forkSource)}\n\n${label}:\n${message}${threadTitlePromptSuffix(input)}${sections.length > 0 ? sectionsSection(sections) : ""}`;
   } else {
     const message = preserveMessageEnd(input.message);
     const label =
       input.forkSource === undefined ? "Thread contents" : "Thread contents after the fork";
     prompt = `${regenerateThreadTitlePrompt(input.previousTitle, input.projectTitle)}${forkSourceSection(input.forkSource)}\n\n${label}:\n${message}${threadTitlePromptSuffix(input)}`;
   }
-  const outputSchema = Schema.Struct({
+  const fields = {
     title: Schema.String,
     needsRefinement: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
-  });
-
-  return { prompt, outputSchema };
+  };
+  // Strict structured output needs every key required, so the key exists only when asked for.
+  if (sections.length > 0) {
+    return {
+      prompt,
+      outputSchema: Schema.Struct({ ...fields, section: Schema.NullOr(Schema.String) }),
+    };
+  }
+  return { prompt, outputSchema: Schema.Struct(fields) };
 }

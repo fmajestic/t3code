@@ -47,6 +47,36 @@ function SectionsSidebarRow() {
           aria-label="Sidebar sections"
         />
       }
+    >
+      {settings.sectionsSidebarEnabled ? (
+        <div className="mt-2 mb-2 border-l-2 border-border/60 ps-3">
+          <AutoFileThreadsRow />
+        </div>
+      ) : null}
+    </SettingsRow>
+  );
+}
+
+function AutoFileThreadsRow() {
+  const settings = useScopedSettings();
+  const updateSettings = useUpdateScopedSettings();
+  return (
+    <SettingsRow
+      serverScoped
+      {...searchableSetting("sections-auto-file")}
+      className="px-0 py-2 sm:px-0"
+      settingKeys={["autoFileThreadsIntoSections"]}
+      description="When a new thread gets its title, also file it into the section that clearly fits. Guide the choice in the thread title instructions."
+      control={
+        <ScopedSwitch
+          settingKeys={["autoFileThreadsIntoSections"]}
+          checked={settings.autoFileThreadsIntoSections}
+          onCheckedChange={(checked) =>
+            updateSettings({ autoFileThreadsIntoSections: Boolean(checked) })
+          }
+          aria-label="File new threads into sections"
+        />
+      }
     />
   );
 }

@@ -1,5 +1,21 @@
 import type { ThreadTitleMessage } from "@t3tools/provider-core/server/threadTitleContext";
 
+const PRIORITY = "priority";
+const NICE_TO_HAVE = "nice-to-have / unapproved / proactive";
+const MIGRATIONS = "migrations / restructures";
+const TOOLING = "tooling";
+
+/** Sidebar sections offered with --sections, from a maintainer's own setup. */
+export const evaluationSections = [PRIORITY, "waiting-review", NICE_TO_HAVE, MIGRATIONS, TOOLING];
+
+/** Thread title instructions sent with --sections, as a user would write them to guide filing. */
+export const evaluationSectionInstructions = `Sidebar sections:
+- priority: work tied to a ticket or issue (a link or an ID such as ABC-123), or investigating a bug.
+- nice-to-have / unapproved / proactive: ideas and questions such as "could we", "how hard would it be", or something the project has never had.
+- migrations / restructures: framework or dependency migrations and large restructures.
+- tooling: developer tooling, scripts, hooks, and CI.
+- waiting-review: never for a new thread.`;
+
 export const threadTitleEvaluationCases = [
   {
     id: "referenced-thread-startup",
@@ -152,6 +168,83 @@ export const threadTitleEvaluationCases = [
     ],
     rubric: "Name the default config on init. Leave out Hyperdrive, the project name.",
   },
+  ...[
+    {
+      id: "section-speculative-analytics",
+      source: "Maintainer thread: cookieless frontend usage analytics",
+      text: 'consider how we would add some basic analytics to the frontend. things like "how much is a certain feature used", like reports/exports, or what viewport sizes our users have. no cookie or consent banners. only foss and self-hostable, and we cannot deploy new apps easily.',
+      previousTitle: "Frontend Usage Analytics",
+      section: [NICE_TO_HAVE],
+    },
+    {
+      id: "section-ticket-bug",
+      source: "Section filing scenario: ticket-backed bug",
+      text: "ACME-1234: the export button on the reports page throws a 500 when the date range is empty. Fix it.",
+      previousTitle: "Fix Empty Range Report Export",
+      section: [PRIORITY],
+    },
+    {
+      id: "section-bug-investigation",
+      source: "Section filing scenario: bug investigation without a ticket",
+      text: "users say the login page hangs after the SSO redirect, only in Safari. find out why.",
+      previousTitle: "Safari SSO Login Hang",
+      section: [PRIORITY],
+    },
+    {
+      id: "section-how-hard",
+      source: "Section filing scenario: effort question",
+      text: "how hard would it be to add a dark theme to the admin panel?",
+      previousTitle: "Admin Panel Dark Theme",
+      section: [NICE_TO_HAVE],
+    },
+    {
+      id: "section-could-we",
+      source: "Section filing scenario: proposal",
+      text: "could we cache the dashboard queries so the landing page loads faster?",
+      previousTitle: "Cache Dashboard Queries",
+      section: [NICE_TO_HAVE],
+    },
+    {
+      id: "section-framework-migration",
+      source: "Section filing scenario: framework upgrade",
+      text: "migrate the backend from Spring Boot 2.7 to 3.3, including the javax to jakarta rename.",
+      previousTitle: "Spring Boot 3 Migration",
+      section: [MIGRATIONS],
+    },
+    {
+      id: "section-restructure",
+      source: "Section filing scenario: package restructure",
+      text: "split the shared utils package into per-feature modules, move the files and fix every import.",
+      previousTitle: "Split Utils Into Feature Modules",
+      section: [MIGRATIONS],
+    },
+    {
+      id: "section-tooling-hook",
+      source: "Section filing scenario: developer tooling",
+      text: "add a pre-commit hook that runs the formatter and linter on staged files only.",
+      previousTitle: "Pre-commit Format and Lint Hook",
+      section: [TOOLING],
+    },
+    {
+      id: "section-ticket-review-comments",
+      source: "Section filing scenario: review follow-up never files as waiting-review",
+      text: "the PR for ACME-88 got review comments, address them.",
+      previousTitle: "Address ACME-88 Review Comments",
+      section: [PRIORITY],
+    },
+    {
+      id: "section-none-question",
+      source: "Control: a quick question fits no section",
+      text: "what does this regex accept: ^(?=.*\\d).{8,}$",
+      previousTitle: "Password Regex Meaning",
+      section: [null],
+    },
+  ].map(({ text, ...fixture }) => ({
+    ...fixture,
+    request: text,
+    messages: [{ role: "user" as const, text }],
+    rubric: "Name the subject of the request.",
+  })),
 ] satisfies ReadonlyArray<{
   id: string;
   source: string;
@@ -160,4 +253,6 @@ export const threadTitleEvaluationCases = [
   previousTitle: string;
   messages: ReadonlyArray<ThreadTitleMessage>;
   rubric: string;
+  /** Accepted section picks when titled with --sections; null means no section. */
+  section?: ReadonlyArray<string | null>;
 }>;

@@ -485,6 +485,14 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["beta sections focus priority groups categories file threads sidebar"],
   },
   {
+    id: "sections-auto-file",
+    title: "File new threads into sections",
+    to: "/settings/labs",
+    // Shown inside the sidebar sections row only while it is on, so search lands on the parent.
+    targetId: "sections-sidebar",
+    searchTerms: ["beta sections auto file organize sort new threads title model"],
+  },
+  {
     id: "boring-sidebar",
     title: "Boring sidebar (group by project)",
     to: "/settings/labs",

@@ -52,6 +52,7 @@ const adapter = {
 function makeHarness(
   options: {
     readonly generateTitle?: TextGeneration.TextGeneration["Service"]["generateThreadTitle"];
+    readonly settings?: Parameters<typeof ServerSettings.layerTest>[0];
   } = {},
 ) {
   const layerDatabase = SqlitePersistence.layerMemory;
@@ -61,7 +62,7 @@ function makeHarness(
     layerRegistry,
     { databaseLayer: layerDatabase, runEffectWorker: false },
   );
-  const layerServerSettings = ServerSettings.layerTest({});
+  const layerServerSettings = ServerSettings.layerTest(options.settings ?? {});
   const layerThreadManagement = ThreadManagement.layer.pipe(
     Layer.provide(layerOrchestrator),
     Layer.provide(layerServerSettings),
@@ -591,6 +592,88 @@ describe("ThreadTitleRegenerationService", () => {
           requestId,
           status: "unchanged",
         });
+      }).pipe(Effect.provide(harness.layer));
+    }),
+  );
+
+  it.effect("files a new thread into the section the title model picks, unless already filed", () =>
+    Effect.gen(function* () {
+      const harness = makeHarness({
+        generateTitle: () => Effect.succeed({ title: "Generated title", section: " backend " }),
+        settings: {
+          sidebarSections: [
+            { id: "backend", name: "Backend" },
+            { id: "mobile", name: "Mobile" },
+          ],
+        },
+      });
+      yield* Effect.gen(function* () {
+        const threads = yield* ThreadManagement.ThreadManagementService;
+        const titleRegeneration = yield* ThreadTitleRegeneration.ThreadTitleRegenerationService;
+        const titleNew = Effect.fn(function* (name: string) {
+          const threadId = yield* createThread({ command: `${name}:create`, thread: name });
+          yield* dispatchUserMessage({ command: `${name}:message`, threadId, text: "Fix the API" });
+          const requestId = yield* armRegeneration({ command: `${name}:title`, threadId });
+          return { threadId, requestId, messageId: MessageId.make(`${name}:message:message`) };
+        });
+
+        const loose = yield* titleNew("thread:section:loose");
+        yield* titleRegeneration.execute({
+          threadId: loose.threadId,
+          requestId: loose.requestId,
+          kind: { type: "initial", messageId: loose.messageId },
+        });
+        assert.deepEqual(harness.generateThreadTitle.mock.calls[0]?.[0]?.sections, [
+          "Backend",
+          "Mobile",
+        ]);
+        const filed = yield* threads.getThreadProjection(loose.threadId);
+        assert.deepEqual(filed.thread.tags, ["section:backend"]);
+        assert.equal(filed.thread.title, "Generated title");
+
+        const placed = yield* titleNew("thread:section:placed");
+        yield* threads.dispatch({
+          type: "thread.tag.set",
+          commandId: CommandId.make("thread:section:placed:tag"),
+          threadId: placed.threadId,
+          tag: "section:mobile",
+          tagged: true,
+        });
+        yield* titleRegeneration.execute({
+          threadId: placed.threadId,
+          requestId: placed.requestId,
+          kind: { type: "initial", messageId: placed.messageId },
+        });
+        assert.isUndefined(harness.generateThreadTitle.mock.calls[1]?.[0]?.sections);
+        const kept = yield* threads.getThreadProjection(placed.threadId);
+        assert.deepEqual(kept.thread.tags, ["section:mobile"]);
+      }).pipe(Effect.provide(harness.layer));
+    }),
+  );
+
+  it.effect("leaves new threads unfiled while filing into sections is off", () =>
+    Effect.gen(function* () {
+      const harness = makeHarness({
+        generateTitle: () => Effect.succeed({ title: "Generated title", section: "Backend" }),
+        settings: {
+          sidebarSections: [{ id: "backend", name: "Backend" }],
+          autoFileThreadsIntoSections: false,
+        },
+      });
+      yield* Effect.gen(function* () {
+        const threads = yield* ThreadManagement.ThreadManagementService;
+        const titleRegeneration = yield* ThreadTitleRegeneration.ThreadTitleRegenerationService;
+        const threadId = yield* createThread({ command: "off:create", thread: "thread:off" });
+        yield* dispatchUserMessage({ command: "off:message", threadId, text: "Fix the API" });
+        const requestId = yield* armRegeneration({ command: "off:title", threadId });
+        yield* titleRegeneration.execute({
+          threadId,
+          requestId,
+          kind: { type: "initial", messageId: MessageId.make("off:message:message") },
+        });
+        assert.isUndefined(harness.generateThreadTitle.mock.calls[0]?.[0]?.sections);
+        const projection = yield* threads.getThreadProjection(threadId);
+        assert.isNotOk(projection.thread.tags?.length);
       }).pipe(Effect.provide(harness.layer));
     }),
   );

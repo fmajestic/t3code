@@ -10,6 +10,8 @@ import {
   type ServerSettingsError,
   TextGenerationError,
   type ThreadId,
+  resolveThreadSectionId,
+  sectionThreadTag,
 } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
@@ -49,8 +51,8 @@ export class ThreadTitleRegenerationService extends Context.Service<
 >()("t3/orchestration-v2/ThreadTitleRegenerationService") {}
 
 type Outcome =
-  | { readonly status: "renamed"; readonly title: string }
-  | { readonly status: "unchanged" }
+  | { readonly status: "renamed"; readonly title: string; readonly sectionId?: string }
+  | { readonly status: "unchanged"; readonly sectionId?: string }
   | { readonly status: "failed"; readonly message: string };
 
 const MAX_FAILURE_MESSAGE_LENGTH = 300;
@@ -101,6 +103,26 @@ const make = Effect.gen(function* () {
           : {}),
       })
       .pipe(Effect.asVoid);
+
+  // Files a new thread into the section its title model picked, unless the user filed it meanwhile.
+  const fileIntoSection = Effect.fn("ThreadTitleRegenerationService.fileIntoSection")(function* (
+    threadId: ThreadId,
+    requestId: CommandId,
+    sectionId: string,
+  ) {
+    const { sidebarSections, autoFileThreadsIntoSections } = yield* serverSettings.getSettings;
+    if (!autoFileThreadsIntoSections) return;
+    const { thread } = yield* threads.getThreadRecords(threadId, []);
+    if (!sidebarSections.some((section) => section.id === sectionId)) return;
+    if (resolveThreadSectionId(thread.tags, sidebarSections) !== null) return;
+    yield* threads.dispatch({
+      type: "thread.tag.set",
+      commandId: CommandId.make(`${requestId}:section`),
+      threadId,
+      tag: sectionThreadTag(sectionId),
+      tagged: true,
+    });
+  });
 
   const messagesThroughRun = Effect.fn("ThreadTitleRegenerationService.messagesThroughRun")(
     function* (threadId: ThreadId, runId: RunId) {
@@ -193,10 +215,17 @@ const make = Effect.gen(function* () {
       const inherited = yield* forkSource(projection.thread).pipe(
         Effect.orElseSucceed(() => undefined),
       );
+      const serverSettingsValue = yield* serverSettings.getSettings;
       const settings = resolveProjectSettings(
-        yield* serverSettings.getSettings,
+        serverSettingsValue,
         projection.thread.projectId,
       ).settings;
+      const sections =
+        input.kind.type === "initial" &&
+        serverSettingsValue.autoFileThreadsIntoSections &&
+        resolveThreadSectionId(projection.thread.tags, serverSettingsValue.sidebarSections) === null
+          ? serverSettingsValue.sidebarSections
+          : [];
       // Storage cleanup removes worktrees but keeps the path; CLIs cannot spawn in a missing cwd.
       const worktreePath = projection.thread.worktreePath;
       const worktreeExists =
@@ -210,14 +239,18 @@ const make = Effect.gen(function* () {
         ...(input.kind.type === "regenerate" ? { previousTitle: projection.thread.title } : {}),
         ...(inherited === undefined ? {} : { forkSource: inherited }),
         instructions: settings.threadTitleInstructions,
+        ...(sections.length > 0 ? { sections: sections.map((section) => section.name) } : {}),
         modelSelection: settings.textGenerationModelSelection,
         projectId: projection.thread.projectId,
       });
       const generatedTitle = result.title.trim();
+      const picked = result.section?.trim().toLocaleLowerCase();
+      const sectionId = sections.find((section) => section.name.toLocaleLowerCase() === picked)?.id;
+      const filed = sectionId === undefined ? {} : { sectionId };
       return generatedTitle === "New thread" ||
         (input.kind.type === "regenerate" && generatedTitle === projection.thread.title.trim())
-        ? { status: "unchanged" as const }
-        : { status: "renamed" as const, title: result.title };
+        ? { status: "unchanged" as const, ...filed }
+        : { status: "renamed" as const, title: result.title, ...filed };
     }).pipe(
       Effect.retry({
         times: input.kind.type === "initial" ? 2 : 0,
@@ -238,6 +271,18 @@ const make = Effect.gen(function* () {
       return;
     }
     yield* complete({ ...input, outcome });
+    if (outcome.status !== "failed" && outcome.sectionId !== undefined) {
+      yield* fileIntoSection(input.threadId, input.requestId, outcome.sectionId).pipe(
+        Effect.catchCause((cause) =>
+          Cause.hasInterruptsOnly(cause)
+            ? Effect.interrupt
+            : Effect.logWarning("Filing a new thread into its section failed", {
+                threadId: input.threadId,
+                cause,
+              }),
+        ),
+      );
+    }
   });
 
   return ThreadTitleRegenerationService.of({ execute });

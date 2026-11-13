@@ -5,15 +5,20 @@ import * as NodeCrypto from "node:crypto";
 import * as FetchHttpClient from "effect/http/FetchHttpClient";
 import * as NodePlatformCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { CodexSettings, ProviderInstanceId } from "@t3tools/contracts";
+import { ClaudeSettings, CodexSettings, ProviderInstanceId } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Duration from "effect/Duration";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
+import * as ClaudeTextGeneration from "../../apps/server/src/textGeneration/ClaudeTextGeneration.ts";
 import * as CodexTextGeneration from "../../apps/server/src/textGeneration/CodexTextGeneration.ts";
-import { threadTitleEvaluationCases } from "./cases.ts";
+import {
+  evaluationSectionInstructions,
+  evaluationSections,
+  threadTitleEvaluationCases,
+} from "./cases.ts";
 import {
   formatThreadTitleContext,
   type ThreadTitleMessage,
@@ -36,10 +41,20 @@ const { values } = NodeUtil.parseArgs({
     out: { type: "string" },
     baseline: { type: "string" },
     initial: { type: "boolean", default: false },
+    provider: { type: "string", default: "codex" },
+    sections: { type: "boolean", default: false },
+    samples: { type: "string", default: "1" },
   },
 });
 if (!values.model || !values.out)
   throw new Error("Use --model <configured-model> --out <directory>.");
+if (values.provider !== "codex" && values.provider !== "claude")
+  throw new Error("Use --provider codex or --provider claude.");
+if (values.sections && !values.initial)
+  throw new Error("--sections needs --initial: only a new thread's first title files it.");
+const samples = Number(values.samples);
+if (!Number.isInteger(samples) || samples < 1) throw new Error("Use --samples <positive integer>.");
+const provider = values.provider;
 for (const id of values.case ?? []) {
   if (!threadTitleEvaluationCases.some((fixture) => fixture.id === id)) {
     throw new Error(`Unknown case id: ${id}.`);
@@ -58,7 +73,16 @@ const Results = Schema.fromJsonString(
   ),
 );
 const decodeResults = Schema.decodeUnknownEffect(Results);
-const decodeSettings = Schema.decodeUnknownEffect(CodexSettings);
+const decodeCodexSettings = Schema.decodeUnknownEffect(CodexSettings);
+const decodeClaudeSettings = Schema.decodeUnknownEffect(ClaudeSettings);
+// Mirrors the server: a pick matches an offered section by name, ignoring case and outer spaces.
+const offeredSection = (picked: string | undefined) => {
+  if (picked === undefined) return null;
+  const folded = picked.trim().toLocaleLowerCase();
+  return (
+    evaluationSections.find((name) => name.toLocaleLowerCase() === folded) ?? `unknown: ${picked}`
+  );
+};
 const encodeReport = Schema.encodeEffect(Schema.fromJsonString(Schema.Unknown));
 
 await Effect.runPromise(
@@ -66,9 +90,11 @@ await Effect.runPromise(
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
     const cwd = yield* fs.makeTempDirectoryScoped({ prefix: "t3-title-evaluation-" });
-    const generation = yield* CodexTextGeneration.makeCodexTextGeneration(
-      yield* decodeSettings({}),
-    );
+    const generation =
+      provider === "claude"
+        ? yield* ClaudeTextGeneration.makeClaudeTextGeneration(yield* decodeClaudeSettings({}))
+        : yield* CodexTextGeneration.makeCodexTextGeneration(yield* decodeCodexSettings({}));
+    const instanceId = ProviderInstanceId.make(provider === "claude" ? "claudeAgent" : "codex");
     const baseline = values.baseline
       ? yield* fs.readFileString(values.baseline).pipe(Effect.flatMap(decodeResults))
       : [];
@@ -86,39 +112,53 @@ await Effect.runPromise(
       const context = formatThreadTitleContext(fixture.messages);
       const message = values.initial ? firstMessage.text : context.message;
       const attachments = values.initial ? firstMessage.attachments : context.attachments;
-      const [elapsed, { generated, linkedContextDigest }] = yield* Effect.gen(function* () {
-        const linkedContext = yield* ThreadTitleLinks.resolveThreadTitleLinks({
-          cwd,
-          message,
+      const sampled = [];
+      for (let sample = 0; sample < samples; sample++) {
+        const [elapsed, { generated, linkedContextDigest }] = yield* Effect.gen(function* () {
+          const linkedContext = yield* ThreadTitleLinks.resolveThreadTitleLinks({
+            cwd,
+            message,
+          });
+          const linkedContextDigest = NodeCrypto.createHash("sha256")
+            .update(linkedContext ?? "")
+            .digest("hex");
+          if (previous && previous.linkedContextDigest !== linkedContextDigest) {
+            throw new Error(
+              `Linked context changed for ${fixture.id}. Record a new baseline before comparing titles.`,
+            );
+          }
+          const generated = yield* generation.generateThreadTitle({
+            cwd,
+            message,
+            ...("projectTitle" in fixture ? { projectTitle: fixture.projectTitle } : {}),
+            previousTitle: values.initial ? undefined : fixture.previousTitle,
+            attachments,
+            linkedContext,
+            ...(values.sections
+              ? { sections: evaluationSections, instructions: evaluationSectionInstructions }
+              : {}),
+            modelSelection: { instanceId, model },
+          });
+          return { generated, linkedContextDigest };
+        }).pipe(Effect.timed);
+        const section = offeredSection(generated.section);
+        const accepted: ReadonlyArray<string | null> | undefined =
+          values.sections && "section" in fixture ? fixture.section : undefined;
+        results.push({
+          id: fixture.id,
+          sample,
+          title: generated.title,
+          latencyMs: Duration.toMillis(elapsed),
+          needsRefinement: generated.needsRefinement ?? false,
+          linkedContextDigest,
+          ...(values.sections ? { section } : {}),
+          ...(accepted ? { sectionCorrect: accepted.includes(section) } : {}),
         });
-        const linkedContextDigest = NodeCrypto.createHash("sha256")
-          .update(linkedContext ?? "")
-          .digest("hex");
-        if (previous && previous.linkedContextDigest !== linkedContextDigest) {
-          throw new Error(
-            `Linked context changed for ${fixture.id}. Record a new baseline before comparing titles.`,
-          );
-        }
-        const generated = yield* generation.generateThreadTitle({
-          cwd,
-          message,
-          ...("projectTitle" in fixture ? { projectTitle: fixture.projectTitle } : {}),
-          previousTitle: values.initial ? undefined : fixture.previousTitle,
-          attachments,
-          linkedContext,
-          modelSelection: { instanceId: ProviderInstanceId.make("codex"), model },
-        });
-        return { generated, linkedContextDigest };
-      }).pipe(Effect.timed);
+        sampled.push(generated);
+      }
+      const generated = sampled[0]!;
       const oldTitle = previous?.title ?? fixture.previousTitle;
       const newFirst = NodeCrypto.randomInt(2) === 0;
-      results.push({
-        id: fixture.id,
-        title: generated.title,
-        latencyMs: Duration.toMillis(elapsed),
-        needsRefinement: generated.needsRefinement ?? false,
-        linkedContextDigest,
-      });
       review.push({
         id: fixture.id,
         source: fixture.source,
@@ -143,8 +183,18 @@ await Effect.runPromise(
         yield* encodeReport(report),
       );
     }
+    if (values.sections) {
+      const scored = results.filter((row) => row.sectionCorrect !== undefined);
+      const failing = [...new Set(scored.map((row) => row.id))].filter((id) => {
+        const rows = scored.filter((row) => row.id === id);
+        return rows.filter((row) => !row.sectionCorrect).length * 2 >= rows.length;
+      });
+      yield* Effect.log(
+        `Sections: ${scored.filter((row) => row.sectionCorrect).length}/${scored.length} samples filed correctly. Failing cases: ${failing.join(", ") || "none"}.`,
+      );
+    }
     yield* Effect.log(
-      `Wrote ${results.length} cases to ${outputDirectory}. Score review.json before opening answer-key.json. Latency is in results.json.`,
+      `Wrote ${results.length} samples to ${outputDirectory}. Score review.json before opening answer-key.json. Latency is in results.json.`,
     );
   }).pipe(
     Effect.provide(

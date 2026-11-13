@@ -166,7 +166,10 @@ Turn on **Settings → Labs → Sidebar sections** on web and desktop to split t
 sections you name, such as "priority" and "nice-to-have". Click **+ Section** below the active list
 to add one. To file a thread, drag it onto a section, right-click it and choose **Move to section**,
 or use **Move thread to section** in the command palette. A thread sits in one section at most;
-threads in none, including new ones, stay at the top of the active list.
+threads in none stay at the top of the active list. When a new thread gets its title, the title
+model also files it into a section that clearly fits its first message; move it if it guessed wrong.
+Section names alone rarely say what belongs where, so describe each section in
+**Settings → Threads → Thread title instructions**. Turn filing off under **Sidebar sections** in Labs.
 
 Pinned, Working, Snoozed, and Settled threads stay in those shelves and return to their section
 when they come back to the active list. Inside a section, threads follow the same order as the
