@@ -170,7 +170,7 @@ or use **Move thread to section** in the command palette. A thread sits in one s
 threads in none stay at the top of the active list. When a new thread gets its title, the title
 model also files it into a section that clearly fits its first message; move it if it guessed wrong.
 Section names alone rarely say what belongs where, so describe each section in
-**Settings → Threads → Thread title instructions**. Turn filing off under **Sidebar sections** in Labs.
+**Settings → Threads → Thread title instructions**. The title model also sees the project's folder, so a rule like "projects under ~/personal go in tooling" works. Turn filing off under **Sidebar sections** in Labs.
 
 Pinned, Working, Snoozed, and Settled threads stay in those shelves and return to their section
 when they come back to the active list. Inside a section, threads follow the same order as the

@@ -136,7 +136,11 @@ await Effect.runPromise(
             attachments,
             linkedContext,
             ...(values.sections
-              ? { sections: evaluationSections, instructions: evaluationSectionInstructions }
+              ? {
+                  sections: evaluationSections,
+                  instructions: evaluationSectionInstructions,
+                  ...("projectPath" in fixture ? { projectPath: fixture.projectPath } : {}),
+                }
               : {}),
             modelSelection: { instanceId, model },
           });

@@ -37,15 +37,26 @@ describe("buildThreadTitlePrompt", () => {
 
   it("asks for a section only when titling a new thread with sections offered", () => {
     const sections = ["Backend", "Mobile"];
-    const initial = buildThreadTitlePrompt({ message: "Fix the API", sections });
+    const initial = buildThreadTitlePrompt({
+      message: "Fix the API",
+      sections,
+      projectPath: "~/personal/hyperdrive",
+    });
     expect(initial.prompt).toContain('- "Backend"\n- "Mobile"');
+    expect(initial.prompt).toContain('"~/personal/hyperdrive"');
     expect(Object.keys(initial.outputSchema.fields)).toContain("section");
     for (const input of [
       { message: "Fix the API" },
-      { message: "Fix the API", sections, previousTitle: "API Fix" },
+      {
+        message: "Fix the API",
+        sections,
+        previousTitle: "API Fix",
+        projectPath: "~/personal/hyperdrive",
+      },
     ]) {
       const { prompt, outputSchema } = buildThreadTitlePrompt(input);
       expect(prompt).not.toContain("sidebar sections");
+      expect(prompt).not.toContain("~/personal");
       expect(Object.keys(outputSchema.fields)).not.toContain("section");
     }
   });

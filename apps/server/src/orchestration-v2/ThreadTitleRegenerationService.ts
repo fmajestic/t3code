@@ -13,6 +13,7 @@ import {
   resolveThreadSectionId,
   sectionThreadTag,
 } from "@t3tools/contracts";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -51,6 +52,12 @@ export class ThreadTitleRegenerationService extends Context.Service<
     >;
   }
 >()("t3/orchestration-v2/ThreadTitleRegenerationService") {}
+
+// Users write path rules as "~/personal", so the model sees the path in that form.
+const homeRelativePath = (path: string, home: string) =>
+  path === home || path.startsWith(`${home}/`) || path.startsWith(`${home}\\`)
+    ? `~${path.slice(home.length)}`
+    : path;
 
 type Outcome =
   | { readonly status: "renamed"; readonly title: string; readonly sectionId?: string }
@@ -255,7 +262,15 @@ const make = Effect.gen(function* () {
         ...(input.kind.type === "regenerate" ? { previousTitle: projection.thread.title } : {}),
         ...(inherited === undefined ? {} : { forkSource: inherited }),
         instructions: settings.threadTitleInstructions,
-        ...(sections.length > 0 ? { sections: sections.map((section) => section.name) } : {}),
+        ...(sections.length > 0
+          ? {
+              sections: sections.map((section) => section.name),
+              projectPath: homeRelativePath(
+                project.value.workspaceRoot,
+                yield* HostProcess.HomeDirectory,
+              ),
+            }
+          : {}),
         modelSelection: settings.textGenerationModelSelection,
         projectId: projection.thread.projectId,
       });

@@ -13,7 +13,7 @@ export const evaluationSectionInstructions = `Sidebar sections:
 - priority: work tied to a ticket or issue (a link or an ID such as ABC-123), or investigating a bug.
 - nice-to-have / unapproved / proactive: ideas and questions such as "could we", "how hard would it be", or something the project has never had.
 - migrations / restructures: framework or dependency migrations and large restructures.
-- tooling: developer tooling, scripts, hooks, and CI.
+- tooling: developer tooling, scripts, hooks, and CI, and every thread in a project under ~/personal.
 - waiting-review: never for a new thread.`;
 
 export const threadTitleEvaluationCases = [
@@ -248,6 +248,14 @@ export const threadTitleEvaluationCases = [
       section: [PRIORITY],
     },
     {
+      id: "section-personal-project",
+      source: "Section filing scenario: a feature in a project the instructions file by path",
+      text: "add a keyboard shortcut that collapses every folder in the sidebar.",
+      previousTitle: "Collapse All Sidebar Folders Shortcut",
+      projectPath: "~/personal/t3code",
+      section: [TOOLING],
+    },
+    {
       id: "section-none-question",
       source: "Control: a quick question fits no section",
       text: "what does this regex accept: ^(?=.*\\d).{8,}$",
@@ -255,6 +263,7 @@ export const threadTitleEvaluationCases = [
       section: [null],
     },
   ].map(({ text, ...fixture }) => ({
+    projectPath: "~/work/acme-portal",
     ...fixture,
     request: text,
     messages: [{ role: "user" as const, text }],
@@ -269,6 +278,8 @@ export const threadTitleEvaluationCases = [
   instructions?: string;
   messages: ReadonlyArray<ThreadTitleMessage>;
   rubric: string;
+  /** Project checkout root offered with --sections. */
+  projectPath?: string;
   /** Accepted section picks when titled with --sections; null means no section. */
   section?: ReadonlyArray<string | null>;
 }>;

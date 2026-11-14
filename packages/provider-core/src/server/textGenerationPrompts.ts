@@ -364,6 +364,8 @@ export interface ThreadTitlePromptInput {
   instructions?: string | undefined;
   /** Sidebar section names the new thread may be filed into; ignored on regeneration. */
   sections?: ReadonlyArray<string> | undefined;
+  /** The project's checkout root, shown with the sections so path-based filing rules can apply. */
+  projectPath?: string | undefined;
 }
 
 /** The thread a fork branched from, and its conversation up to the fork point. */
@@ -502,9 +504,12 @@ function threadTitlePromptSuffix(input: ThreadTitlePromptInput): string {
   return suffix;
 }
 
-function sectionsSection(sections: ReadonlyArray<string>): string {
+function sectionsSection(sections: ReadonlyArray<string>, projectPath: string | undefined): string {
   const lines = sections.map((name) => `- ${JSON.stringify(name)}`);
-  return `\n\nThe user groups threads into these sidebar sections:
+  const location = projectPath
+    ? `\n\nThe thread's project is at ${JSON.stringify(projectPath)}.`
+    : "\n";
+  return `${location}\nThe user groups threads into these sidebar sections:
 ${limitSection(lines.join("\n"), 4_000)}
 Also return the key section: the exact name of the one section this thread clearly belongs to, or null when none clearly fits. Do not pick a section on a loose association.`;
 }
@@ -516,7 +521,7 @@ export function buildThreadTitlePrompt(input: ThreadTitlePromptInput) {
   if (input.previousTitle === undefined) {
     const message = limitTitleMessage(input.message, 8_000);
     const label = input.forkSource === undefined ? "User message" : "User message after the fork";
-    prompt = `${initialThreadTitlePrompt(input.projectTitle, hasInstructions)}${forkSourceSection(input.forkSource)}\n\n${label}:\n${message}${threadTitlePromptSuffix(input)}${sections.length > 0 ? sectionsSection(sections) : ""}`;
+    prompt = `${initialThreadTitlePrompt(input.projectTitle, hasInstructions)}${forkSourceSection(input.forkSource)}\n\n${label}:\n${message}${threadTitlePromptSuffix(input)}${sections.length > 0 ? sectionsSection(sections, input.projectPath) : ""}`;
   } else {
     const message = preserveMessageEnd(input.message);
     const label =

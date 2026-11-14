@@ -982,6 +982,7 @@ describe("ThreadTitleRegenerationService", () => {
           "Backend",
           "Mobile",
         ]);
+        assert.equal(harness.generateThreadTitle.mock.calls[0]?.[0]?.projectPath, "/repo");
         const filed = yield* threads.getThreadProjection(loose.threadId);
         assert.deepEqual(filed.thread.tags, ["section:backend"]);
         assert.equal(filed.thread.title, "Generated title");
