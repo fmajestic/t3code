@@ -343,13 +343,12 @@ function AutomationMessageRow({ row }: { row: Extract<TimelineRow, { kind: "mess
         />
         {bodyMounted ? (
           // `beforematch` does not bubble, so the reveal listener sits on the hidden fold itself.
-          <div
-            ref={revealRef}
-            hidden={!expanded}
-            className={cn("px-3 pb-3", !ctx.findActive && "max-h-96 overflow-auto")}
-            data-thread-find-text="true"
-          >
-            <UserMessageBody text={text} skills={ctx.skills} markdownCwd={ctx.markdownCwd} />
+          <div ref={revealRef} hidden={!expanded} className="px-3 pb-3">
+            <CollapsibleUserMessageBody
+              text={text}
+              skills={ctx.skills}
+              markdownCwd={ctx.markdownCwd}
+            />
           </div>
         ) : null}
       </div>
@@ -977,10 +976,7 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
             ref={folded ? revealFoldRef : undefined}
             hidden={folded && !expanded}
             dir={markdownProseDirection(resolvedContext.text)}
-            className={cn(
-              folded && "px-3 pb-3",
-              folded && !ctx.findActive && "max-h-96 overflow-auto",
-            )}
+            className={cn(folded && "px-3 pb-3")}
           >
             {!mediaAboveText && mediaBlock}
             {userAudio.length > 0 ? (
@@ -1111,7 +1107,6 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
                     renderContextReference={renderContextReference}
                     skills={ctx.skills}
                     markdownCwd={ctx.markdownCwd}
-                    collapsible={!folded}
                     cited={ctx.citationRequest?.citation.messageId === row.message.id}
                   />
                 </AssistantCitationSource>
@@ -1225,10 +1220,9 @@ const COLLAPSED_USER_MESSAGE_FADE_MASK = `linear-gradient(to bottom, black calc(
 
 const CollapsibleUserMessageBody = memo(function CollapsibleUserMessageBody(props: {
   text: string;
-  renderContextReference: (reference: ChatMarkdownContextReference) => ReactNode;
+  renderContextReference?: (reference: ChatMarkdownContextReference) => ReactNode;
   skills: ReadonlyArray<ServerProviderSkill>;
   markdownCwd: string | undefined;
-  collapsible?: boolean;
   cited?: boolean;
 }) {
   // A citation can point into the clipped part, so opening one expands the body.
@@ -1241,9 +1235,7 @@ const CollapsibleUserMessageBody = memo(function CollapsibleUserMessageBody(prop
   const revealForFind = () => setExpanded(true);
   const revealRef = findRevealRef(revealForFind);
   const hasVisibleBody = props.text.trim().length > 0;
-  const { ref: contentRef, tallEnough: canCollapse } = useTallEnoughToFold(
-    props.collapsible !== false && hasVisibleBody,
-  );
+  const { ref: contentRef, tallEnough: canCollapse } = useTallEnoughToFold(hasVisibleBody);
   const isCollapsed = canCollapse && !expanded;
   const showCollapseControl = canCollapse;
 
@@ -1271,7 +1263,9 @@ const CollapsibleUserMessageBody = memo(function CollapsibleUserMessageBody(prop
           <div ref={contentRef}>
             <UserMessageBody
               text={props.text}
-              renderContextReference={props.renderContextReference}
+              {...(props.renderContextReference
+                ? { renderContextReference: props.renderContextReference }
+                : {})}
               skills={props.skills}
               markdownCwd={props.markdownCwd}
             />
