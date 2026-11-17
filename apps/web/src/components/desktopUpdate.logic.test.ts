@@ -7,6 +7,7 @@ import {
   getDesktopUpdateReleaseHistoryUrl,
   getDesktopUpdateReleaseUrl,
   resolveDesktopUpdateButtonAction,
+  getDesktopUpdateInstallConfirmation,
 } from "./desktopUpdate.logic";
 
 const baseState: DesktopUpdateState = {
@@ -138,5 +139,62 @@ describe("canCheckForUpdate", () => {
         downloadedVersion: "1.1.0",
       }),
     ).toBe(true);
+  });
+});
+
+describe("getDesktopUpdateInstallConfirmation", () => {
+  const state = { availableVersion: "1.2.0", downloadedVersion: "1.2.0" };
+  const now = Date.parse("2026-11-17T12:00:00Z");
+  const thread = (title: string, needsUser = false, continues = true) => ({
+    title,
+    project: "t3code",
+    startedAt: "2026-11-17T11:48:00Z",
+    needsUser,
+    continues,
+  });
+
+  it("asks plainly and focuses Restart when no thread is running", () => {
+    expect(getDesktopUpdateInstallConfirmation(state, [], now)).toEqual({
+      message: "Restart T3 Code to install the update?\n1.2.0",
+      options: { initialFocus: "confirm", confirmLabel: "Restart" },
+    });
+  });
+
+  it("splits working threads from ones waiting on the user and caps each list", () => {
+    const working = ["a", "b", "c", "d", "e", "f"].map((title) => thread(title));
+    const { options } = getDesktopUpdateInstallConfirmation(
+      state,
+      [...working, thread("asks", true)],
+      now,
+    );
+    expect(options.variant).toBe("destructive");
+    expect(options.armedConfirmLabel).toBe("Interrupt and restart?");
+    expect(options.affected?.map((group) => group.label)).toEqual([
+      "Interrupts 6 threads at work",
+      "Also stops 1 thread waiting on you",
+    ]);
+    expect(options.affected?.[0]?.items).toHaveLength(5);
+    expect(options.affected?.[0]?.items[0]).toEqual({ title: "a", detail: "t3code · 12m" });
+    expect(options.affected?.[1]?.items).toEqual([{ title: "asks", detail: "t3code" }]);
+  });
+
+  it.each([
+    [[true, true], "They continue on their own after the restart."],
+    [
+      [false, false],
+      "They won't continue after the restart. Settings › Maintenance › Continue threads after restarts.",
+    ],
+    [[true, false], "1 of 2 continue on their own after the restart, as their projects are set."],
+  ])("notes whether working threads continue: %j", (continues, note) => {
+    const threads = continues.map((value, index) => thread(`t${index}`, false, value));
+    const { options } = getDesktopUpdateInstallConfirmation(state, threads, now);
+    expect(options.affected?.[0]?.note).toBe(note);
+  });
+
+  it("needs one click when every thread is only waiting on the user", () => {
+    const { options } = getDesktopUpdateInstallConfirmation(state, [thread("asks", true)], now);
+    expect(options.variant).toBeUndefined();
+    expect(options.armedConfirmLabel).toBeUndefined();
+    expect(options.initialFocus).toBeUndefined();
   });
 });

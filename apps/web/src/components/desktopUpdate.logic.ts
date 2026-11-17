@@ -1,4 +1,10 @@
-import type { DesktopUpdateActionResult, DesktopUpdateState } from "@t3tools/contracts";
+import { formatElapsedDurationLabel } from "../timestampFormat";
+import type {
+  ConfirmDialogAffectedGroup,
+  ConfirmDialogOptions,
+  DesktopUpdateActionResult,
+  DesktopUpdateState,
+} from "@t3tools/contracts";
 import { desktopUpdateChannelOf } from "@t3tools/shared/cliRelease";
 import { msg } from "gt-react";
 
@@ -208,23 +214,106 @@ export function getDesktopUpdateButtonTooltip(
   return resolve(msg("Up to date"));
 }
 
-export function getDesktopUpdateInstallConfirmationMessage(
-  state: Pick<DesktopUpdateState, "availableVersion" | "downloadedVersion">,
-  resolve: MessageResolver = m,
+const LISTED_THREAD_LIMIT = 5;
+
+export interface InterruptedThread {
+  readonly title: string;
+  readonly project: string | null;
+  readonly startedAt: string | null;
+  /** Parked on an approval, question or secret, so a restart loses that request rather than work. */
+  readonly needsUser: boolean;
+  /** Continue threads after restarts, resolved for the thread's project. */
+  readonly continues: boolean;
+}
+
+function continuationNote(
+  threads: ReadonlyArray<InterruptedThread>,
+  resolve: MessageResolver,
 ): string {
+  const continuing = threads.filter((thread) => thread.continues).length;
+  if (continuing === threads.length) {
+    return resolve(msg("They continue on their own after the restart."));
+  }
+  if (continuing === 0) {
+    return resolve(
+      msg(
+        "They won't continue after the restart. Settings › Maintenance › Continue threads after restarts.",
+      ),
+    );
+  }
+  return resolve(
+    msg(
+      "{continuing} of {total} continue on their own after the restart, as their projects are set.",
+      {
+        continuing,
+        total: threads.length,
+      },
+    ),
+  );
+}
+
+/** Names the local threads a restart would interrupt; with none, Restart takes focus and acts on Enter. */
+export function getDesktopUpdateInstallConfirmation(
+  state: Pick<DesktopUpdateState, "availableVersion" | "downloadedVersion">,
+  threads: ReadonlyArray<InterruptedThread>,
+  nowMs: number = Date.now(),
+  resolve: MessageResolver = m,
+): { readonly message: string; readonly options: ConfirmDialogOptions } {
   const version = state.downloadedVersion ?? state.availableVersion;
-  return version
-    ? resolve(
-        msg(
-          "Install update {version} and restart T3 Code?\n\nAny running tasks will be interrupted. Make sure you're ready before continuing.",
-          { version },
-        ),
-      )
-    : resolve(
-        msg(
-          "Install update and restart T3 Code?\n\nAny running tasks will be interrupted. Make sure you're ready before continuing.",
-        ),
-      );
+  const message = version
+    ? resolve(msg("Restart T3 Code to install the update?\n{version}", { version }))
+    : resolve(msg("Restart T3 Code to install the update?"));
+  const working = threads.filter((thread) => !thread.needsUser);
+  const parked = threads.filter((thread) => thread.needsUser);
+  const affected: ConfirmDialogAffectedGroup[] = [];
+  if (working.length > 0) {
+    affected.push({
+      label:
+        working.length === 1
+          ? resolve(msg("Interrupts 1 thread at work"))
+          : resolve(msg("Interrupts {count} threads at work", { count: working.length })),
+      tone: "warning",
+      items: working.slice(0, LISTED_THREAD_LIMIT).map((thread) => ({
+        title: thread.title,
+        detail: [
+          thread.project,
+          thread.startedAt && formatElapsedDurationLabel(thread.startedAt, nowMs, resolve),
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      })),
+      note: continuationNote(working, resolve),
+    });
+  }
+  if (parked.length > 0) {
+    affected.push({
+      label:
+        parked.length === 1
+          ? resolve(msg("Also stops 1 thread waiting on you"))
+          : resolve(msg("Also stops {count} threads waiting on you", { count: parked.length })),
+      tone: "info",
+      items: parked.slice(0, LISTED_THREAD_LIMIT).map((thread) => ({
+        title: thread.title,
+        ...(thread.project === null ? {} : { detail: thread.project }),
+      })),
+    });
+  }
+  const restart = resolve(msg("Restart"));
+  if (affected.length === 0) {
+    return { message, options: { initialFocus: "confirm", confirmLabel: restart } };
+  }
+  if (working.length === 0) {
+    return { message, options: { confirmLabel: restart, affected } };
+  }
+  return {
+    message,
+    options: {
+      variant: "destructive",
+      confirmLabel: restart,
+      armedConfirmLabel: resolve(msg("Interrupt and restart?")),
+      affected,
+    },
+  };
 }
 
 export function getDesktopUpdateActionError(result: DesktopUpdateActionResult): string | null {
