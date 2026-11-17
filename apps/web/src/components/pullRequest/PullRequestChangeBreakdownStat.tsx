@@ -66,6 +66,7 @@ export function PullRequestChangeBreakdownStat({
 /**
  * The split shown inline, for surfaces that already sit behind a hover, such as the thread
  * details card. It reads on mount, so it costs the host a request only once the card opens.
+ * It shows only when the changes span more than one kind.
  */
 export function PullRequestChangeBreakdownRows({
   environmentId,
@@ -79,7 +80,11 @@ export function PullRequestChangeBreakdownRows({
   const query = useEnvironmentQuery(
     pullRequestEnvironment.changeBreakdown({ environmentId, input: reference }),
   );
-  if (!query.data) return null;
+  if (
+    !query.data ||
+    Object.values(query.data).filter((kind) => kind.additions > 0 || kind.deletions > 0).length < 2
+  )
+    return null;
   return (
     <div className={className}>
       <ChangeBreakdownGrid breakdown={query.data} />
