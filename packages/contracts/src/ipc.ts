@@ -1438,6 +1438,18 @@ export interface ConfirmDialogOptions {
   readonly variant?: ConfirmDialogVariant;
   /** Which button takes focus on open. Defaults to Cancel; destructive confirms always keep Cancel. */
   readonly initialFocus?: "confirm" | "cancel";
+  readonly confirmLabel?: string;
+  /** When set, Confirm arms on the first click, reads this label, and acts on the second. */
+  readonly armedConfirmLabel?: string;
+  /** What the action touches, listed in body text below the description. */
+  readonly affected?: ReadonlyArray<ConfirmDialogAffectedGroup>;
+}
+
+export interface ConfirmDialogAffectedGroup {
+  readonly label: string;
+  readonly tone: "warning" | "info";
+  readonly items: ReadonlyArray<{ readonly title: string; readonly detail?: string }>;
+  readonly note?: string;
 }
 
 export interface LocalApi {

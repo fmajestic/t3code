@@ -59,7 +59,7 @@ import {
 import { PullRequestGlyph } from "./pullRequestIcons";
 import type { PickableEnvironment } from "./pullRequestProjectAssignment.logic";
 import { PullRequestThreadLinks } from "./PullRequestThreadLinks";
-import { useInlineActionConfirm } from "./useInlineActionConfirm";
+import { useInlineActionConfirm } from "../../hooks/useInlineActionConfirm";
 
 import { changeRequestTermKind } from "./changeRequestTerm";
 import { SharedTooltipTrigger } from "../ui/shared-tooltip";

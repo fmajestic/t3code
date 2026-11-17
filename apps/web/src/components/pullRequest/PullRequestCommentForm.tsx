@@ -18,7 +18,7 @@ import {
   pullRequestCompletionScope,
 } from "./PullRequestMarkdownTextarea";
 import { pullRequestReviewKey } from "./pullRequestReviewStore";
-import { useInlineActionConfirm } from "./useInlineActionConfirm";
+import { useInlineActionConfirm } from "../../hooks/useInlineActionConfirm";
 
 import { changeRequestTermKind } from "./changeRequestTerm";
 
