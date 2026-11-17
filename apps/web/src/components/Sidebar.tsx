@@ -3747,6 +3747,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                               marker={item.marker}
                               groups={customSectionGroups}
                               controls={customSections}
+                              snoozeNow={snoozeNow}
                               dragging={from !== null}
                               dropTargetId={dragTargetCustomSectionId}
                               showDropHint={showDropHint}

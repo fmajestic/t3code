@@ -2,7 +2,7 @@ import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/model
 import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { SECTION_NAME_MAX_LENGTH } from "@t3tools/contracts";
 import { T, useGT } from "gt-react";
-import { PlusIcon } from "lucide-react";
+import { AlarmClockIcon, CircleCheckIcon, PlusIcon } from "lucide-react";
 import {
   useRef,
   useState,
@@ -12,10 +12,13 @@ import {
 
 import { cn } from "~/lib/utils";
 import { useUiStateStore } from "../../uiStateStore";
+import { threadWokeAt } from "@t3tools/client-runtime/state/thread-settled";
 import {
-  resolveSidebarFolderDot,
+  resolveSidebarSectionSheen,
+  resolveSidebarSectionSignal,
   resolveThreadLastVisitedAt,
   type SidebarListMarker,
+  type SidebarSectionEventKind,
 } from "../Sidebar.logic";
 import { CollapsibleSectionHeader } from "../ui/collapsible-section-header";
 import { SortableSidebarMarker } from "./SidebarListMarkers";
@@ -31,15 +34,18 @@ type SidebarSectionsControls = ReturnType<typeof useSidebarSections>;
 const DOT_CLASS_NAME = {
   attention: "bg-warning",
   failed: "bg-error",
-  unread: "bg-success",
   working: "bg-info",
 } as const;
 
 const DOT_LABEL = {
   attention: ", needs you",
   failed: ", failed",
-  unread: ", done",
   working: ", working",
+} as const;
+
+const SHEEN_CLASS_NAME = {
+  done: "[--sheen-color:var(--success)]",
+  woke: "[--sheen-color:var(--warning)]",
 } as const;
 
 const SECTION_DRAG_TYPE = "application/x-t3code-sidebar-section";
@@ -94,6 +100,7 @@ function SidebarCustomSectionHeader(props: {
   collapsed: boolean;
   hiddenThreads: ReadonlyArray<EnvironmentThreadShell>;
   threadCount: number;
+  snoozeNow: string;
   dragging: boolean;
   isDropTarget: boolean;
   renaming: boolean;
@@ -107,19 +114,25 @@ function SidebarCustomSectionHeader(props: {
   const { section, collapsed, hiddenThreads } = props;
   const [reorderPlace, setReorderPlace] = useState<"before" | "after" | null>(null);
   const localLastVisitedAtById = useUiStateStore((state) => state.threadLastVisitedAtById);
-  const dot = collapsed
-    ? resolveSidebarFolderDot(
-        hiddenThreads.map((thread) => ({
-          ...thread,
-          lastVisitedAt: resolveThreadLastVisitedAt(
-            thread.lastVisitedAt,
-            localLastVisitedAtById[
-              scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id))
-            ],
-          ),
-        })),
-      )
-    : null;
+  const signal = resolveSidebarSectionSignal(
+    hiddenThreads.map((thread) => ({
+      ...thread,
+      lastVisitedAt: resolveThreadLastVisitedAt(
+        thread.lastVisitedAt,
+        localLastVisitedAtById[scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id))],
+      ),
+      wokeAt: threadWokeAt(thread, { now: props.snoozeNow }),
+    })),
+  );
+  const latestAt = signal.latest?.at ?? null;
+  const [seen, setSeen] = useState({ collapsed, latestAt });
+  const [sheen, setSheen] = useState<{ kind: SidebarSectionEventKind; at: number } | null>(null);
+  if (seen.collapsed !== collapsed || seen.latestAt !== latestAt) {
+    const kind = resolveSidebarSectionSheen(seen, { collapsed, latest: signal.latest });
+    if (kind !== null && latestAt !== null) setSheen({ kind, at: latestAt });
+    setSeen({ collapsed, latestAt });
+  }
+  const highlight = !collapsed ? null : signal.done > 0 ? "done" : signal.woke > 0 ? "woke" : null;
   const placeOf = (event: ReactDragEvent<HTMLElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     return event.clientY < rect.top + rect.height / 2 ? "before" : "after";
@@ -162,7 +175,9 @@ function SidebarCustomSectionHeader(props: {
             props.onReorder(draggedId, section.id, placeOf(event));
           }}
           className={cn(
-            "relative",
+            "relative rounded-md",
+            highlight === "done" && "bg-success/12",
+            highlight === "woke" && "bg-warning/14",
             reorderPlace !== null &&
               "after:pointer-events-none after:absolute after:inset-x-2 after:h-0.5 after:rounded-full after:bg-primary",
             reorderPlace === "before" && "after:-top-px",
@@ -181,9 +196,23 @@ function SidebarCustomSectionHeader(props: {
             accessory={
               collapsed ? (
                 <span className="flex shrink-0 items-center gap-1.5 font-normal tabular-nums">
-                  {dot ? (
-                    <span className={cn("size-1.5 rounded-full", DOT_CLASS_NAME[dot])}>
-                      <span className="sr-only">{DOT_LABEL[dot]}</span>
+                  {signal.dot ? (
+                    <span className={cn("size-1.5 rounded-full", DOT_CLASS_NAME[signal.dot])}>
+                      <span className="sr-only">{DOT_LABEL[signal.dot]}</span>
+                    </span>
+                  ) : null}
+                  {signal.done > 0 ? (
+                    <span className="inline-flex h-4.5 items-center gap-0.5 rounded-full bg-success/16 px-1.5 font-medium text-success-foreground">
+                      <CircleCheckIcon aria-hidden className="size-3" />
+                      {signal.done}
+                      <span className="sr-only"> done</span>
+                    </span>
+                  ) : null}
+                  {signal.woke > 0 ? (
+                    <span className="inline-flex h-4.5 items-center gap-0.5 rounded-full bg-warning/18 px-1.5 font-medium text-warning-foreground">
+                      <AlarmClockIcon aria-hidden className="size-3" />
+                      {signal.woke}
+                      <span className="sr-only"> woke</span>
                     </span>
                   ) : null}
                   {props.threadCount}
@@ -191,8 +220,25 @@ function SidebarCustomSectionHeader(props: {
               ) : undefined
             }
           >
-            {section.name}
+            <span className={cn(highlight !== null && "font-semibold text-sidebar-foreground")}>
+              {section.name}
+            </span>
           </CollapsibleSectionHeader>
+          {sheen !== null ? (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-0 overflow-hidden rounded-md"
+            >
+              <span
+                key={sheen.at}
+                className={cn(
+                  "sidebar-section-sheen absolute inset-0",
+                  SHEEN_CLASS_NAME[sheen.kind],
+                )}
+                onAnimationEnd={() => setSheen(null)}
+              />
+            </span>
+          ) : null}
         </div>
       )}
     </SortableSidebarMarker>
@@ -226,6 +272,7 @@ export function SidebarCustomSectionMarker(props: {
   marker: SidebarListMarker;
   groups: ArrangedCustomSections<EnvironmentThreadShell>;
   controls: SidebarSectionsControls;
+  snoozeNow: string;
   dragging: boolean;
   /** The section a thread drag would file into: null for none, undefined outside the active list. */
   dropTargetId: string | null | undefined;
@@ -259,6 +306,7 @@ export function SidebarCustomSectionMarker(props: {
       collapsed={group.collapsed}
       hiddenThreads={group.hiddenThreads}
       threadCount={group.threads.length + group.hiddenThreads.length}
+      snoozeNow={props.snoozeNow}
       dragging={props.dragging}
       isDropTarget={isDropTarget}
       renaming={
