@@ -2462,6 +2462,10 @@ code {
   --diffs-search-panel-inset-top: 40px;
 }
 
+.file-preview-code-view.diff-render-surface > [data-search-panel] {
+  --diffs-search-panel-inset-top: 8px;
+}
+
 /* Pierre's file renderer owns its own surface tokens. Keep the root of a file
    preview on the same themeable code surface as the diff panel. */
 .diff-render-surface diffs-container,

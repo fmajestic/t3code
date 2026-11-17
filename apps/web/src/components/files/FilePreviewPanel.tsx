@@ -114,15 +114,18 @@ import {
 } from "./fileCommentAnnotations";
 import { installFileEditorDismissal } from "./fileEditorDismissal";
 import {
-  FILE_LINK_REVEAL_ATTRIBUTE,
   FILE_LINK_REVEAL_UNSAFE_CSS,
   FILE_SURFACE_SUBHEADER_CLASS,
   FileSurfaceAction,
   FileSurfaceFailure,
   FileSurfaceLoading,
 } from "./fileSurfaceChrome";
-import SourceFilePreview from "./ReadOnlySourcePreview";
-import { resolveCenteredFileLineScrollTop } from "./fileLineReveal";
+import ReadOnlyFileView from "./ReadOnlyFileView";
+import {
+  clampFileLine,
+  resolveCenteredFileLineScrollTop,
+  updateFileLinkReveal,
+} from "./fileLineReveal";
 import { DiffCommentAnnotation } from "../diffs/DiffCommentAnnotation";
 import { projectFileCacheKey } from "./fileContentRevision";
 import {
@@ -518,35 +521,6 @@ function WorkspaceDocumentPreview(props: {
       origin={gt("File", { $context: "label for a file opened from the workspace" })}
     />
   );
-}
-
-function clampFileLine(contents: string, requestedLine: number): number {
-  let lineCount = 1;
-  for (let index = 0; index < contents.length; index += 1) {
-    const character = contents.charCodeAt(index);
-    if (character === 10) {
-      lineCount += 1;
-    } else if (character === 13) {
-      lineCount += 1;
-      if (contents.charCodeAt(index + 1) === 10) index += 1;
-    }
-  }
-  return Math.min(Math.max(1, requestedLine), lineCount);
-}
-
-function updateFileLinkReveal(fileContainer: HTMLElement, line: number | null): void {
-  const root = fileContainer.shadowRoot ?? fileContainer;
-  for (const element of root.querySelectorAll<HTMLElement>(`[${FILE_LINK_REVEAL_ATTRIBUTE}]`)) {
-    element.removeAttribute(FILE_LINK_REVEAL_ATTRIBUTE);
-  }
-  if (line === null) return;
-
-  root
-    .querySelector<HTMLElement>(`[data-line="${line}"]`)
-    ?.setAttribute(FILE_LINK_REVEAL_ATTRIBUTE, "");
-  root
-    .querySelector<HTMLElement>(`[data-column-number="${line}"]`)
-    ?.setAttribute(FILE_LINK_REVEAL_ATTRIBUTE, "");
 }
 
 const REVEAL_MAX_ATTEMPTS = 30;
@@ -1811,12 +1785,15 @@ export default function FilePreviewPanel({
                 delimiter={tableDelimiter}
               />
             ) : file.data.truncated || isHostFile || !canWriteFiles ? (
-              <SourceFilePreview
+              <ReadOnlyFileView
+                key={relativePath}
                 name={relativePath}
                 text={file.data.contents}
                 cacheKey={projectFileCacheKey(cwd, relativePath, file.data.contents)}
-                onPostRender={onFilePostRender}
                 wordWrap={wordWrap}
+                revealLine={revealLine}
+                revealRequestId={revealRequestId}
+                resolvedTheme={resolvedTheme}
               />
             ) : (
               <DiffWorkerPoolProvider>
