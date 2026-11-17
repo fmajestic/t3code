@@ -13,6 +13,7 @@ import {
   EyeIcon,
   EyeOffIcon,
   FileDiffIcon,
+  FolderGit2Icon,
   GitBranchIcon,
   TriangleAlertIcon,
 } from "lucide-react";
@@ -337,6 +338,10 @@ export function ThreadDetailsPrRow({
                 className={cn("size-3 shrink-0", statePresentation.toneClassName)}
               />
               <div className="min-w-0 truncate text-foreground/75">{statePresentation.label}</div>
+            </div>
+            <div className="flex min-w-0 items-center gap-2">
+              <FolderGit2Icon className="size-3 shrink-0 stroke-muted-foreground" />
+              <div className="min-w-0 truncate text-foreground/75">{detail.repository}</div>
             </div>
             <div className="flex min-w-0 items-center gap-2">
               <GitBranchIcon className="size-3 shrink-0 stroke-muted-foreground" />

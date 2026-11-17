@@ -35,6 +35,7 @@ None right now.
 - **Context row under the composer is a rounded pill**: the workspace and branch row sits slightly inset from the composer with rounded corners, so the glass upstream gave it in [#34846](https://github.com/pingdotgg/t3code/pull/34846) reads as its own surface instead of a sharp rectangle under the card when the chat scrolls behind it.
 - **Reset times name the weekday**: usage limit resets within the coming week read "Thursday at 7:00" instead of a bare date, and later ones put the short weekday before the date.
 - **Update prompt names running threads**: installing a desktop update lists the local threads the restart would interrupt, with their project and how long they have been working, lists threads waiting on your answer separately, and says whether Continue threads after restarts will resume them. With threads at work, its red Restart button needs a second click, like Merge now in the PR panel. With nothing running, the prompt drops the warning and Enter restarts.
+- **PR hover names its repository**: hovering a pull request in the thread details panel shows the repository it belongs to, so a multi-repo project's PRs can be told apart. The card splits the diff stat into code, tests and other kinds only when more than one kind changed, instead of repeating the total under Code.
 
 ## Fork only
 
