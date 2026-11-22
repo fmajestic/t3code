@@ -317,7 +317,7 @@ describe("DesktopApplicationMenu", () => {
     }),
   );
 
-  it.effect("never binds Cmd/Ctrl+W to closing the window", () =>
+  it.effect("never binds Cmd/Ctrl+W to closing, or Ctrl+M to minimizing off macOS", () =>
     Effect.gen(function* () {
       for (const platform of ["darwin", "linux", "win32"] as const) {
         const applicationMenuTemplate =
@@ -344,6 +344,10 @@ describe("DesktopApplicationMenu", () => {
           items.find((item) => item.role === "windowMenu" && item.submenu === undefined),
           platform,
         );
+        const minimize = items.find(
+          (item) => item.role === "minimize" || item.label === "Minimize",
+        );
+        assert.equal(minimize?.role === "minimize", platform === "darwin", platform);
         const closeTools = items.find((item) => item.accelerator === "CmdOrCtrl+W");
         assert.equal(closeTools?.label, "Close Developer Tools", platform);
         assert.isFunction(closeTools?.click);

@@ -410,7 +410,13 @@ export const make = Effect.gen(function* () {
         role: "windowMenu",
         label: m(msg("Window", { $context: "menu bar title" })),
         submenu: [
-          { role: "minimize", label: m(msg("Minimize", { $context: "Window menu item" })) },
+          // The minimize role binds Ctrl+M off macOS, where nothing expects it.
+          environment.platform === "darwin"
+            ? { role: "minimize", label: m(msg("Minimize", { $context: "Window menu item" })) }
+            : {
+                label: m(msg("Minimize", { $context: "Window menu item" })),
+                click: (_item, window) => window?.minimize(),
+              },
           {
             role: "zoom",
             label: m(msg("Zoom", { $context: "Window menu item, resizes the window" })),
