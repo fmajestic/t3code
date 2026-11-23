@@ -367,6 +367,28 @@ describe("scoreThreadSearch beyond Latin text and titles", () => {
     expect(rankTitles("pnpm13", threads)).toEqual([]);
   });
 
+  it("lets recency order a word against its plural or simple ending", () => {
+    expect(
+      rankTitles("pipeline", [
+        thread("TOS deploy pipeline failure", { activityAt: NOW - 53 * DAY }),
+        thread("Auto-triage failed pipelines", { activityAt: NOW - 5 * DAY }),
+      ]),
+    ).toEqual(["Auto-triage failed pipelines", "TOS deploy pipeline failure"]);
+    expect(
+      rankTitles("build", [
+        thread("Fix the build", { activityAt: NOW - 53 * DAY }),
+        thread("Building the desktop app", { activityAt: NOW - 5 * DAY }),
+      ]),
+    ).toEqual(["Building the desktop app", "Fix the build"]);
+    // Any other continuation is still a prefix.
+    expect(
+      rankTitles("mode", [
+        thread("Fix the mode switch", { activityAt: NOW - 53 * DAY }),
+        thread("Pick a model", { activityAt: NOW - 5 * DAY }),
+      ]),
+    ).toEqual(["Fix the mode switch", "Pick a model"]);
+  });
+
   it("reads whole words typed together, but not scattered letters", () => {
     const threads = [
       thread("VS Code extension settings"),

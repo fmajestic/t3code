@@ -214,6 +214,9 @@ const TYPO = 0.45;
 // Whole words typed together are exact, so they rank with typos and above
 // mid-word hits, though below a match at a word start.
 const JOINED_WORDS = 0.6;
+const WORD_ENDINGS = new Set(["s", "es", "d", "ed", "ing"]);
+// Shorter stems would turn too many prefixes whole: "mad" from "ma".
+const INFLECTED_TOKEN_MIN_LENGTH = 4;
 
 interface TokenMatch extends SearchRange {
   readonly score: number;
@@ -248,13 +251,16 @@ function matchToken(
     ) {
       // Whole when the match ends where a word ends: "t3c" is a prefix of
       // "t3code", ".ts" whole in "index.ts" but a prefix in "parser.tsx".
+      // A plural or simple ending keeps it whole: "pipeline" in "pipelines".
       const end = index + token.length;
+      let runEnd = end;
+      while (runEnd < field.text.length && ALPHANUMERIC.test(field.text[runEnd]!)) runEnd++;
       const whole =
         end >= field.text.length ||
         field.wordStarts[end] === 1 ||
-        !ALPHANUMERIC.test(field.text[end]!);
-      let runEnd = end;
-      while (runEnd < field.text.length && ALPHANUMERIC.test(field.text[runEnd]!)) runEnd++;
+        !ALPHANUMERIC.test(field.text[end]!) ||
+        (token.length >= INFLECTED_TOKEN_MIN_LENGTH &&
+          WORD_ENDINGS.has(field.text.slice(end, runEnd)));
       const score = whole ? WHOLE_WORD : 0.7 + (0.2 * token.length) / (runEnd - index);
       if (best === null || score > best.score) {
         best = { score, start: index, end: index + token.length };
