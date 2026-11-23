@@ -115,6 +115,37 @@ export function getDesktopUpdateButtonTooltip(
   state: DesktopUpdateState,
   resolve: MessageResolver = m,
 ): string {
+  if (state.localBuild) {
+    if (state.status === "available") {
+      return state.availableVersion
+        ? resolve(msg("Build {version}", { version: state.availableVersion }))
+        : resolve(msg("Build new commits"));
+    }
+    if (state.status === "downloading") {
+      return state.availableVersion
+        ? resolve(msg("Building {version}…", { version: state.availableVersion }))
+        : resolve(msg("Building update…"));
+    }
+    if (state.status === "error" && state.errorContext === "download" && state.availableVersion) {
+      return resolve(
+        msg("Build failed for {version}. Click to retry.", { version: state.availableVersion }),
+      );
+    }
+    const builtVersion =
+      state.status === "downloaded"
+        ? (state.downloadedVersion ?? state.availableVersion)
+        : state.status === "error" && state.errorContext !== "install"
+          ? state.downloadedVersion
+          : undefined;
+    if (builtVersion) {
+      return resolve(
+        msg("Update {version} built. Click to restart and install.", { version: builtVersion }),
+      );
+    }
+    if (state.status === "downloaded") {
+      return resolve(msg("Update built. Click to restart and install."));
+    }
+  }
   if (
     state.notAppliedVersion !== undefined &&
     (state.status === "available" || state.status === "downloaded") &&

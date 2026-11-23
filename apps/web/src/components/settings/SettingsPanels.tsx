@@ -324,10 +324,14 @@ function AboutVersionSection() {
       ? !canCheckForUpdate(updateState)
       : isDesktopUpdateButtonDisabled(updateState);
 
-  const actionLabel: Record<string, string> = { download: gt("Download"), install: gt("Install") };
+  const localBuild = updateState?.localBuild === true;
+  const actionLabel: Record<string, string> = {
+    download: localBuild ? gt("Build") : gt("Download"),
+    install: gt("Install"),
+  };
   const statusLabel: Record<string, string> = {
     checking: gt("Checking…"),
-    downloading: gt("Downloading…"),
+    downloading: localBuild ? gt("Building…") : gt("Downloading…"),
     // Off its track, "up to date" only means no switch is pending; Review moves it.
     ...(appOffTrack ? {} : { "up-to-date": gt("Up to Date") }),
   };

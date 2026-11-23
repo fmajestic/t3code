@@ -15,6 +15,9 @@ None right now.
 
 ## Fork only
 
+- **Name**: local desktop builds are called "T3 Code (Majestic)", so the bundle installs next to the official app instead of replacing it.
+- **Local updates**: a local macOS build updates from the checkout it was built from. Check for updates installs a newer app bundle from its release folder, or offers to build the checkout when it has moved to another commit; the build log is `release/fork-build.log`. `vp run fork:dist:desktop:app` builds from the terminal: only the `.app`, no DMG or zip, stamped with a version the update check can tell apart, replacing the bundles of earlier builds.
+- **Signed local builds**: `vp run fork:dist:desktop:app` signs the app with a self-signed "T3 Fork Local" certificate, because macOS shows notifications only from apps signed by a trusted certificate. Run `scripts/fork-signing-identity.sh` once per Mac to create and trust it; it asks for your password. Without it, builds still work but cannot show notifications.
 
 ## Syncing
 

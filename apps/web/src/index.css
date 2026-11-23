@@ -1880,6 +1880,7 @@ code {
 /* Keep parent scrollbar styles off iframe owners to avoid WebKit resize loops: https://webkit.org/b/324485 */
 :where(:not(iframe))::-webkit-scrollbar {
   width: var(--app-scrollbar-width);
+  height: var(--app-scrollbar-width);
 }
 
 :where(:not(iframe))::-webkit-scrollbar-track {

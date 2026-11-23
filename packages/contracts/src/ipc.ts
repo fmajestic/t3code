@@ -299,6 +299,10 @@ export interface DesktopUpdateState {
   channelBlockedByPolicy?: true;
   /** The check failed only because this build's track differs from the saved `channel`. */
   trackMismatch?: { readonly buildChannel: DesktopUpdateChannel };
+  /** Fork-local: updates come from building the checkout this app was built from. */
+  localBuild?: boolean;
+  /** Fork-local: the last lines the local build printed. */
+  buildOutput?: ReadonlyArray<string>;
 }
 
 export interface DesktopUpdateReleaseNote {
@@ -344,6 +348,8 @@ export const DesktopUpdateStateSchema = Schema.Struct({
   notAppliedVersion: Schema.optionalKey(Schema.String),
   channelBlockedByPolicy: Schema.optionalKey(Schema.Literal(true)),
   trackMismatch: Schema.optionalKey(Schema.Struct({ buildChannel: DesktopUpdateChannelSchema })),
+  localBuild: Schema.optionalKey(Schema.Boolean),
+  buildOutput: Schema.optionalKey(Schema.Array(Schema.String)),
 });
 
 export const DesktopCliCommandStateSchema = Schema.Struct({
