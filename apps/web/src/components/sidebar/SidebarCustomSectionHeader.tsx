@@ -21,6 +21,7 @@ import {
   type SidebarSectionEventKind,
 } from "../Sidebar.logic";
 import { CollapsibleSectionHeader } from "../ui/collapsible-section-header";
+import { SidebarApprovalChip } from "./SidebarApprovalChip";
 import { SortableSidebarMarker } from "./SidebarListMarkers";
 import {
   parseCustomSectionMarker,
@@ -132,7 +133,15 @@ function SidebarCustomSectionHeader(props: {
     if (kind !== null && latestAt !== null) setSheen({ kind, at: latestAt });
     setSeen({ collapsed, latestAt });
   }
-  const highlight = !collapsed ? null : signal.done > 0 ? "done" : signal.woke > 0 ? "woke" : null;
+  const highlight = !collapsed
+    ? null
+    : signal.approval > 0
+      ? "approval"
+      : signal.done > 0
+        ? "done"
+        : signal.woke > 0
+          ? "woke"
+          : null;
   const placeOf = (event: ReactDragEvent<HTMLElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     return event.clientY < rect.top + rect.height / 2 ? "before" : "after";
@@ -176,6 +185,7 @@ function SidebarCustomSectionHeader(props: {
           }}
           className={cn(
             "relative rounded-md",
+            highlight === "approval" && "bg-approval/12",
             highlight === "done" && "bg-success/12",
             highlight === "woke" && "bg-warning/14",
             reorderPlace !== null &&
@@ -201,6 +211,7 @@ function SidebarCustomSectionHeader(props: {
                       <span className="sr-only">{DOT_LABEL[signal.dot]}</span>
                     </span>
                   ) : null}
+                  {signal.approval > 0 ? <SidebarApprovalChip count={signal.approval} /> : null}
                   {signal.done > 0 ? (
                     <span className="inline-flex h-4.5 items-center gap-0.5 rounded-full bg-success/16 px-1.5 font-medium text-success-foreground">
                       <CircleCheckIcon aria-hidden className="size-3" />

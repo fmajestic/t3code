@@ -1797,6 +1797,7 @@ describe("resolveSidebarSectionSignal", () => {
 
     expect(resolveSidebarSectionSignal([read])).toEqual({
       dot: null,
+      approval: 0,
       done: 0,
       woke: 0,
       latest: null,
@@ -1804,12 +1805,28 @@ describe("resolveSidebarSectionSignal", () => {
     // A thread that woke with an unread completion reads Woke, like its row.
     expect(resolveSidebarSectionSignal([done, woke, { ...done, wokeAt: woke.wokeAt }])).toEqual({
       dot: null,
+      approval: 0,
       done: 1,
       woke: 2,
       latest: { kind: "woke", at: Date.parse("2026-03-09T10:07:00.000Z") },
     });
     expect(resolveSidebarSectionSignal([{ ...woke, settledOverride: "settled" }]).woke).toBe(0);
     expect(resolveSidebarSectionSignal([failed, done])).toMatchObject({ dot: "failed", done: 1 });
+  });
+
+  it("counts approvals apart from the dot, which other attention states keep", () => {
+    const approval = { ...read, hasPendingApprovals: true };
+    const input = { ...read, hasPendingUserInput: true };
+
+    expect(resolveSidebarSectionSignal([approval, approval, done])).toMatchObject({
+      dot: null,
+      approval: 2,
+      done: 1,
+    });
+    expect(resolveSidebarSectionSignal([approval, input])).toMatchObject({
+      dot: "attention",
+      approval: 1,
+    });
   });
 });
 

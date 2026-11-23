@@ -13102,5 +13102,6 @@
   "717c1c47a852a1a5": "読み上げを一時停止",
   "0eceb5780908eb6c": "読み上げ",
   "3ee98da81538c6de": "音声を再生できませんでした。",
-  "95435f0b59cb2193": "音声プレビュー"
+  "95435f0b59cb2193": "音声プレビュー",
+  "fc40977eaff94997": "{count, plural, one {{count} thread awaits} other {{count} threads await}} approval"
 }

@@ -1069,8 +1069,9 @@ export function isThreadWoke(input: {
 export type SidebarSectionEventKind = "done" | "woke";
 
 export interface SidebarSectionSignal {
-  /** The folder dot without its unread state, which the counts carry instead. */
+  /** The folder dot without its unread or approval states, which the counts carry instead. */
   readonly dot: "attention" | "failed" | "working" | null;
+  readonly approval: number;
   readonly done: number;
   readonly woke: number;
   readonly latest: { readonly kind: SidebarSectionEventKind; readonly at: number } | null;
@@ -1089,8 +1090,9 @@ export function resolveSidebarSectionSignal(
   let done = 0;
   let woke = 0;
   let latest: SidebarSectionSignal["latest"] = null;
+  const { approval, rest } = splitSidebarApprovals(threads);
   const quiet: Array<(typeof threads)[number]> = [];
-  for (const thread of threads) {
+  for (const thread of rest) {
     if (resolveSidebarThreadStatus(thread) !== "ready") {
       quiet.push(thread);
       continue;
@@ -1106,7 +1108,18 @@ export function resolveSidebarSectionSignal(
     if (event !== null && (latest === null || event.at > latest.at)) latest = event;
   }
   const dot = resolveSidebarFolderDot(quiet);
-  return { dot: dot === "unread" ? null : dot, done, woke, latest };
+  return { dot: dot === "unread" ? null : dot, approval, done, woke, latest };
+}
+
+/**
+ * Counts hidden threads blocked on an approval, which a closed folder or section
+ * shows louder than its dot, and returns the rest for the dot.
+ */
+export function splitSidebarApprovals<T extends SidebarThreadStatusInput>(
+  threads: ReadonlyArray<T>,
+): { approval: number; rest: T[] } {
+  const rest = threads.filter((thread) => resolveSidebarThreadStatus(thread) !== "approval");
+  return { approval: threads.length - rest.length, rest };
 }
 
 /**

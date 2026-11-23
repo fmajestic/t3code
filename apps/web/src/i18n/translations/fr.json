@@ -13166,5 +13166,6 @@
   "717c1c47a852a1a5": "Mettre la narration en pause",
   "0eceb5780908eb6c": "Lire à voix haute",
   "3ee98da81538c6de": "Impossible de lire la narration.",
-  "95435f0b59cb2193": "Aperçu audio"
+  "95435f0b59cb2193": "Aperçu audio",
+  "fc40977eaff94997": "{count, plural, one {{count} thread awaits} other {{count} threads await}} approval"
 }

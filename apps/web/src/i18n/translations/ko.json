@@ -13099,5 +13099,6 @@
   "717c1c47a852a1a5": "낭독 일시 정지",
   "0eceb5780908eb6c": "소리 내어 읽기",
   "3ee98da81538c6de": "낭독을 재생할 수 없습니다.",
-  "95435f0b59cb2193": "오디오 미리보기"
+  "95435f0b59cb2193": "오디오 미리보기",
+  "fc40977eaff94997": "{count, plural, one {{count} thread awaits} other {{count} threads await}} approval"
 }
