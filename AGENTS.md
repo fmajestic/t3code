@@ -155,3 +155,11 @@ Read the matching doc before changing code in that area; code review enforces th
 - No continuously repainting animations; they peg the GPU on high-refresh displays.
 - Security matters, but do not over-index on dev-mode or maintainer-only features. Read [SECURITY.md](SECURITY.md) before auditing or triaging reports.
 - If a rule here fights the task in front of you, say so loudly and get a human sign-off before breaking it.
+
+## Fork
+
+This checkout is a personal fork; `FORK.md` lists every way it differs from upstream.
+
+The `upstream` remote is always configured and points at `pingdotgg/t3code`, so use `upstream/main` directly without listing remotes first. `origin` is the fork on GitHub.
+
+A change that alters what a user or maintainer sees includes its `FORK.md` entry: a new entry under the matching heading, or the existing entry for that feature rewritten so it describes the change as it now stands. Write it with the code, as part of the work, whether or not you were asked to commit. When you do commit, the entry goes in the same commit as the code: check that `git diff --cached --stat` lists `FORK.md`, and amend it in if it is missing.
