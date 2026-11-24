@@ -5677,6 +5677,7 @@ interface ActiveClaudeTurnContext {
   // Set as finalization starts: a steer admitted later would stay pending
   // forever, so it fails and the orchestrator follows up instead.
   steersClosed: boolean;
+  readonly settled: Deferred.Deferred<void>;
   // Ledger growth of the steered segments; undefined once any segment's growth is unknown.
   steeredLedgerUsage: ClaudeLedgerUsage | undefined;
   readonly rootModels: Set<string>;
@@ -10645,6 +10646,7 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
             next.delete(input.context.providerTurnId);
             return next;
           });
+          yield* Deferred.succeed(input.context.settled, undefined);
         });
 
         const emitAssistantTextArtifacts = Effect.fnUntraced(function* (input: {
@@ -14723,6 +14725,7 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
               nativeSessionTitle: null,
               steeredSegmentUsage: [],
               steersClosed: false,
+              settled: yield* Deferred.make<void>(),
               steeredLedgerUsage: { inputTokens: 0, outputTokens: 0 },
               rootModels: new Set(),
               subagentsByTaskId: new Map(),
@@ -15036,15 +15039,35 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
               return next;
             });
             if (!(yield* Deferred.isDone(existing.closed))) {
-              yield* existing.query.interrupt.pipe(
+              // Read before interrupting: settling an interrupted turn clears the roster.
+              const mustRelaunch =
+                currentTurn.retryBudgetFailure !== undefined ||
+                scheduledWakeupsByNativeThread.has(existing.nativeThreadId) ||
+                (yield* liveProcessRunsBackgroundWork(existing));
+              const acknowledged = yield* existing.query.interrupt.pipe(
                 Effect.timeoutOption("10 seconds"),
+                Effect.map(Option.isSome),
                 // Teardown can close the CLI between the check and the write.
                 Effect.catch((error) =>
                   Deferred.isDone(existing.closed).pipe(
-                    Effect.flatMap((closed) => (closed ? Effect.void : Effect.fail(error))),
+                    Effect.flatMap((closed) =>
+                      closed ? Effect.succeed(false) : Effect.fail(error),
+                    ),
                   ),
                 ),
               );
+              // Only closing the CLI ends background work; otherwise keep it so the next prompt skips startup.
+              if (acknowledged && !mustRelaunch) {
+                const settled = yield* Deferred.await(currentTurn.settled).pipe(
+                  Effect.timeoutOption(CLAUDE_STOP_CONFIRM_TIMEOUT_MS),
+                );
+                // A head still pinned after settling would resume without the stopped prompt
+                // the live CLI already holds, so only then does the process have to go.
+                const headStillPinned =
+                  currentTurn.input.providerThread.nativeConversationHeadRef != null &&
+                  currentTurn.nativeMessageCursor === null;
+                if (Option.isSome(settled) && !headStillPinned) return;
+              }
               yield* existing.query.close.pipe(Effect.ignore);
             }
             const closed = yield* Deferred.await(existing.closed).pipe(

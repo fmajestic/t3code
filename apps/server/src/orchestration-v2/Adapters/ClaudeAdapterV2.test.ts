@@ -2636,7 +2636,29 @@ describe("ClaudeAdapterV2 attachments", () => {
                   reconnectMcpServer: () => Effect.die("unexpected MCP reconnect"),
                   listPermissionRules: Effect.die("unexpected permission rules read"),
                   stopTask: () => Effect.void,
-                  interrupt: Effect.void,
+                  // Real Claude answers an acknowledged interrupt with an aborted result.
+                  interrupt: Queue.offer(messages, {
+                    type: "result",
+                    subtype: "error_during_execution",
+                    duration_ms: 10,
+                    duration_api_ms: 10,
+                    is_error: true,
+                    num_turns: 1,
+                    stop_reason: "end_turn",
+                    total_cost_usd: 0,
+                    usage: {
+                      input_tokens: 1,
+                      output_tokens: 1,
+                      cache_creation_input_tokens: 0,
+                      cache_read_input_tokens: 0,
+                    },
+                    modelUsage: {},
+                    permission_denials: [],
+                    errors: ["Error: Request was aborted."],
+                    terminal_reason: "aborted_streaming",
+                    uuid: "00000000-0000-4000-9000-000000002601",
+                    session_id: "native-thread-claude-attachments",
+                  } as unknown as SDKMessage).pipe(Effect.asVoid),
                   close: Queue.shutdown(messages),
                 };
               }),
@@ -3897,6 +3919,7 @@ describe("ClaudeAdapterV2 background wake turns", () => {
         prefix: "t3-claude-v2-wake-",
       });
       const sdkMessages = yield* Queue.unbounded<SDKMessage>();
+      let interruptResults = 0;
       const processQueues: Array<Queue.Queue<SDKMessage>> = [];
       const processedMessages = new WeakMap<SDKMessage, Deferred.Deferred<void>>();
       const offerAndWait = Effect.fnUntraced(function* (
@@ -4066,7 +4089,21 @@ describe("ClaudeAdapterV2 background wake turns", () => {
                 reconnectMcpServer: () => Effect.die("unexpected MCP reconnect"),
                 listPermissionRules: options?.mcp?.listPermissionRules ?? Effect.succeed([]),
                 stopTask: options?.stopTask ?? (() => Effect.void),
-                interrupt: options?.interrupt ?? Effect.void,
+                // Real Claude answers an acknowledged interrupt with an aborted result.
+                interrupt:
+                  options?.interrupt ??
+                  Effect.suspend(() =>
+                    Queue.offer(
+                      processMessages,
+                      makeResultFrame({
+                        uuid: `00000000-0000-4000-9000-${String(++interruptResults).padStart(12, "0")}`,
+                        result: "",
+                        subtype: "error_during_execution",
+                        errors: ["Error: Request was aborted."],
+                        terminalReason: "aborted_streaming",
+                      }),
+                    ),
+                  ).pipe(Effect.asVoid),
                 close: options?.close?.(sdkMessages) ?? Effect.void,
               };
             }),
@@ -10370,8 +10407,11 @@ describe("ClaudeAdapterV2 background wake turns", () => {
           nativeThreadHasTurns: true,
         }),
       );
-      assert.equal(harness.processQueues.length, 2);
-      assert.isUndefined(harness.getOpenedOptions()?.resumeSessionAt);
+      assert.equal(
+        harness.processQueues.length,
+        1,
+        "the live CLI already holds the stopped turn, so it continues without relaunching",
+      );
     }).pipe(
       Effect.provide(
         Layer.mergeAll(
@@ -12806,16 +12846,29 @@ describe("ClaudeAdapterV2 background wake turns", () => {
       Effect.gen(function* () {
         const interruptSent = yield* Deferred.make<void>();
         const abortReported = yield* Deferred.make<void>();
+        const abortedResult = makeResultFrame({
+          uuid: "00000000-0000-4000-8000-000000000224",
+          result: "",
+          subtype: "error_during_execution",
+          errors: ["Error: Request was aborted."],
+          terminalReason: "aborted_streaming",
+        });
+        let processMessages: Queue.Queue<SDKMessage> | undefined;
         const harness = yield* makeWakeHarnessWithOptions({
           close: (sdkMessages) => Queue.shutdown(sdkMessages),
           ...(outcome === "interrupt_aborted"
             ? {
                 interrupt: Deferred.succeed(interruptSent, undefined).pipe(
                   Effect.andThen(Deferred.await(abortReported)),
+                  Effect.andThen(
+                    Effect.suspend(() => Queue.offer(processMessages!, abortedResult)),
+                  ),
+                  Effect.asVoid,
                 ),
               }
             : {}),
         });
+        processMessages = harness.sdkMessages;
         const attemptId = RunAttemptId.make(`claude-compact-${outcome}`);
         yield* harness.runtime.startTurn(
           makeClaudeTestTurnInput({
@@ -15980,7 +16033,7 @@ describe("ClaudeAdapterV2 background wake turns", () => {
       ),
   );
 
-  it.effect("lets the native SDK acknowledge Stop before closing its own query", () =>
+  it.effect("keeps the CLI running when the native SDK acknowledges Stop", () =>
     Effect.gen(function* () {
       let closes = 0;
       let acknowledge = Effect.void;
@@ -16094,7 +16147,7 @@ describe("ClaudeAdapterV2 background wake turns", () => {
         requestRuntimeRestart: true,
       });
       assert.equal((yield* Queue.take(harness.terminalReceipts)).status, "interrupted");
-      assert.equal(closes, 1);
+      assert.equal(closes, 0, "a follow-up prompt must not wait for Claude to relaunch");
       assert.lengthOf(harness.terminalEvents(), 1);
       const stoppedTool = harness.events.findLast(
         (event) =>
@@ -16114,6 +16167,164 @@ describe("ClaudeAdapterV2 background wake turns", () => {
         stoppedTool?.type === "turn_item.updated" ? stoppedTool.turnItem.status : undefined,
         "interrupted",
       );
+    }).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          IdAllocator.layer,
+          McpProviderSessions.layer,
+          NodeServices.layer,
+          NodeCrypto.layer,
+        ),
+      ),
+    ),
+  );
+
+  it.effect.each([
+    { wroteReply: true, closesAfterStop: 0 },
+    { wroteReply: false, closesAfterStop: 1 },
+  ])(
+    "after a rollback, Stop relaunches the CLI only if the head stays pinned (replied: $wroteReply)",
+    ({ wroteReply, closesAfterStop }) =>
+      Effect.gen(function* () {
+        let closes = 0;
+        let acknowledge = Effect.void;
+        const harness = yield* makeWakeHarnessWithOptions({
+          interrupt: Effect.suspend(() => acknowledge),
+          close: (messages) =>
+            Effect.sync(() => {
+              closes++;
+            }).pipe(Effect.andThen(Queue.shutdown(messages))),
+        });
+        const providerThread = {
+          ...harness.providerThread,
+          nativeConversationHeadRef: {
+            driver: ClaudeAdapterV2.CLAUDE_PROVIDER,
+            nativeId: "00000000-0000-4000-8000-000000000630",
+            strength: "weak" as const,
+          },
+        };
+        yield* harness.runtime.startTurn(
+          makeClaudeTestTurnInput({
+            threadId: harness.threadId,
+            providerThread,
+            now: yield* DateTime.now,
+            attemptId: RunAttemptId.make(`rolled-back-stop-${wroteReply}`),
+            text: "Prompt after a rollback",
+            attachments: [],
+          }),
+        );
+        yield* harness.until(() =>
+          harness.events.some(
+            (event) =>
+              event.type === "provider_turn.updated" && event.providerTurn.status === "running",
+          ),
+        );
+        const active = harness.events.find(
+          (event) =>
+            event.type === "provider_turn.updated" && event.providerTurn.status === "running",
+        );
+        if (active?.type !== "provider_turn.updated")
+          return yield* Effect.die("Missing running native turn");
+        if (wroteReply) {
+          yield* harness.offerAndWait(
+            claudeSdkFrame({
+              type: "assistant",
+              uuid: "00000000-0000-4000-8000-000000000631",
+              session_id: WAKE_NATIVE_SESSION,
+              parent_tool_use_id: null,
+              message: {
+                id: "msg_rolled_back_thinking",
+                model: "claude-sonnet-4-6",
+                type: "message",
+                role: "assistant",
+                content: [{ type: "thinking", thinking: "Checking the repo", signature: "" }],
+                stop_reason: null,
+                stop_sequence: null,
+                usage: { input_tokens: 1, output_tokens: 1 },
+              },
+            }),
+          );
+        }
+        acknowledge = harness.offerAndWait(
+          makeResultFrame({
+            uuid: "00000000-0000-4000-8000-000000000632",
+            result: "",
+            subtype: "error_during_execution",
+            errors: ["Error: Request was aborted."],
+            terminalReason: "aborted_streaming",
+          }),
+        );
+        const closesBeforeStop = closes;
+        yield* harness.runtime.interruptTurn({
+          providerThread,
+          providerTurnId: active.providerTurn.id,
+          requestRuntimeRestart: true,
+        });
+        assert.equal((yield* Queue.take(harness.terminalReceipts)).status, "interrupted");
+        assert.equal(closes - closesBeforeStop, closesAfterStop);
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            IdAllocator.layer,
+            McpProviderSessions.layer,
+            NodeServices.layer,
+            NodeCrypto.layer,
+          ),
+        ),
+      ),
+  );
+
+  it.effect("closes the CLI on an acknowledged Stop while background work runs", () =>
+    Effect.gen(function* () {
+      let closes = 0;
+      let acknowledge = Effect.void;
+      const harness = yield* makeWakeHarnessWithOptions({
+        interrupt: Effect.suspend(() => acknowledge),
+        close: (messages) =>
+          Effect.sync(() => {
+            closes++;
+          }).pipe(Effect.andThen(Queue.shutdown(messages))),
+      });
+      yield* harness.runtime.startTurn(
+        makeClaudeTestTurnInput({
+          threadId: harness.threadId,
+          providerThread: harness.providerThread,
+          now: yield* DateTime.now,
+          attemptId: RunAttemptId.make("background-stop"),
+          text: "Run the build in the background, then keep going",
+          attachments: [],
+        }),
+      );
+      yield* harness.until(() =>
+        harness.events.some(
+          (event) =>
+            event.type === "provider_turn.updated" && event.providerTurn.status === "running",
+        ),
+      );
+      const active = harness.events.find(
+        (event) =>
+          event.type === "provider_turn.updated" && event.providerTurn.status === "running",
+      );
+      if (active?.type !== "provider_turn.updated")
+        return yield* Effect.die("Missing running native turn");
+      yield* harness.offerAndWait(wakeTaskStarted);
+      acknowledge = harness.offerAndWait(
+        makeResultFrame({
+          uuid: "00000000-0000-4000-8000-000000000621",
+          result: "",
+          subtype: "error_during_execution",
+          errors: ["Error: Request was aborted."],
+          terminalReason: "aborted_tools",
+        }),
+      );
+      yield* harness.runtime.interruptTurn({
+        providerThread: harness.providerThread,
+        providerTurnId: active.providerTurn.id,
+        requestRuntimeRestart: true,
+      });
+      assert.equal((yield* Queue.take(harness.terminalReceipts)).status, "interrupted");
+      assert.equal(closes, 1, "Stop must end the background task with its process");
+      assert.lengthOf(harness.terminalEvents(), 1);
     }).pipe(
       Effect.provide(
         Layer.mergeAll(
@@ -26090,8 +26301,25 @@ describe("ClaudeAdapterV2 background wake turns", () => {
       const digestStarted = yield* Deferred.make<void>();
       const releaseDigest = yield* Deferred.make<void>();
       let pauseDigest = false;
+      const interruptSent = yield* Deferred.make<void>();
+      let processMessages: Queue.Queue<SDKMessage> | undefined;
       yield* Effect.gen(function* () {
-        const harness = yield* makeWorkflowHarnessWithOptions({ close: Queue.shutdown });
+        const harness = yield* makeWorkflowHarnessWithOptions({
+          close: Queue.shutdown,
+          interrupt: Effect.suspend(() =>
+            Queue.offer(
+              processMessages!,
+              makeResultFrame({
+                uuid: "00000000-0000-4000-8000-000000003106",
+                result: "",
+                subtype: "error_during_execution",
+                errors: ["Error: Request was aborted."],
+                terminalReason: "aborted_streaming",
+              }),
+            ),
+          ).pipe(Effect.andThen(Deferred.succeed(interruptSent, undefined)), Effect.asVoid),
+        });
+        processMessages = harness.sdkMessages;
         const secondTaskId = "task-workflow-buffered-completion";
         const secondToolUseId = "toolu-workflow-buffered-completion";
         yield* harness.runtime.startTurn(
@@ -26164,15 +26392,17 @@ describe("ClaudeAdapterV2 background wake turns", () => {
         pauseDigest = true;
         const replay = yield* harness.runtime.startTurn(continuationInput).pipe(Effect.forkScoped);
         yield* Deferred.await(digestStarted);
-        yield* harness.runtime.interruptTurn({
-          providerThread: harness.providerThread,
-          providerTurnId: (yield* IdAllocator.IdAllocatorV2).derive.providerTurn({
-            driver: ClaudeAdapterV2.CLAUDE_PROVIDER,
-            nativeTurnId: `turn:${continuationInput.attemptId}`,
-          }),
+        const providerTurnId = (yield* IdAllocator.IdAllocatorV2).derive.providerTurn({
+          driver: ClaudeAdapterV2.CLAUDE_PROVIDER,
+          nativeTurnId: `turn:${continuationInput.attemptId}`,
         });
+        const stop = yield* harness.runtime
+          .interruptTurn({ providerThread: harness.providerThread, providerTurnId })
+          .pipe(Effect.forkScoped);
+        yield* Deferred.await(interruptSent);
         yield* Deferred.succeed(releaseDigest, undefined);
         yield* Fiber.join(replay);
+        yield* Fiber.join(stop);
         const second = harness.events
           .flatMap((event) =>
             event.type === "subagent.updated" &&
