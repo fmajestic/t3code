@@ -1349,6 +1349,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
   if (variant !== "card") {
     const multiline = variant === "folder-multiline";
     const inFolder = variant === "folder" || multiline;
+    const showsWokeButton = inFolder ? isWokeStatus : isWoke;
     return (
       <li
         data-thread-item={threadKey}
@@ -1432,6 +1433,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                   className={cn(
                     "inline-flex justify-end tabular-nums text-secondary-label transition-opacity",
                     !isWoke && "group-any-hover/sidebar-row:opacity-0",
+                    showsWokeButton && "order-last",
                   )}
                 >
                   {pendingSync ? (
@@ -1444,7 +1446,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                       <AlarmClockIcon aria-hidden className="size-3" />
                       {props.snoozeWakeLabelText}
                     </span>
-                  ) : (inFolder ? isWokeStatus : isWoke) ? (
+                  ) : showsWokeButton ? (
                     <SharedTooltipTrigger
                       render={
                         <button
@@ -1497,7 +1499,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                       onPointerDown={handleActionPointerDown}
                       className={cn(
                         "pointer-events-none absolute inset-y-0 right-0 -mr-1 inline-flex cursor-pointer items-center gap-1 rounded-md bg-transparent px-1.5 text-xs text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100",
-                        isWoke && "group-any-hover/sidebar-row:static",
+                        isWoke &&
+                          "group-any-hover/sidebar-row:static group-any-hover/sidebar-row:mr-0",
                       )}
                     >
                       <AlarmClockOffIcon className="mb-px size-3" />
@@ -1514,7 +1517,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                         onPointerDown={handleActionPointerDown}
                         className={cn(
                           "pointer-events-none absolute inset-y-0 right-0 -mr-1 inline-flex cursor-pointer items-center gap-1 rounded-md bg-transparent px-1.5 text-xs text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100",
-                          isWoke && "group-any-hover/sidebar-row:static",
+                          isWoke &&
+                            "group-any-hover/sidebar-row:static group-any-hover/sidebar-row:mr-0",
                         )}
                       />
                     }
@@ -1537,7 +1541,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                         onPointerDown={handleActionPointerDown}
                         className={cn(
                           "pointer-events-none absolute inset-y-0 right-0 -mr-2 inline-flex cursor-pointer items-center gap-1 rounded-md bg-transparent px-2 text-xs text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:pointer-events-auto focus-visible:opacity-100 group-any-hover/sidebar-row:pointer-events-auto group-any-hover/sidebar-row:opacity-100",
-                          isWoke && "group-any-hover/sidebar-row:static",
+                          isWoke &&
+                            "group-any-hover/sidebar-row:static group-any-hover/sidebar-row:mr-0",
                         )}
                       />
                     }
@@ -1635,10 +1640,12 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                 <span
                   className={cn(
                     isWokeStatus
-                      ? "pointer-events-auto"
+                      ? "pointer-events-auto order-last"
                       : "pointer-events-none group-has-[:focus-visible]/sidebar-status-slot:absolute group-has-[:focus-visible]/sidebar-status-slot:right-0 group-has-[:focus-visible]/sidebar-status-slot:opacity-0 group-any-hover/sidebar-row:absolute group-any-hover/sidebar-row:right-0 group-any-hover/sidebar-row:opacity-0",
                     "flex items-center self-center justify-self-end tabular-nums text-secondary-label",
-                    snoozeMenuOpen && "pointer-events-none absolute right-0 opacity-0",
+                    snoozeMenuOpen &&
+                      !isWokeStatus &&
+                      "pointer-events-none absolute right-0 opacity-0",
                   )}
                 >
                   {pendingSync ? (
@@ -1745,7 +1752,10 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                             aria-label={gt("Settle thread")}
                             onClick={handleSettleClick}
                             onPointerDown={handleActionPointerDown}
-                            className="-mr-1 inline-flex cursor-pointer items-center gap-1 rounded-md bg-transparent px-1.5 text-xs text-muted-foreground hover:text-foreground"
+                            className={cn(
+                              "inline-flex cursor-pointer items-center gap-1 rounded-md bg-transparent px-1.5 text-xs text-muted-foreground hover:text-foreground",
+                              !isWokeStatus && "-mr-1",
+                            )}
                           />
                         }
                         label={

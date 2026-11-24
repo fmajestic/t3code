@@ -41,6 +41,7 @@ None right now.
 - **PR hover names its repository**: hovering a pull request in the thread details panel shows the repository it belongs to, so a multi-repo project's PRs can be told apart. The card splits the diff stat into code, tests and other kinds only when more than one kind changed, instead of repeating the total under Code.
 - **Stopping Claude keeps it running**: Stop on a Claude turn interrupts it and leaves the Claude process up, so the message you send next starts right away instead of waiting on "Starting Claude", and Claude keeps the stopped turn in its history, as Esc does in Claude Code. Stop still closes the process, as upstream always does, while a background shell, background subagent or scheduled wakeup runs, when a turn right after a rewind is stopped before Claude answers, when the turn ran out of API retries, or when Claude doesn't confirm the interrupt.
 - **Expanded agent messages clip like yours**: a long message from another agent or an automation, once expanded, clips with a fade and a Show full message button at its end, like your own long messages, instead of scrolling inside a fixed-height box.
+- **Woke stays put on hover**: in the sidebar, a thread's Woke button sits after the Snooze and Settle controls that hovering reveals, so it no longer slides left from under the pointer as you go to click it.
 
 ## Fork only
 
