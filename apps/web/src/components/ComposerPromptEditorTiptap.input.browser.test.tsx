@@ -28,7 +28,13 @@ import { cdp, userEvent } from "vite-plus/test/browser";
 import "~/index.css";
 import { act, fakeTimers, render } from "../../test/render";
 
-import { flatToMarkdown, pmToFlat, serializeEditorDoc } from "~/composer-rich-text-doc";
+import {
+  flatToMarkdown,
+  flatToPm,
+  markdownToFlat,
+  pmToFlat,
+  serializeEditorDoc,
+} from "~/composer-rich-text-doc";
 import { isMacPlatform } from "~/lib/utils";
 import { registerCommands } from "~/shortcuts/dispatcher";
 import {
@@ -436,6 +442,55 @@ it.each([
     expect(serializeEditorDoc(editor.state.doc).value).toBe(`\`\`\`\n${expected}\n\`\`\``);
   },
 );
+
+describe("typing > over a selection", () => {
+  const draft = "one\ntwo three\nfour\nfive six\nseven";
+  // From inside line 2 to inside line 4.
+  const [start, end] = [draft.indexOf("three"), draft.indexOf("ix")];
+
+  async function typeQuote(editor: Editor) {
+    const { from, to } = editor.state.selection;
+    await act(async () => typeText(editor, from, to, ">"));
+  }
+
+  function selectMarkdown(editor: Editor, from: number, to: number) {
+    const map = serializeEditorDoc(editor.state.doc);
+    const toPm = (offset: number) => flatToPm(map, markdownToFlat(map, offset));
+    editor.commands.setTextSelection({ from: toPm(from), to: toPm(to) });
+  }
+
+  function selectedMarkdown(editor: Editor) {
+    const map = serializeEditorDoc(editor.state.doc);
+    const { from, to } = editor.state.selection;
+    return map.value.slice(
+      flatToMarkdown(map, pmToFlat(map, from)),
+      flatToMarkdown(map, pmToFlat(map, to)),
+    );
+  }
+
+  it("quotes and unquotes the touched lines in plain text", async () => {
+    await using screen = await mountEditor(draft, false);
+    const { editor } = screen;
+    await act(async () => selectMarkdown(editor, start, end));
+    await typeQuote(editor);
+    expect(serializeEditorDoc(editor.state.doc).value).toBe(
+      "one\n> two three\n> four\n> five six\nseven",
+    );
+    expect(selectedMarkdown(editor)).toBe("three\n> four\n> five s");
+    await typeQuote(editor);
+    expect(serializeEditorDoc(editor.state.doc).value).toBe(draft);
+    expect(selectedMarkdown(editor)).toBe("three\nfour\nfive s");
+  });
+
+  it("turns the touched lines into a quote block in rich text", async () => {
+    await using screen = await mountEditor(draft, true);
+    const { editor } = screen;
+    await act(async () => selectMarkdown(editor, start, end));
+    await typeQuote(editor);
+    expect(editor.view.dom.querySelector("blockquote")?.textContent).toBe("two threefourfive six");
+    expect(selectedMarkdown(editor)).toBe("three\n> four\n> five s");
+  });
+});
 
 it("lets composition replace selected text without surrounding it", async () => {
   await using screen = await mountEditor("word");

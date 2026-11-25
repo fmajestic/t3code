@@ -64,6 +64,7 @@ import {
   expandCollapsedComposerCursor,
   pastedPathQueryLength,
 } from "~/composer-logic";
+import { toggleQuoteLines } from "~/composer-quote-lines";
 import { useStableCallback } from "~/hooks/useStableCallback";
 import { preserveReadingPosition } from "~/lib/preserveReadingPosition";
 import { caretLineDirection, ComposerTextDirectionExtension } from "~/composer-text-direction";
@@ -1553,11 +1554,9 @@ function ComposerPromptEditorTiptapInner(
         },
         handleTextInput: (view, from, to, text) => {
           if (literalText || view.composing || text.length !== 1) return false;
-          const closer = SURROUND_CLOSE[text];
           const { selection } = view.state;
           // Compose preedit updates replace a range even without a user selection.
           if (
-            !closer ||
             !(selection instanceof TextSelection) ||
             selection.empty ||
             selection.from !== from ||
@@ -1565,6 +1564,28 @@ function ComposerPromptEditorTiptapInner(
           ) {
             return false;
           }
+          if (text === ">") {
+            const map = serializeEditorDoc(view.state.doc);
+            const quoted = toggleQuoteLines(
+              map.value,
+              flatToMarkdown(map, pmToFlat(map, from)),
+              flatToMarkdown(map, pmToFlat(map, to)),
+            );
+            if (!quoted) return false;
+            // Rebuilding from Markdown keeps one code path for plain and rich text; undo
+            // restores whatever a quote around a list or fence does not render.
+            const doc = view.state.schema.nodeFromJSON(
+              buildDocJson(quoted.value, skillLabelFor, { styling: richText, isKnownModel }),
+            );
+            const tr = view.state.tr.replaceWith(0, view.state.doc.content.size, doc.content);
+            const nextMap = serializeEditorDoc(tr.doc);
+            const toPm = (offset: number) => flatToPm(nextMap, markdownToFlat(nextMap, offset));
+            tr.setSelection(TextSelection.create(tr.doc, toPm(quoted.start), toPm(quoted.end)));
+            view.dispatch(tr.scrollIntoView());
+            return true;
+          }
+          const closer = SURROUND_CLOSE[text];
+          if (!closer) return false;
           // Do not wrap chips, atoms, or styled text; default replacement preserves marks.
           // Shown Markdown source is plain text, so typed delimiters wrap it.
           let touchesSpecial = false;
