@@ -19,6 +19,7 @@ import { HighlightedSearchLine } from "./HighlightedSearchLine";
 import { SharedTooltipTrigger } from "../ui/shared-tooltip";
 
 interface ProjectContentSearchDialogProps {
+  readonly initialQuery: string;
   readonly onOpenChange: (open: boolean) => void;
 }
 
@@ -102,6 +103,7 @@ const scrollSelectedRowIntoView = (row: HTMLElement | null) => {
 };
 
 function OpenContentSearchDialog(props: {
+  readonly initialQuery: string;
   readonly onOpenChange: (open: boolean) => void;
   readonly target: ActiveProjectTarget;
 }) {
@@ -110,7 +112,7 @@ function OpenContentSearchDialog(props: {
   const messages = useMessages();
   const { resolvedTheme } = useTheme();
   const renderedAppearance = useRenderedAppearance();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(props.initialQuery);
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [wholeWord, setWholeWord] = useState(false);
   const [useRegex, setUseRegex] = useState(false);
@@ -337,6 +339,7 @@ export function ProjectContentSearchDialog(props: ProjectContentSearchDialogProp
   return target ? (
     <OpenContentSearchDialog
       key={`${target.environmentId}:${target.cwd}`}
+      initialQuery={props.initialQuery}
       onOpenChange={props.onOpenChange}
       target={target}
     />

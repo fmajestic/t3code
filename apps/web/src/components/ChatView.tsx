@@ -42,7 +42,12 @@ import { type TerminalLaunchContext, useChatTerminalActions } from "./chat/useCh
 import { useComposerSend } from "./chat/useComposerSend";
 import { useComposerResume } from "./chat/useComposerResume";
 import { ThreadFind, ThreadFindCanvas } from "./chat/ThreadFindProvider";
-import { closeThreadFind, openThreadFind, useThreadFindOpen } from "./chat/threadFindStore";
+import {
+  closeThreadFind,
+  openThreadFind,
+  openThreadFindOnQuery,
+  useThreadFindOpen,
+} from "./chat/threadFindStore";
 import { THREAD_FIND_BAR_RESERVED_HEIGHT } from "./chat/ThreadFindBar";
 import { useUsageLimitRecoveryBannerItem } from "./chat/UsageLimitRecoveryBanner";
 import {
@@ -225,6 +230,7 @@ import { BranchToolbar, type BranchToolbarHandle } from "./BranchToolbar";
 import { ComposerContextPermissions } from "./ComposerContextPermissions";
 import { makeWorkspaceFileDropHandlers } from "./chat/workspaceFileDrop";
 import { isEditableFocused, isFileEditorFocused } from "../lib/editableFocus";
+import { readSelectionQuery } from "../lib/selectionQuery";
 import { DEFAULT_RESOLVED_KEYBINDINGS } from "@t3tools/shared/keybindings";
 import { shortcutLabelForCommand } from "../keybindings";
 import { cn } from "~/lib/utils";
@@ -3008,7 +3014,9 @@ export default function ChatView(props: ChatViewProps) {
         ) {
           return false;
         }
-        openThreadFind(activeThreadKey);
+        const query = readSelectionQuery(event.target);
+        if (query) openThreadFindOnQuery(activeThreadKey, { query });
+        else openThreadFind(activeThreadKey);
       },
       "composer.cycleHost": ({ event }) => {
         if (!canChangeEnvironment) return false;

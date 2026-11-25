@@ -52,7 +52,9 @@ vi.mock("~/state/queries", async (original) => ({
 it("ignores composing keys in the search", async () => {
   using openFile = vi.spyOn(useRightPanelStore.getState(), "openFile").mockImplementation(() => {});
   const onOpenChange = vi.fn();
-  await using _screen = await render(<ProjectContentSearchDialog onOpenChange={onOpenChange} />);
+  await using _screen = await render(
+    <ProjectContentSearchDialog initialQuery="" onOpenChange={onOpenChange} />,
+  );
   const input = page.getByRole("combobox");
   await input.fill("計画");
 

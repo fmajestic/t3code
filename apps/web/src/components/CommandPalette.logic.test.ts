@@ -108,6 +108,22 @@ describe("reduceCommandPaletteUiState", () => {
       session: 2,
     });
   });
+
+  it("opens content search on a query as a new session, even when content search is open", () => {
+    let state: CommandPaletteUiState = {
+      open: true,
+      mode: "content",
+      openIntent: null,
+      session: 3,
+    };
+    state = reduceCommandPaletteUiState(state, { _tag: "OpenContentSearch", query: "needle" });
+    expect(state).toMatchObject({
+      open: true,
+      mode: "content",
+      openIntent: { kind: "content-search", query: "needle" },
+      session: 4,
+    });
+  });
 });
 
 describe("resolveAddProjectEntry", () => {

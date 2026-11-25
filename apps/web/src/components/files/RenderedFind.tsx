@@ -5,6 +5,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { collectThreadFindRanges } from "~/components/chat/threadFindHighlights";
 import { Input } from "~/components/ui/input";
 import { FILE_FIND_SCOPE_ATTRIBUTE } from "~/lib/editableFocus";
+import { readSelectionQuery } from "~/lib/selectionQuery";
 
 import { FileSurfaceAction } from "./fileSurfaceChrome";
 
@@ -86,8 +87,18 @@ export function RenderedFind(props: { readonly label: string; readonly children:
       {...{ [FILE_FIND_SCOPE_ATTRIBUTE]: "" }}
       className="relative flex min-h-0 flex-1 flex-col outline-none"
       onKeyDown={(event) => {
-        if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "f") {
+        if (
+          (event.metaKey || event.ctrlKey) &&
+          !event.altKey &&
+          !event.shiftKey &&
+          event.key.toLowerCase() === "f"
+        ) {
           event.preventDefault();
+          const selected = readSelectionQuery(event.target);
+          if (selected) {
+            setQuery(selected);
+            setActive(0);
+          }
           setOpen(true);
           requestAnimationFrame(() => {
             input.current?.focus();

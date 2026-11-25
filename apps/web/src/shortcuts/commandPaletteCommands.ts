@@ -12,6 +12,7 @@ import { toggleThemeEditorForTheme } from "../components/settings/themeEditorSto
 import { toastManager } from "../components/ui/toast";
 import { getThemeSnapshot, setAppearanceMode } from "../hooks/useTheme";
 import { m } from "../i18n/messages";
+import { readSelectionQuery } from "../lib/selectionQuery";
 import { selectActiveRightPanel, useRightPanelStore } from "../rightPanelStore";
 import { type CommandHandler, type CommandScopeOptions, registerCommands } from "./dispatcher";
 import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
@@ -105,7 +106,14 @@ export function installCommandPaletteCommands(
       },
       "commandPalette.toggle": toggleOverlay("commandPalette.toggle"),
       "filePicker.toggle": toggleOverlay("filePicker.toggle"),
-      "projectSearch.toggle": toggleOverlay("projectSearch.toggle"),
+      "projectSearch.toggle": (event) => {
+        const query = useCommandPaletteStore.getState().open
+          ? null
+          : readSelectionQuery(event.target);
+        if (query === null) return toggleOverlay("projectSearch.toggle")(event);
+        consume(event);
+        dispatchCommandPalette({ _tag: "OpenContentSearch", query });
+      },
     },
     {
       ...options,

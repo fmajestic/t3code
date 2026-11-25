@@ -17,6 +17,7 @@ import { ChevronDownIcon, ChevronUpIcon, MinusIcon, PlusIcon, ScanIcon } from "l
 import { Input } from "~/components/ui/input";
 import { observeResize } from "~/lib/observeResize";
 import { FILE_FIND_SCOPE_ATTRIBUTE } from "~/lib/editableFocus";
+import { readSelectionQuery } from "~/lib/selectionQuery";
 import { FileSurfaceAction, FileSurfaceFailure, FileSurfaceLoading } from "./fileSurfaceChrome";
 import { readBoundedDocument } from "./readBoundedDocument";
 import { previewErrorText } from "./previewFailureMessages";
@@ -599,6 +600,12 @@ export default function PdfViewer(props: {
           if ((event.ctrlKey || event.metaKey) && event.key === "f") {
             event.preventDefault();
             event.stopPropagation();
+            const selected = readSelectionQuery(event.target);
+            if (selected) {
+              setQuery(selected);
+              setMatches([]);
+              setFindError(null);
+            }
             find.current?.focus();
           }
         }}

@@ -87,6 +87,7 @@ export type CommandPaletteOpenIntent =
       /** The draft a project is being picked for; one with user content moves to it. */
       readonly draftId?: DraftId;
     }
+  | { readonly kind: "content-search"; readonly query: string }
   | {
       readonly kind: "search";
       readonly query: string;
@@ -107,6 +108,7 @@ export interface CommandPaletteUiState {
 export type CommandPaletteUiAction =
   | { readonly _tag: "SetOpen"; readonly open: boolean }
   | { readonly _tag: "ToggleMode"; readonly mode: SearchOverlayMode }
+  | { readonly _tag: "OpenContentSearch"; readonly query: string }
   | {
       readonly _tag: "OpenSearch";
       readonly query: string;
@@ -142,6 +144,11 @@ export function reduceCommandPaletteUiState(
       return state.open && state.mode === action.mode
         ? { open: false, mode: state.mode, openIntent: null, session }
         : { open: true, mode: action.mode, openIntent: null, session };
+    case "OpenContentSearch":
+      return {
+        ...openWithIntent({ kind: "content-search", query: action.query }),
+        mode: "content",
+      };
     case "OpenChildSearch":
       return {
         open: true,
