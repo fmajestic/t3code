@@ -1,7 +1,9 @@
 import { useGT } from "gt-react";
 import { useLayoutEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { MaximizeIcon, MinusIcon, PlusIcon, ScanIcon } from "lucide-react";
 import { ExpandedImageDialog } from "~/components/chat/ExpandedImageDialog";
+import { usePinchZoom } from "~/hooks/usePinchZoom";
 import { observeResize } from "~/lib/observeResize";
 import { AttachmentImage } from "../media/AttachmentImage";
 import { FileSurfaceAction, FileSurfaceFailure } from "./fileSurfaceChrome";
@@ -19,6 +21,7 @@ export default function PreviewImageContent(props: {
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [zoom, setZoom] = useState<number | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const frame = useRef<HTMLButtonElement>(null);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Measure the image viewport before paint and observe resizes to keep fit-to-view scaling accurate.
   useLayoutEffect(() => {
     const node = ref.current;
@@ -44,6 +47,23 @@ export default function PreviewImageContent(props: {
     : 1;
   const scale = zoom ?? fit;
   const changeZoom = (factor: number) => setZoom(Math.max(0.05, Math.min(8, scale * factor)));
+  usePinchZoom(ref, (factor, at) => {
+    const node = ref.current;
+    const target = frame.current;
+    if (!node || !target || !natural.width) return;
+    const before = target.getBoundingClientRect();
+    // The new size must be laid out before the scroll can keep the pinched spot under the pointer.
+    flushSync(() => changeZoom(factor));
+    const after = target.getBoundingClientRect();
+    node.scrollLeft +=
+      after.left -
+      before.left +
+      ((at.clientX - before.left) / before.width) * (after.width - before.width);
+    node.scrollTop +=
+      after.top -
+      before.top +
+      ((at.clientY - before.top) / before.height) * (after.height - before.height);
+  });
   if (failed) return <FileSurfaceFailure message={gt("Unable to load image.")} />;
   return (
     <>
@@ -94,6 +114,7 @@ export default function PreviewImageContent(props: {
           }}
         >
           <button
+            ref={frame}
             type="button"
             aria-label={gt("Zoom {name}", { name: props.name })}
             className="shrink-0 cursor-zoom-in"

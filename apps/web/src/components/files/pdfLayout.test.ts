@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 import {
   currentPdfPage,
+  pdfAnchoredScroll,
   pdfFindIncludes,
   pdfFindMatchRuns,
   pdfPageOffsets,
@@ -8,6 +9,7 @@ import {
   pdfPageText,
   pdfPageWidth,
   pdfRestoredScrollTop,
+  scalePdfZoom,
   stepPdfZoom,
   visiblePdfPages,
 } from "./pdfLayout";
@@ -20,6 +22,26 @@ describe("pdfPageWidth", () => {
 
   it("never collapses below one pixel in a tiny viewport", () => {
     expect(pdfPageWidth(10, 612, null).width).toBe(1);
+  });
+});
+
+describe("pdfAnchoredScroll", () => {
+  it("keeps the point under the pointer in place, page gaps unscaled", () => {
+    // Two square pages at width 400 sit at 16..416 and 432..832, centred at left 50 in 500px.
+    expect(
+      pdfAnchoredScroll([1, 1], 500, { top: 0, left: 0, width: 400 }, 800, { x: 250, y: 216 }),
+    ).toEqual({ top: 200, left: 166 });
+    expect(
+      pdfAnchoredScroll([1, 1], 500, { top: 500, left: 0, width: 400 }, 800, { x: 0, y: 0 }).top,
+    ).toBe(832 + 68 * 2);
+  });
+});
+
+describe("scalePdfZoom", () => {
+  it("stays within 25%..300%", () => {
+    expect(scalePdfZoom(2.9, 2)).toBe(3);
+    expect(scalePdfZoom(0.3, 0.5)).toBe(0.25);
+    expect(scalePdfZoom(1, 1.5)).toBe(1.5);
   });
 });
 

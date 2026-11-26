@@ -44,6 +44,7 @@ None right now.
 - **Expanded agent messages clip like yours**: a long message from another agent or an automation, once expanded, clips with a fade and a Show full message button at its end, like your own long messages, instead of scrolling inside a fixed-height box.
 - **`>` quotes the selected lines**: typing `>` over a selection in the composer adds `> ` to the start of every line it touches, whole lines even where the selection starts or ends mid-line, and keeps the same text selected. A line the selection ends at the very start of is left out, and blank lines get a bare `>` so the quote stays one block. If every non-blank line already starts with `>`, it removes one level instead. Rich text edits the Markdown the same way, so a list or code block inside the quote may not render; undo restores it. Answers to an agent's question still replace the selection.
 - **Woke stays put on hover**: in the sidebar, a thread's Woke button sits after the Snooze and Settle controls that hovering reveals, so it no longer slides left from under the pointer as you go to click it.
+- **Pinch to zoom PDFs and images**: a trackpad pinch, or Ctrl+scroll wheel, zooms a PDF or an image in the file viewer around the pointer, within the toolbar's zoom range. On desktop a pinch there used to do nothing, and on the web it zoomed the whole page. Safari's pinch works through its own gesture events, also in the expanded image view. Web and desktop; mobile already uses the system viewers.
 
 ## Fork only
 

@@ -1,5 +1,6 @@
 import { expect, it, vi } from "vite-plus/test";
 import { userEvent } from "vite-plus/test/browser";
+import { useState } from "react";
 
 import { RightPanelSheet } from "~/components/RightPanelSheet";
 import { act, render } from "../../../test/render";
@@ -45,7 +46,7 @@ vi.mock(import("./pdfDocument"), async (importOriginal) => {
   };
 });
 
-import PdfViewer from "./PdfViewer";
+import PdfViewer, { type PdfViewState } from "./PdfViewer";
 
 // Page 1 is a short banner whose title is drawn in two runs with a font change, so pdf.js
 // splits it into two text spans. Page 2 is a letter page rotated a quarter turn.
@@ -289,6 +290,56 @@ it("restores page, within-page offset and zoom after a remount", async () => {
     await screen.rerender(viewer(4, "restore:b"));
     await expect.element(screen.getByText("1 / 2 pages")).toBeVisible();
     await expect.element(screen.getByText("Fit width")).toBeVisible();
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+});
+
+it("pinch zooms around the pointer without zooming the page", async () => {
+  const url = URL.createObjectURL(testPdf());
+  // The file viewer keeps the reported view, which re-renders the viewer before the scroll event.
+  function Viewer() {
+    const [view, setView] = useState<PdfViewState>({ page: 0, offset: 0, zoom: null, left: 0 });
+    return <PdfViewer src={url} title="Pinched PDF" initialView={view} onViewChange={setView} />;
+  }
+  try {
+    await using screen = await render(
+      <div className="flex h-[300px] w-[320px]">
+        <Viewer />
+      </div>,
+    );
+    await expect.element(screen.getByText("1 / 2 pages")).toBeVisible();
+    const region = screen.getByRole("region", { name: "Pinched PDF" }).element();
+    const page = () => region.querySelector('canvas[aria-label="Page 1"]')!.parentElement!;
+    const before = page().getBoundingClientRect();
+    const at = { clientX: before.left + before.width * 0.75, clientY: before.top + 40 };
+    const spot = (rect: DOMRect) => [
+      (at.clientX - rect.left) / rect.width,
+      (at.clientY - rect.top) / rect.width,
+    ];
+
+    const scroll = new WheelEvent("wheel", { ...at, deltaY: 30, bubbles: true, cancelable: true });
+    region.dispatchEvent(scroll);
+    expect(scroll.defaultPrevented).toBe(false);
+
+    const pinch = new WheelEvent("wheel", {
+      ...at,
+      deltaY: -40,
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(() => region.dispatchEvent(pinch));
+    expect(pinch.defaultPrevented).toBe(true);
+    await expect.element(screen.getByText(/^\d+%$/)).toBeVisible();
+    await vi.waitFor(() => {
+      const after = page().getBoundingClientRect();
+      expect(after.width).toBeCloseTo(before.width * Math.exp(0.4), 0);
+      const [x, y] = spot(after);
+      const [x0, y0] = spot(before);
+      expect(x).toBeCloseTo(x0!, 2);
+      expect(y).toBeCloseTo(y0!, 2);
+    });
   } finally {
     URL.revokeObjectURL(url);
   }

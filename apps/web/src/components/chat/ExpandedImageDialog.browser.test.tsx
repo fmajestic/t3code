@@ -162,6 +162,8 @@ describe("ExpandedImageDialog", () => {
     expect(wheels.at(-1)).toEqual({ ctrlKey: false, canceled: false });
     expect(image.getBoundingClientRect().width).toBe(fitWidth);
 
+    // A wheel notch is capped like a short pinch, so it takes two to overflow the dialog.
+    await ctrlWheel(-100);
     await ctrlWheel(-100);
     expect(wheels.at(-1)).toEqual({ ctrlKey: true, canceled: true });
     const zoomedWidth = image.getBoundingClientRect().width;

@@ -17,6 +17,7 @@ import { ChevronDownIcon, ChevronUpIcon, MinusIcon, PlusIcon, ScanIcon } from "l
 import { Input } from "~/components/ui/input";
 import { observeResize } from "~/lib/observeResize";
 import { FILE_FIND_SCOPE_ATTRIBUTE } from "~/lib/editableFocus";
+import { usePinchZoom } from "~/hooks/usePinchZoom";
 import { readSelectionQuery } from "~/lib/selectionQuery";
 import { FileSurfaceAction, FileSurfaceFailure, FileSurfaceLoading } from "./fileSurfaceChrome";
 import { readBoundedDocument } from "./readBoundedDocument";
@@ -24,6 +25,7 @@ import { previewErrorText } from "./previewFailureMessages";
 import { openPdf } from "./pdfDocument";
 import {
   currentPdfPage,
+  pdfAnchoredScroll,
   pdfFindIncludes,
   pdfFindMatchRuns,
   pdfPageOffsets,
@@ -34,6 +36,7 @@ import {
   pdfRestoredScrollTop,
   PDF_MAX_ZOOM,
   PDF_MIN_ZOOM,
+  scalePdfZoom,
   stepPdfZoom,
   visiblePdfPages,
 } from "./pdfLayout";
@@ -277,7 +280,15 @@ export default function PdfViewer(props: {
   const [match, setMatch] = useState(0);
   const scroll = useRef<HTMLDivElement>(null);
   const find = useRef<HTMLInputElement>(null);
-  const zoomAnchor = useRef<{ page: number; offset: number; width: number } | null>(null);
+  // The layout a zoom started from and the point that stays put; a pinch zooms again before it commits.
+  const zoomAnchor = useRef<{
+    top: number;
+    left: number;
+    width: number;
+    x: number;
+    y: number;
+    zoom: number | null;
+  } | null>(null);
   const initialPage = initialView.page;
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Own the PDF fetch, load timeout, and pdf.js document task across source changes, retries, and unmounts.
   useEffect(() => {
@@ -406,24 +417,41 @@ export default function PdfViewer(props: {
   const showPage = (index: number) => {
     scroll.current?.scrollTo({ top: pdfPageScrollTop(offsets, index) });
   };
-  const changeZoom = (value: number | null) => {
+  const changeZoom = (value: number | null, pointer?: { x: number; y: number }) => {
+    // No commit would clear an anchor for an unchanged zoom, and a later zoom would start from it.
+    if (value === zoom && !zoomAnchor.current) return;
+    const node = scroll.current;
     zoomAnchor.current = {
-      page: current,
-      offset: (scroll.current?.scrollTop ?? 0) - (offsets[current]! - 16),
-      width,
+      ...(zoomAnchor.current ?? {
+        top: node?.scrollTop ?? 0,
+        left: node?.scrollLeft ?? 0,
+        width,
+      }),
+      ...(pointer ?? { x: viewport.width / 2, y: 0 }),
+      zoom: value,
     };
     setZoom(value);
   };
+  usePinchZoom(scroll, (factor, at) => {
+    const node = scroll.current;
+    if (!node || !pdf) return;
+    const rect = node.getBoundingClientRect();
+    changeZoom(scalePdfZoom(zoomAnchor.current?.zoom ?? scale, factor), {
+      x: at.clientX - rect.left,
+      y: at.clientY - rect.top,
+    });
+  });
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Restore the DOM scroll anchor after a zoom or resize has committed the new page width.
   useLayoutEffect(() => {
-    const anchor = zoomAnchor.current;
-    zoomAnchor.current = null;
+    // A commit from another update can land before the zoom's own.
+    const anchor = zoomAnchor.current?.zoom === zoom ? zoomAnchor.current : null;
+    if (anchor) zoomAnchor.current = null;
     const node = scroll.current;
     if (!node || !pdf) return;
     if (anchor && anchor.width !== width) {
-      node.scrollTo({
-        top: offsets[anchor.page]! - 16 + (anchor.offset * width) / anchor.width,
-      });
+      node.scrollTo(pdfAnchoredScroll(ratios, viewport.width, anchor, width, anchor));
+      // onViewChange re-renders before the scroll event, which would read the old top as a resize.
+      setScrolled({ top: node.scrollTop, width, pdf });
     } else if (resized) node.scrollTo({ top: scrollTop });
     saveView(node, anchor !== null);
   });
@@ -640,7 +668,7 @@ export default function PdfViewer(props: {
             {visible.map(({ index, ratio }) => (
               <div
                 key={index}
-                className="absolute bg-white shadow-sm"
+                className="absolute overflow-clip bg-white shadow-sm"
                 style={
                   {
                     top: offsets[index],

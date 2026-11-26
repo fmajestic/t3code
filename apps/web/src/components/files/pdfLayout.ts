@@ -66,6 +66,33 @@ export function pdfRestoredScrollTop(
   );
 }
 
+/**
+ * Scroll position that keeps the document point under `pointer` (viewport px) under it after the
+ * page width changes from `from.width`; pages stay centred and the gaps between them do not scale.
+ */
+export function pdfAnchoredScroll(
+  ratios: readonly number[],
+  viewportWidth: number,
+  from: { top: number; left: number; width: number },
+  width: number,
+  pointer: { x: number; y: number },
+) {
+  const before = pdfPageOffsets(ratios, from.width);
+  const after = pdfPageOffsets(ratios, width);
+  const y = from.top + pointer.y;
+  let page = 0;
+  while (page < ratios.length - 1 && before[page + 1]! <= y) page++;
+  const top = after[page]! + ((y - before[page]!) * width) / from.width - pointer.y;
+  const leftOf = (pageWidth: number) => Math.max(PDF_PAGE_GAP, (viewportWidth - pageWidth) / 2);
+  const x = from.left + pointer.x - leftOf(from.width);
+  return { top, left: leftOf(width) + (x * width) / from.width - pointer.x };
+}
+
+/** Zoom multiplied by `factor`, within the zoom limits. */
+export function scalePdfZoom(scale: number, factor: number) {
+  return Math.min(PDF_MAX_ZOOM, Math.max(PDF_MIN_ZOOM, scale * factor));
+}
+
 /** Where the place at `from.top` lands after the page width changes from `from.width`. */
 export function pdfResizedScrollTop(
   ratios: readonly number[],
